@@ -12,6 +12,11 @@ export interface AdminProfile {
   fullName: string;
   email: string;
   role: string;
+  /**
+   * Path to a profile photo under `public/`, or null for the initials
+   * fallback. Optional because the backend may not store one.
+   */
+  avatarUrl?: string | null;
 }
 
 /** Raw payload returned by `POST {API_BASE_URL}/api/v1/auth/login`. */
