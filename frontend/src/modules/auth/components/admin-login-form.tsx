@@ -118,7 +118,7 @@ export function AdminLoginForm() {
         type="submit"
         isLoading={isSubmitting}
         loadingText="Signing in…"
-        className="mt-2"
+        className="mt-2 w-full"
       >
         Sign In
         <ArrowRight aria-hidden className="size-4" />

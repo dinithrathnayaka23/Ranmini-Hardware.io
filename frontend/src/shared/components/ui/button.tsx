@@ -1,10 +1,11 @@
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import * as React from "react";
 
 import { cn } from "@/shared/lib/cn";
 
 type ButtonVariant = "primary" | "secondary" | "ghost";
-type ButtonSize = "md" | "lg";
+type ButtonSize = "sm" | "md" | "lg";
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -25,9 +26,25 @@ const variantStyles: Record<ButtonVariant, string> = {
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
+  sm: "h-10 px-3.5 text-sm",
   md: "h-11 px-4 text-sm",
   lg: "h-13 px-5 text-[0.95rem]",
 };
+
+function buttonClasses(
+  variant: ButtonVariant,
+  size: ButtonSize,
+  className?: string,
+): string {
+  return cn(
+    "inline-flex items-center justify-center gap-2 rounded-[10px]",
+    "font-medium tracking-tight transition-colors duration-150",
+    "disabled:cursor-not-allowed disabled:opacity-60",
+    variantStyles[variant],
+    sizeStyles[size],
+    className,
+  );
+}
 
 /**
  * Primary interactive control for the admin portal.
@@ -58,14 +75,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         // sign-in requests (and duplicate writes) happen.
         disabled={disabled || isLoading}
         aria-busy={isLoading}
-        className={cn(
-          "inline-flex w-full items-center justify-center gap-2 rounded-[10px]",
-          "font-medium tracking-tight transition-colors duration-150",
-          "disabled:cursor-not-allowed disabled:opacity-60",
-          variantStyles[variant],
-          sizeStyles[size],
-          className,
-        )}
+        className={buttonClasses(variant, size, className)}
         {...props}
       >
         {isLoading ? (
@@ -80,3 +90,29 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     );
   },
 );
+
+/**
+ * A link that looks like a {@link Button}.
+ *
+ * Used where the control navigates rather than acts — an anchor keeps
+ * middle-click, "open in new tab" and the browser's own affordances working,
+ * all of which a `<button>` with an onClick handler quietly breaks.
+ */
+export function ButtonLink({
+  href,
+  variant = "primary",
+  size = "lg",
+  className,
+  children,
+  ...props
+}: Omit<React.ComponentProps<typeof Link>, "className"> & {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  className?: string;
+}) {
+  return (
+    <Link href={href} className={buttonClasses(variant, size, className)} {...props}>
+      {children}
+    </Link>
+  );
+}
