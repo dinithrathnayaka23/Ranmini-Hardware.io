@@ -62,6 +62,12 @@ const contentSecurityPolicy = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  // Development-only overlay. Its default bottom-left position sits directly on
+  // top of the portal sidebar's user profile, so move it out of the way.
+  devIndicators: {
+    position: "bottom-right",
+  },
+
   // Pin the file-tracing root to this package so unrelated lockfiles elsewhere
   // on the machine cannot widen the production bundle's traced dependencies.
   outputFileTracingRoot: path.join(__dirname),
