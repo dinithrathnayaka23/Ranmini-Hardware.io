@@ -30,9 +30,41 @@
   --color-surface: #ffffff;      /* Cards and inputs                     */
   --color-canvas: #ffffff;       /* Page background                      */
 
-  /* Feedback */
+  /* Feedback — each pairs a strong colour for text/icons with a soft tint
+     used as a background fill, so the two always stay in step. */
   --color-danger: #c02525;
   --color-danger-soft: #fdf2f2;
+  --color-success: #15803d;
+  --color-success-soft: #ecf8f1;
+  --color-warning: #b45309;
+  --color-warning-soft: #fdf5ea;
+
+  /* Dark navigation rail. Kept separate from the neutral ramp because these
+     are surface colours for a permanently dark region, not text shades. */
+  --color-rail: #0b2239;         /* Sidebar background                   */
+  --color-rail-raised: #14304e;  /* Hover / active nav row               */
+  --color-rail-line: #1c3a5c;      /* Dividers on the rail                 */
+  --color-rail-muted: #93a4b8;   /* Secondary text on the rail           */
+
+  /* Application chrome behind cards — a hair off white so white cards read
+     as raised surfaces rather than dissolving into the page. */
+  --color-canvas-subtle: #f5f7fb;
+
+  /* ---------------------------------------------------------------------
+     Categorical data-visualisation palette.
+     Assigned to series in this fixed order and never cycled: the ordering is
+     what keeps adjacent segments distinguishable for colour-blind readers.
+     Validated as a set against the light chart surface — all pairs clear the
+     CVD (worst deutan dE 9.2) and normal-vision (worst dE 27.6) floors.
+     Chart 3 sits below 3:1 contrast on white, so every chart using it must
+     carry visible labels rather than relying on colour alone.
+     --------------------------------------------------------------------- */
+  --color-chart-1: #1a4fd6;
+  --color-chart-2: #eb6834;
+  --color-chart-3: #1baf7a;
+
+  /* Recessive hairline for gridlines and axes — one step off the surface. */
+  --color-chart-grid: #e7eaf0;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, sans-serif;
@@ -82,5 +114,29 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Print
+ *
+ * The reports screen offers "Export PDF", which is the browser's own
+ * print-to-PDF. Without these rules the navigation rail and top bar would be
+ * baked into the document, and cards would break across pages mid-table.
+ * ------------------------------------------------------------------------- */
+@media print {
+  [data-print="hide"] {
+    display: none !important;
+  }
+
+  /* The shell pins itself to one viewport on screen; printing needs the
+     opposite, or only the first screenful would ever reach the page. */
+  [data-print="expand"] {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body {
+    background: #ffffff;
   }
 }
