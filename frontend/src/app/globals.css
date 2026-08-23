@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+ * Design tokens
+ *
+ * Single source of truth for the admin portal's visual language. Components
+ * reference these semantic names (bg-brand-600, text-ink, border-line) rather
+ * than raw hex values, so a rebrand is a change in this file alone.
+ * ------------------------------------------------------------------------- */
+@theme {
+  /* Brand blue — primary actions, links, focus rings, the logo mark. */
+  --color-brand-50: #eff4ff;
+  --color-brand-100: #dbe6ff;
+  --color-brand-200: #bfd2ff;
+  --color-brand-300: #93b2ff;
+  --color-brand-400: #6087fb;
+  --color-brand-500: #3b62f6;
+  --color-brand-600: #1a4fd6;
+  --color-brand-700: #163fb0;
+  --color-brand-800: #17368c;
+  --color-brand-900: #18326f;
+
+  /* Neutrals — text, surfaces and hairlines. */
+  --color-ink: #0d0f14;          /* Headings and primary text            */
+  --color-ink-soft: #3f4753;     /* Body copy                            */
+  --color-muted: #6b7482;        /* Secondary/help text                  */
+  --color-placeholder: #9aa3b0;  /* Input placeholders and inert icons   */
+  --color-line: #dfe3e9;         /* Borders and dividers                 */
+  --color-line-strong: #c8ced8;  /* Hover state for borders              */
+  --color-surface: #ffffff;      /* Cards and inputs                     */
+  --color-canvas: #ffffff;       /* Page background                      */
+
+  /* Feedback */
+  --color-danger: #c02525;
+  --color-danger-soft: #fdf2f2;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+}
+
+/* ---------------------------------------------------------------------------
+ * Base layer
+ * ------------------------------------------------------------------------- */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /*
+   * Show focus rings for keyboard users without drawing them on mouse clicks.
+   * Never remove the outline outright — it is the only affordance a
+   * keyboard-only administrator has for tracking position on the form.
+   */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
+  }
+
+  /* Chrome/Edge autofill repaints inputs a hard yellow; keep our surface. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--color-ink);
+    box-shadow: 0 0 0 1000px var(--color-surface) inset;
+    transition: background-color 9999s ease-in-out 0s;
+  }
+}
+
+/* Respect users who have asked the OS to reduce motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
