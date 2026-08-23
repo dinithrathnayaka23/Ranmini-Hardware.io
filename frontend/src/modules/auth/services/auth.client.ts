@@ -43,6 +43,26 @@ export async function login(values: LoginFormValues): Promise<LoginOutcome> {
   }
 }
 
+/**
+ * Ends the session by asking the BFF to expire the auth cookies.
+ *
+ * The cookies are httpOnly, so the browser cannot clear them itself — only the
+ * server that set them can. Returns whether the clearing actually succeeded,
+ * because navigating away from a session that is still live would look like a
+ * sign-out without being one.
+ */
+export async function logout(): Promise<boolean> {
+  try {
+    const response = await fetch(apiRoutes.logout, {
+      method: "POST",
+      credentials: "same-origin",
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Safely pulls a `message` string out of an unknown JSON error body. */
 function readMessage(payload: unknown): string | null {
   if (
