@@ -65,6 +65,182 @@ npm run dev                    # http://localhost:3000
 
 Not yet scaffolded. The frontend expects a Spring Boot service at `API_BASE_URL`.
 
+## Routes
+
+URLs come from one table, `frontend/src/shared/config/app.config.ts`; nothing
+hard-codes a path string.
+
+| URL                 | Route group | File                                        | State |
+| ------------------- | ----------- | ------------------------------------------- | ----- |
+| `/`                 | —           | `app/page.tsx`                              | Redirects to `/admin/login` |
+| `/admin/login`      | `(auth)`    | `app/(auth)/admin/login/page.tsx`           | Built |
+| `/admin/dashboard`  | `(portal)`  | `app/(portal)/admin/dashboard/page.tsx`     | Built |
+| `/admin/inventory`  | `(portal)`  | `app/(portal)/admin/inventory/page.tsx`     | Built |
+| `/admin/inventory/new` | `(portal)` | `app/(portal)/admin/inventory/new/page.tsx` | Placeholder |
+| `/admin/inventory/categories` | `(portal)` | `app/(portal)/admin/inventory/categories/page.tsx` | Placeholder |
+| `/admin/reports`    | `(portal)`  | `app/(portal)/admin/reports/page.tsx`       | Built |
+| `/admin/reports/generate` | `(portal)` | `app/(portal)/admin/reports/generate/page.tsx` | Placeholder |
+| `/admin/reports/daily` | `(portal)` | `app/(portal)/admin/reports/daily/page.tsx` | Placeholder |
+| `/admin/staff`      | `(portal)`  | `app/(portal)/admin/staff/page.tsx`         | Built |
+| `/admin/settings`   | `(portal)`  | `app/(portal)/admin/settings/page.tsx`      | Built — Shop Profile |
+| `/admin/settings/business-logic` | `(portal)` | `app/(portal)/admin/settings/business-logic/page.tsx` | Built |
+| `/admin/settings/receipts` | `(portal)` | `app/(portal)/admin/settings/receipts/page.tsx` | Built |
+| `/admin/settings/security` | `(portal)` | `app/(portal)/admin/settings/security/page.tsx` | Built |
+| `/api/auth/login`   | —           | `app/api/auth/login/route.ts`               | BFF endpoint |
+| `/api/auth/logout`  | —           | `app/api/auth/logout/route.ts`              | BFF endpoint |
+
+Route groups are folder-only conventions and never appear in a URL. `(auth)`
+carries the split-screen sign-in shell; `(portal)` carries the sidebar shell.
+Both live under the same `/admin/*` space.
+
+Placeholder pages exist so every navigation target leads somewhere and says
+plainly that the screen is still to come, rather than dead-ending on a 404 that
+looks like a bug. The same reasoning covers the inventory header buttons: they
+route to real placeholder screens instead of rendering as controls that do
+nothing when clicked. Delete each as its real design lands.
+
+Nested routes keep their parent section highlighted in the sidebar, so
+`/admin/inventory/new` still shows Inventory as current.
+
+**Not yet implemented:** nothing guards the portal. Any visitor can open
+`/admin/dashboard` without signing in. Add a middleware session check — the
+`TODO(auth)` in `app/(portal)/layout.tsx` marks the spot — before this is
+exposed to anyone.
+
+## Placeholder data
+
+No screen is wired to a backend yet. Every figure is illustrative and isolated
+in a small number of clearly named modules, each naming the endpoint that should
+replace it:
+
+| Module | Feeds |
+| ------ | ----- |
+| `modules/dashboard/constants/dashboard-data.ts` | Dashboard stats, low stock, activity |
+| `modules/inventory/constants/inventory-data.ts` | Inventory stats, products, paging |
+| `modules/reports/constants/reports-data.ts` | Report stats, sales trend, categories, top products, daily rows |
+| `modules/staff/constants/staff-data.ts` | The staff record shown on the staff screen |
+| `modules/settings/constants/settings-data.ts` | Stored configuration for all four settings sections |
+| `modules/auth/constants/placeholder-session.ts` | The signed-in user in the portal chrome |
+
+Every widget already takes its rows as props, so swapping in live calls is a
+change to each page's data source rather than a rewrite.
+
+**What actually works today:** inventory search, status filtering and CSV export
+all run client-side over the loaded rows. That is real behaviour, but it is not
+catalogue-wide — once the endpoint accepts `q` and `page`, the query belongs on
+the server so it spans all entries.
+
+**What does not:** pagination cannot work until the server accepts a page
+parameter, so every target except the current page is genuinely disabled rather
+than rendered as a live control that does nothing. The staff quick-add form
+validates fully but reports plainly that it cannot save.
+
+**The reports design puts the page title in the top bar**, where the dashboard
+and inventory designs leave the bar empty and title the page body. The shared
+chrome was kept consistent across all three screens and the title rendered in
+the body; say if the top-bar title should become the global pattern instead.
+
+**Currency still needs settling.** The supplied designs disagree — inventory
+and reports use `$`, the dashboard uses `Rs.`. Settings now has the control that
+should own this choice, but the screens still read the static
+`appConfig.currencySymbol`, and the dashboard's figures remain literal strings
+in its placeholder data. Once settings are persisted, every screen should read
+the stored value.
+
+## Staff
+
+The shop runs with a single cashier, so `/admin/staff` manages one person
+rather than a directory: no list, no search, no pagination. The record is a
+single-entry array, and the type is written for a list so a second employee
+later means adding a row plus a list view — not reworking the components.
+
+The screen pairs a read-only summary with the controls that change it, so the
+current values stay visible while they are being edited.
+
+**The password reset is a separate card with its own submit button**, not a
+field in the profile form. Changing a credential is a different kind of act
+from correcting a phone number, and separating them means it cannot happen by
+accident while editing something else. When the endpoint is built it must
+require the signed-in administrator's own credentials before it will act.
+
+## Portal chrome
+
+Who is signed in lives in the **top bar's account control**: the avatar opens a
+popover with the administrator's name, role, username, email and access level,
+plus a link to settings. It is a plain popover rather than `role="menu"` —
+most of what it shows is static detail, and announcing static text as menu
+items misrepresents it to a screen reader. Escape closes it and returns focus
+to the avatar; so does clicking outside or navigating.
+
+The avatar falls back to initials, which is the normal case rather than an
+error state. To use a real photograph, drop it under `public/images/admin/` and
+point `avatarUrl` in `modules/auth/constants/placeholder-session.ts` at it. It
+is left null deliberately: a stock portrait standing in for a real person is
+worse than initials on client work.
+
+The navigation rail ends with **Log out**, and it is real — it posts to
+`/api/auth/logout`, which expires the httpOnly cookies server-side. A
+client-only sign-out is not possible: the browser cannot clear an httpOnly
+cookie, only the server that set it can.
+
+**If that request fails the user is kept where they are, with an error**, rather
+than sent to the sign-in screen. Navigating away from a session that is still
+valid would look like a sign-out without being one — the worst outcome on a
+shared shop-floor machine.
+
+## Settings
+
+Each of the four sections is a **real route**, not client-side tab state, so a
+section can be linked to, bookmarked and reached with the browser's back
+button — and a future "you have unsaved changes" guard has a navigation event
+to hook into. `app/(portal)/admin/settings/layout.tsx` holds the heading, the
+section nav and the single save button; the four pages supply only their panel.
+
+**One "Save Changes" button lives in the page header, outside the form it
+submits.** That is what the HTML `form` attribute is for: every section form
+carries the same id and the button targets it, so the header is genuinely
+shared across all four sections with no cross-component state. Verified: the
+header button submits whichever section is currently showing.
+
+Two things to hand to whoever wires the backend:
+
+- **The security values are not controls until the API enforces them.** A
+  session timeout the browser respects but the API ignores is decoration — the
+  token's own expiry ends a session, and the lockout count has to be kept
+  server-side where an attacker cannot skip past it. The minimum password
+  length is floored at 8 in the schema so this screen cannot undercut the rule
+  the sign-in and staff forms already apply.
+- **The logo upload accepts SVG, which is a script-bearing document.** It must
+  be sanitised server-side, or served from a separate origin under a strict CSP,
+  before it is ever rendered back into the admin portal — otherwise a logo
+  upload becomes a stored-XSS vector. The type and size checks in the browser
+  are convenience only and are trivially bypassed.
+
+## Charts
+
+The two charts on the reports screen are hand-rolled inline SVG — a line, an
+area and an arc are less code than a charting library would add to the bundle,
+and it keeps the rendered markup something we control for accessibility.
+
+Decisions worth knowing about:
+
+- **The categorical palette is validated, not chosen by eye.** The three chart
+  colours in `globals.css` clear colour-blind and normal-vision separation
+  thresholds against the light chart surface. **They are assigned in fixed slot
+  order and must not be re-sorted** — the ordering is the safety mechanism.
+- **One slot sits below 3:1 contrast on white**, which obliges every chart using
+  it to print visible labels rather than relying on colour. That is why the
+  donut ships a legend with percentages rather than swatches alone.
+- **The trend line uses monotone cubic smoothing**, not a plain spline. An
+  ordinary spline overshoots between points and would draw a revenue peak higher
+  than any day actually earned; the monotone variant cannot exceed the values it
+  joins, so the smoothing stays cosmetic rather than misleading.
+- **Tooltips enhance, never gate.** Every value the chart crosshair reveals is
+  also printed in the Daily Summary table on the same page.
+- **Bars are scaled against the highest seller**, so length and printed figure
+  always agree. The supplied design had them disagree — a 450-unit line drawn
+  shorter than a 142-unit one — which was corrected rather than reproduced.
+
 ## Backend contract — authentication
 
 The sign-in flow expects this endpoint to exist:
