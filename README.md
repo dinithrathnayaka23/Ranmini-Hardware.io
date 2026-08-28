@@ -40,7 +40,11 @@ frontend/src/
 │   │   ├── schemas/          #   Zod validation, shared by client and server
 │   │   ├── services/         #   auth.client.ts (browser) / auth.server.ts (BFF)
 │   │   └── types/            #   Backend contract types
-│   └── pos/                  #   Cashier till (placeholder only, so far)
+│   └── pos/                  #   Cashier till
+│       ├── components/       #     Terminal, catalogue, order panel
+│       ├── constants/        #     Placeholder catalogue
+│       ├── lib/              #     Order arithmetic and cart state
+│       └── types/            #     Till view model
 └── shared/                   # Cross-module building blocks only
     ├── components/ui/        #   Button, TextField, PasswordField, Checkbox, Alert
     ├── components/brand/     #   Logo
@@ -90,7 +94,7 @@ hard-codes a path string.
 | `/admin/settings/business-logic` | `(portal)` | `app/(portal)/admin/settings/business-logic/page.tsx` | Built |
 | `/admin/settings/receipts` | `(portal)` | `app/(portal)/admin/settings/receipts/page.tsx` | Built |
 | `/admin/settings/security` | `(portal)` | `app/(portal)/admin/settings/security/page.tsx` | Built |
-| `/cashier/pos`      | —           | `app/cashier/pos/page.tsx`                  | Placeholder — till not designed yet |
+| `/cashier/pos`      | —           | `app/cashier/pos/page.tsx`                  | Built |
 | `/api/auth/{portal}/login` | —    | `app/api/auth/[portal]/login/route.ts`      | BFF endpoint (both portals) |
 | `/api/auth/logout`  | —           | `app/api/auth/logout/route.ts`              | BFF endpoint |
 
@@ -126,7 +130,8 @@ replace it:
 | `modules/reports/constants/reports-data.ts` | Report stats, sales trend, categories, top products, daily rows |
 | `modules/staff/constants/staff-data.ts` | The staff record shown on the staff screen |
 | `modules/settings/constants/settings-data.ts` | Stored configuration for all four settings sections |
-| `modules/auth/constants/placeholder-session.ts` | The signed-in user in the portal chrome |
+| `modules/pos/constants/pos-data.ts` | The till's sellable catalogue and its category chips |
+| `modules/auth/constants/placeholder-session.ts` | The signed-in user in the portal chrome and on the till |
 
 Every widget already takes its rows as props, so swapping in live calls is a
 change to each page's data source rather than a rewrite.
@@ -274,6 +279,57 @@ the route buffer a payload. A user changing the portal in the browser changes
 which door they knock on, never whether it opens: the Spring Boot service
 remains the sole authority.
 
+## Point of sale
+
+`/cashier/pos` is the till, and the only screen a cashier has. It is built for a
+barcode scanner first and fingers second.
+
+**Keyboard.** A scanner behaves like a keyboard that types a SKU and presses
+Enter, so the search field is autofocused on load, refocused by **F2** from
+anywhere, and submits on Enter. An exact SKU match is added straight away;
+failing that, a search narrowed to exactly one product is added too, because it
+is unambiguous. Anything broader is left alone rather than guessing. **F9**
+selects cash, and Escape clears a mistyped scan. Tapping a card also returns
+focus to the search box, so the next scan always lands somewhere useful.
+
+**Stock is a hard limit.** The till will not add a sold-out product and will not
+step a line past the units on hand — the `+` button disables itself and the row
+says why, and the product card dims once the order is holding all of it. Selling
+stock that is not there is the one mistake a till must not make: it turns into a
+customer waiting at the counter for something nobody has. Sold-out products stay
+visible but disabled rather than being filtered out, so a cashier looking for
+one can see that it exists and that there is none.
+
+**The totals on screen are for display only.** `modules/pos/lib/cart.ts` rounds
+to whole cents at every step so the subtotal, discount and total always
+reconcile, but the figure that is charged, printed and posted to the ledger must
+be recomputed by the Spring Boot service from the line items it receives. A
+browser is not a trustworthy calculator, and this is money.
+
+**Payment is not connected.** Pressing *Pay & Print Receipt* says so plainly and
+leaves the order untouched. A till that appears to take money it has not
+recorded is the most damaging thing this screen could pretend to do; that notice
+is the placeholder for the real `POST /api/v1/pos/sales` call and receipt
+hand-off.
+
+The commit action is orange (`--color-pay`) rather than brand blue on purpose:
+blue marks the tender the cashier has *selected*, and orange marks the
+irreversible act of charging for it. Keeping the two apart is what stops a
+hurried cashier reading "choose card" and "take the money" as the same control.
+
+### Layout
+
+From `lg` the terminal is pinned to one viewport and **the page never scrolls**;
+only the product grid and the order lines scroll, inside themselves. The search
+box, the chips, the total and the pay button therefore never move — on a counter
+machine that fixity is the point, since hunting for a shifted button with a
+customer waiting is what slows a queue down. Verified at `pageScroll = 0` with a
+full order on screen.
+
+Below `lg` there is no width for a second column, so the order panel becomes a
+full-screen overlay reached from a summary bar pinned to the bottom, and the
+brand lockup shortens to "Ranmini" so the terminal number still fits beside it.
+
 ## Backend contract — authentication
 
 The sign-in flow expects one endpoint per portal:
@@ -385,9 +441,32 @@ happens: stop both, delete `.next`, and start again.
 
 ## Assets
 
-Sign-in showcase photographs live in `frontend/public/images/auth/` — three
-Unsplash photographs under the Unsplash License (free commercial use, no
-attribution required). The README there records each photo's ID and
-photographer so the originals can be re-cropped later, plus the guidelines to
-follow when swapping one out. If a file is ever missing the panel falls back to
-a brand gradient, so the page never shows a broken image.
+Photographs live in two folders, each with its own README recording every
+photo's Unsplash ID and photographer so the originals can be re-cropped later,
+plus the guidelines to follow when swapping one out. All are under the Unsplash
+License — free commercial use, no attribution required.
+
+| Folder | Used by | Fallback if a file is missing |
+| ------ | ------- | ----------------------------- |
+| `public/images/auth/` | The sign-in showcase panel | The brand gradient |
+| `public/images/products/` | Product cards on the till | A neutral tile with a package icon |
+
+The product images are **stand-ins and should be replaced with photographs of
+the shop's actual stock** before the till goes live — a point-of-sale grid is
+scanned by picture as much as by name. Neither folder may contain third-party
+brand logos: two otherwise good cement photographs were rejected for showing a
+competitor's bags, which is why that one card currently carries an unbranded
+material texture rather than a product shot.
+
+## Currency
+
+The symbol is a shop setting (Settings → Business Logic), and
+`appConfig.currencySymbol` is the build-time default the portal renders until
+that setting is loaded from the backend. The two must be kept in step.
+
+The supplied designs disagreed — the inventory screen used "$" while the
+dashboard, the till and the business-logic default all used the rupee — so it is
+settled as the rupee and driven from one place rather than hard-coded per
+screen. Note that the till's design shows "Rs" without the full stop while the
+rest of the app uses "Rs."; the configured value wins, so the till renders
+"Rs. 2,450.00". Change the setting if the client wants the other form.
