@@ -319,16 +319,67 @@ hurried cashier reading "choose card" and "take the money" as the same control.
 
 ### Layout
 
-From `lg` the terminal is pinned to one viewport and **the page never scrolls**;
-only the product grid and the order lines scroll, inside themselves. The search
-box, the chips, the total and the pay button therefore never move — on a counter
-machine that fixity is the point, since hunting for a shifted button with a
-customer waiting is what slows a queue down. Verified at `pageScroll = 0` with a
-full order on screen.
+**The two columns start at `md` (768px), not `lg`.** A tablet held in portrait is
+the likeliest thing this runs on and 768px is exactly an iPad, so hiding the
+order behind an overlay there was the wrong trade.
 
-Below `lg` there is no width for a second column, so the order panel becomes a
-full-screen overlay reached from a summary bar pinned to the bottom, and the
-brand lockup shortens to "Ranmini" so the terminal number still fits beside it.
+**Nothing is sized by a breakpoint that cannot see what it is sizing.** Two
+rules do the work:
+
+- The order panel is `clamp(20rem, 40%, 32rem)` — the design's 40% share through
+  the middle of the range, never under 320px on a small tablet, and capped at
+  512px on a wide monitor, where the extra room is better spent on product cards
+  than on a wider total.
+- The product grid is `repeat(auto-fill, minmax(10rem, 1fr))`, so it fits as
+  many cards as the *remaining* space allows. Viewport breakpoints could not see
+  how much the panel was taking and got it wrong at both ends: 282px cards at
+  600px wide, and still only four columns on a 1920px screen.
+
+**Inside the panel, layout comes from container queries**, because the same
+screen hands it anywhere from 320px to 512px depending on the window. Below
+28rem the order rows stack — name on one line, stepper and money on the next —
+which keeps the product name readable instead of truncating it to "Cemex
+Portla…". The three-column row the design draws needs a fixed 280px for its Qty
+and Price tracks, so 448px is the first panel width that leaves the name a
+usable ~160px.
+
+The shell pins itself to one viewport so **the page never scrolls** and the pay
+button never moves; only the grid and the order lines scroll, inside themselves.
+The pin is guarded by `(min-width: 48rem) and (min-height: 40rem)` — `md:h-dvh`
+alone would also catch a phone in landscape, where a fixed height puts the order
+summary off the bottom of the screen with no way to reach it.
+
+Below `md` the order panel is a sheet over the grid, reached from a summary bar
+pinned to the bottom. It closes on Escape, locks the page behind it, takes focus
+on open and hands it back on close, and is announced as a dialog only while it
+is actually a dialog. The brand lockup shortens to "Ranmini" so the terminal
+number still fits beside it.
+
+Measured in a real browser at 14 viewports from 320x568 to 1920x1080:
+
+| Viewport | Columns | Order panel | Page scroll |
+| -------- | ------- | ----------- | ----------- |
+| 320x568  | 2 | Sheet | scrolls (below `md`) |
+| 390x844  | 2 | Sheet | scrolls (below `md`) |
+| 600x900  | 3 | Sheet | scrolls (below `md`) |
+| 768x1024 | 2 | 320px | **0** |
+| 1024x768 | 3 | 410px | **0** |
+| 1280x800 | 4 | 512px | **0** |
+| 1536x864 | 5 | 512px | **0** |
+| 1920x1080| 8 | 512px | **0** |
+
+No horizontal overflow at any width. Card widths stay within 142–224px across
+the whole range; before this they swung from 142px to 343px.
+
+### Touch
+
+The till is assumed to be a touch screen. Every control carries
+`touch-manipulation`, which drops the browser's double-tap-to-zoom wait — on a
+counter that delay reads as a dropped scan and the cashier taps again. Presses
+give physical feedback (cards and buttons scale slightly), scroll regions use
+`overscroll-contain` so a flick at the end of the grid does not drag the page,
+and the bottom bar respects `env(safe-area-inset-bottom)` for the home indicator
+on a modern phone.
 
 ## Backend contract — authentication
 
