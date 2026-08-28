@@ -21,3 +21,18 @@ export const placeholderAdmin: UserProfile = {
   // rather than a stock photograph standing in for a real person.
   avatarUrl: null,
 };
+
+/**
+ * PLACEHOLDER — the signed-in cashier shown in the till's top bar.
+ *
+ * Same story as {@link placeholderAdmin}: replace both with a server-side fetch
+ * of `GET /api/v1/auth/me` once the backend exposes it.
+ */
+export const placeholderCashier: UserProfile = {
+  id: "placeholder-cashier",
+  username: "cashier123",
+  fullName: "K. Silva",
+  email: "cashier@ranminihardware.lk",
+  role: "Cashier",
+  avatarUrl: null,
+};
