@@ -52,11 +52,15 @@ export function ProductCard({
             : ""
       }`}
       className={cn(
-        "group flex flex-col overflow-hidden rounded-xl border bg-surface text-left transition-colors",
+        "group flex flex-col overflow-hidden rounded-xl border bg-surface text-left",
+        // `touch-manipulation` drops the browser's double-tap-to-zoom wait, so
+        // a tap registers immediately — on a till that delay reads as a
+        // dropped scan and the cashier taps again.
+        "touch-manipulation select-none transition-[color,background-color,border-color,transform,box-shadow] duration-150",
         isLowStock ? "border-danger" : "border-line",
         isDisabled
           ? "cursor-not-allowed opacity-60"
-          : "hover:border-brand-500 hover:bg-brand-50/30 active:bg-brand-50/60",
+          : "hover:border-brand-500 hover:bg-brand-50/30 hover:shadow-sm active:scale-[0.985] active:bg-brand-50/60",
       )}
     >
       <div className="relative aspect-4/3 w-full shrink-0 overflow-hidden bg-canvas-subtle">

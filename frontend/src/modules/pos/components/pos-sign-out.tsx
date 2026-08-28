@@ -42,10 +42,14 @@ export function PosSignOut() {
         onClick={handleSignOut}
         disabled={isPending}
         aria-busy={isPending}
-        className="inline-flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-semibold text-danger transition-colors hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex touch-manipulation items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-semibold text-danger transition-colors duration-150 hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-60"
       >
         <LogOut aria-hidden className="size-[18px] shrink-0" />
-        {isPending ? "Logging out…" : "Logout"}
+        {/* The word is dropped on the narrowest phones, where the icon plus its
+            accessible name carries the meaning and the space is worth more. */}
+        <span className="sr-only min-[380px]:not-sr-only">
+          {isPending ? "Logging out…" : "Logout"}
+        </span>
       </button>
 
       {hasFailed ? (

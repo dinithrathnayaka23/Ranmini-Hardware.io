@@ -22,12 +22,12 @@ export const ProductSearch = React.forwardRef<
 >(function ProductSearch({ value, onValueChange, onSubmit }, ref) {
   return (
     <div
-      className="flex items-center rounded-xl border-2 border-line bg-surface transition-colors
-                 focus-within:border-brand-600 focus-within:ring-4 focus-within:ring-brand-600/15"
+      className="flex items-center rounded-xl border-2 border-line bg-surface transition-[border-color,box-shadow] duration-150
+                 hover:border-line-strong focus-within:border-brand-600 focus-within:ring-4 focus-within:ring-brand-600/15"
     >
       <Barcode
         aria-hidden
-        className="pointer-events-none ml-4 size-6 shrink-0 text-placeholder"
+        className="pointer-events-none ml-3 size-5 shrink-0 text-placeholder sm:ml-4 sm:size-6"
       />
 
       <input
@@ -52,9 +52,9 @@ export const ProductSearch = React.forwardRef<
         // The till opens ready to scan; there is nothing else on this screen a
         // cashier would want the keyboard pointed at.
         autoFocus
-        className="h-12 w-full bg-transparent px-3.5 text-[0.95rem] text-ink
+        className="h-11 w-full bg-transparent px-3 text-[0.95rem] text-ink sm:px-3.5
                    placeholder:text-placeholder focus:outline-none
-                   [&::-webkit-search-cancel-button]:appearance-none sm:h-14"
+                   [&::-webkit-search-cancel-button]:appearance-none sm:h-13 lg:h-14"
       />
 
       <kbd

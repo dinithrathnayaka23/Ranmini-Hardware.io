@@ -19,8 +19,8 @@ export function PosTopbar({
   cashierName: string;
 }) {
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-4 sm:px-6">
-      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-3 sm:h-16 sm:px-6">
+      <div className="flex min-w-0 items-center gap-2.5 sm:gap-4">
         {/* The short name on a phone: at 390px the full lockup truncates to
             "Ranmini Hard…", which is worse than simply saying "Ranmini" and
             leaving room for the terminal number beside it. */}
@@ -34,7 +34,7 @@ export function PosTopbar({
         </span>
       </div>
 
-      <div className="flex shrink-0 items-center gap-3 sm:gap-5">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-5">
         {/* Hidden on the narrowest screens: on a phone the logout control is
             what matters, and the name would crowd it off the bar. */}
         <div className="hidden text-right text-sm leading-tight sm:block">

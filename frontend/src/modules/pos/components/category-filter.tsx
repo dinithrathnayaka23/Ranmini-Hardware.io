@@ -24,7 +24,7 @@ export function CategoryFilter({
     <div
       // Scrolls sideways rather than wrapping to a second row: on a tablet the
       // chips must not steal height from the product grid.
-      className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       role="group"
       aria-label="Filter products by category"
     >
@@ -38,7 +38,8 @@ export function CategoryFilter({
             onClick={() => onSelect(category.id)}
             aria-pressed={isActive}
             className={cn(
-              "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors",
+              "shrink-0 touch-manipulation rounded-full px-4 py-2 text-sm font-medium select-none",
+              "transition-[color,background-color,border-color] duration-150 active:scale-[0.97]",
               isActive
                 ? "bg-brand-600 text-white"
                 : "border border-line bg-surface text-ink-soft hover:border-line-strong hover:bg-brand-50/40",
