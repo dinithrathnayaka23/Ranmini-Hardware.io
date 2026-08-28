@@ -14,11 +14,24 @@ import type { OrderLine } from "../types/pos.types";
  *
  * Exported rather than repeated so the two cannot drift apart: the Qty and
  * Price columns are fixed widths because an `auto` column would size itself to
- * the word "Qty" in the header and to a stepper control in the row, and the
- * headings would sit nowhere near the values they label.
+ * the word "Qty" in the header and to a stepper control in the row, leaving the
+ * headings nowhere near the values they label.
+ *
+ * The switch is a CONTAINER query, not a viewport one. The panel's width is set
+ * by a clamp against the viewport, so the same screen can give it anywhere from
+ * 320px to 512px depending on the window; only the panel itself knows whether
+ * three columns still fit. Below the threshold the row stacks — name on one
+ * line, controls and money on the next — which keeps the product name readable
+ * instead of truncating it to "Cemex Portla…".
+ *
+ * 28rem is where the three-column row stops squeezing the name: the Qty and
+ * Price tracks plus padding and gaps take a fixed 280px, so a 448px panel is
+ * the first that leaves the name a usable ~160px. The supplied design drew this
+ * row against a 512px panel, which is why it works there and nowhere narrower.
  */
 export const ORDER_ROW_GRID =
-  "grid grid-cols-[minmax(0,1fr)_6.5rem_7rem] gap-3 px-5";
+  "px-4 @min-[28rem]:grid @min-[28rem]:grid-cols-[minmax(0,1fr)_6.5rem_7rem] " +
+  "@min-[28rem]:items-start @min-[28rem]:gap-3 @min-[28rem]:px-5";
 
 /**
  * One line of the current order.
@@ -43,7 +56,12 @@ export function OrderLineRow({
   const isAtStockCeiling = line.quantity >= line.availableStock;
 
   return (
-    <li className={cn(ORDER_ROW_GRID, "items-start border-b border-line py-4")}>
+    <li
+      className={cn(
+        ORDER_ROW_GRID,
+        "border-b border-line py-3 @min-[28rem]:py-4",
+      )}
+    >
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-ink">{line.name}</p>
         <p className="mt-0.5 text-xs text-muted">SKU: {line.sku}</p>
@@ -57,45 +75,52 @@ export function OrderLineRow({
         ) : null}
       </div>
 
-      <div className="flex items-center justify-center gap-1.5">
-        <StepperButton
-          label={
-            line.quantity === 1
-              ? `Remove ${line.name} from the order`
-              : `Decrease quantity of ${line.name}`
-          }
-          onClick={() => onDecrement(line.productId)}
-        >
-          {line.quantity === 1 ? (
-            <Trash2 aria-hidden className="size-3.5" />
-          ) : (
-            <Minus aria-hidden className="size-3.5" />
-          )}
-        </StepperButton>
+      {/*
+        Stacked below the name on a narrow panel; `contents` dissolves this
+        wrapper once the panel is wide enough, so the stepper and the money drop
+        straight into the grid as columns two and three.
+      */}
+      <div className="mt-2 flex items-center justify-between gap-3 @min-[28rem]:contents">
+        <div className="flex items-center justify-center gap-1.5">
+          <StepperButton
+            label={
+              line.quantity === 1
+                ? `Remove ${line.name} from the order`
+                : `Decrease quantity of ${line.name}`
+            }
+            onClick={() => onDecrement(line.productId)}
+          >
+            {line.quantity === 1 ? (
+              <Trash2 aria-hidden className="size-3.5" />
+            ) : (
+              <Minus aria-hidden className="size-3.5" />
+            )}
+          </StepperButton>
 
-        <span
-          aria-label={`Quantity ${line.quantity}`}
-          className="min-w-6 text-center text-sm font-semibold tabular-nums text-ink"
-        >
-          {line.quantity}
-        </span>
+          <span
+            aria-label={`Quantity ${line.quantity}`}
+            className="min-w-6 text-center text-sm font-semibold text-ink tabular-nums"
+          >
+            {line.quantity}
+          </span>
 
-        <StepperButton
-          label={`Increase quantity of ${line.name}`}
-          disabled={isAtStockCeiling}
-          onClick={() => onIncrement(line.productId)}
-        >
-          <Plus aria-hidden className="size-3.5" />
-        </StepperButton>
-      </div>
+          <StepperButton
+            label={`Increase quantity of ${line.name}`}
+            disabled={isAtStockCeiling}
+            onClick={() => onIncrement(line.productId)}
+          >
+            <Plus aria-hidden className="size-3.5" />
+          </StepperButton>
+        </div>
 
-      <div className="text-right">
-        <p className="text-sm font-semibold whitespace-nowrap text-ink">
-          {formatCurrency(lineTotal(line), appConfig.currencySymbol)}
-        </p>
-        <p className="mt-0.5 text-xs whitespace-nowrap text-muted">
-          {formatAmount(line.unitPrice)} × {line.quantity}
-        </p>
+        <div className="text-right">
+          <p className="text-sm font-semibold whitespace-nowrap text-ink tabular-nums">
+            {formatCurrency(lineTotal(line), appConfig.currencySymbol)}
+          </p>
+          <p className="mt-0.5 text-xs whitespace-nowrap text-muted tabular-nums">
+            {formatAmount(line.unitPrice)} × {line.quantity}
+          </p>
+        </div>
       </div>
     </li>
   );
@@ -104,8 +129,10 @@ export function OrderLineRow({
 /**
  * Square quantity control.
  *
- * Sized at 32px — comfortably tappable at a counter, while still leaving the
- * line short enough that several orders fit the panel without scrolling.
+ * 32px is the smallest square that is still comfortable at a counter, and it
+ * keeps the line short enough that several orders fit the panel without
+ * scrolling. `touch-manipulation` removes the double-tap-to-zoom delay, which
+ * otherwise makes a quick correction feel like it was ignored.
  */
 function StepperButton({
   label,
@@ -125,10 +152,11 @@ function StepperButton({
       disabled={disabled}
       aria-label={label}
       className={cn(
-        "inline-flex size-8 items-center justify-center rounded-md border border-line bg-surface text-ink-soft transition-colors",
+        "inline-flex size-8 touch-manipulation items-center justify-center rounded-md border border-line bg-surface text-ink-soft select-none",
+        "transition-[color,background-color,border-color,transform] duration-150",
         disabled
           ? "cursor-not-allowed opacity-40"
-          : "hover:border-line-strong hover:bg-canvas-subtle",
+          : "hover:border-line-strong hover:bg-canvas-subtle active:scale-90",
       )}
     >
       {children}
