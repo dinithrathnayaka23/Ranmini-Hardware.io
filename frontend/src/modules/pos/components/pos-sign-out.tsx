@@ -5,20 +5,16 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { logout } from "@/modules/auth/services/auth.client";
-import { Button } from "@/shared/components/ui/button";
 import { routes } from "@/shared/config/app.config";
 
 /**
- * Sign-out control for the till.
+ * Sign-out control in the till's top bar.
  *
- * A shared shop-floor machine must always offer a way out, even on a screen
- * that is otherwise a placeholder — leaving a cashier's session open on a
- * counter terminal is the failure mode that matters here.
- *
- * As on the admin rail, a failed request keeps the user on this page with an
- * error rather than redirecting: the cookies are httpOnly, so if the server did
- * not expire them the session is still very much alive, and navigating away
- * would only look like a sign-out.
+ * A shared counter terminal must always offer a way out, and it has to be a
+ * real one: the session cookies are httpOnly, so only the server can expire
+ * them. A failed request therefore keeps the cashier here with an error rather
+ * than redirecting — walking away from a session that is still live is the
+ * worst outcome on a shop floor.
  */
 export function PosSignOut() {
   const router = useRouter();
@@ -40,21 +36,26 @@ export function PosSignOut() {
   };
 
   return (
-    <div>
-      <Button
-        variant="secondary"
-        size="md"
+    <div className="relative">
+      <button
+        type="button"
         onClick={handleSignOut}
-        isLoading={isPending}
-        loadingText="Signing out…"
+        disabled={isPending}
+        aria-busy={isPending}
+        className="inline-flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-semibold text-danger transition-colors hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <LogOut aria-hidden className="size-4" />
-        Sign out
-      </Button>
+        <LogOut aria-hidden className="size-[18px] shrink-0" />
+        {isPending ? "Logging out…" : "Logout"}
+      </button>
 
       {hasFailed ? (
-        <p role="alert" className="mt-3 text-xs leading-relaxed text-danger">
-          Could not sign out. Check your connection and try again.
+        // Absolutely positioned so a failure never reflows the top bar and
+        // nudges the Logout button out from under the cashier's cursor.
+        <p
+          role="alert"
+          className="absolute top-full right-0 z-10 mt-1 w-56 rounded-lg border border-danger/20 bg-danger-soft px-3 py-2 text-xs leading-relaxed text-danger"
+        >
+          Could not log out. Check your connection and try again.
         </p>
       ) : null}
     </div>
