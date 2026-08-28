@@ -114,6 +114,50 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Point-of-sale shell
+ * ------------------------------------------------------------------------- */
+
+/*
+ * The till pins itself to exactly one viewport so the page never scrolls and
+ * the pay button never moves — but only where there is genuinely room for it.
+ *
+ * The guard is the point. `md:h-dvh` alone would also catch a phone held in
+ * landscape (812x375), where a fixed height leaves the order summary taller
+ * than the screen with no way to reach it. Below either threshold the height
+ * falls back to a minimum and the page scrolls normally.
+ */
+@media (min-width: 48rem) and (min-height: 40rem) {
+  [data-pos-shell] {
+    height: 100dvh;
+  }
+}
+
+/*
+ * Slim scrollbars for the till's two internal scroll regions.
+ *
+ * The default Windows scrollbar is 17px wide and would eat a visible slice of
+ * the product grid on a counter machine. Firefox and Chromium both honour the
+ * standard properties now, so no vendor pseudo-element is needed.
+ */
+@utility scroll-slim {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+/* The order panel rises into place on small screens, where it is a sheet
+   rather than a column. Suppressed wholesale by the reduce-motion block. */
+@keyframes pos-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Respect users who have asked the OS to reduce motion. */
 @media (prefers-reduced-motion: reduce) {
   *,
