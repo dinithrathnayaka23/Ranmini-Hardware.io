@@ -39,6 +39,14 @@
   --color-warning: #b45309;
   --color-warning-soft: #fdf5ea;
 
+  /* Point-of-sale commit action.
+     Taking payment is deliberately NOT brand blue: on the till, blue marks the
+     tender the cashier has *selected*, and this marks the irreversible act of
+     charging for it. Keeping the two colours apart is what stops a hurried
+     cashier reading "choose card" and "take the money" as the same control. */
+  --color-pay: #c2410c;
+  --color-pay-strong: #9a3412;
+
   /* Dark navigation rail. Kept separate from the neutral ramp because these
      are surface colours for a permanently dark region, not text shades. */
   --color-rail: #0b2239;         /* Sidebar background                   */
