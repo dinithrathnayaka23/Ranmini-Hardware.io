@@ -14,6 +14,7 @@ import { PasswordField } from "@/shared/components/ui/password-field";
 import { TextField } from "@/shared/components/ui/text-field";
 import { routes } from "@/shared/config/app.config";
 
+import type { PortalDefinition } from "../constants/portals";
 import {
   loginSchema,
   type LoginCredentials,
@@ -22,14 +23,20 @@ import {
 import { login } from "../services/auth.client";
 
 /**
- * Admin sign-in form.
+ * Sign-in form, shared by the admin portal and the cashier till.
+ *
+ * The two screens differ only in copy, in whether password recovery is offered
+ * and in where a success lands — all of which arrive as a {@link PortalDefinition}.
+ * The submission path itself is identical, which is the point: there is one
+ * place where credentials leave the browser, not one per portal.
  *
  * Validation runs locally for immediate feedback, but the credential check
- * itself happens server-side: this component posts to `/api/auth/login`, which
- * forwards to the Spring Boot API and stores the session in httpOnly cookies.
- * No token ever reaches this component.
+ * itself happens server-side: this component posts to the portal's
+ * `/api/auth/{portal}/login` endpoint, which forwards to the Spring Boot API
+ * and stores the session in httpOnly cookies. No token ever reaches this
+ * component.
  */
-export function AdminLoginForm() {
+export function LoginForm({ portal }: { portal: PortalDefinition }) {
   const router = useRouter();
 
   /** Form-level failure (bad credentials, throttling, network) — not field-level. */
@@ -41,7 +48,11 @@ export function AdminLoginForm() {
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues, unknown, LoginCredentials>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { username: "", password: "", rememberMe: false },
+    defaultValues: {
+      username: "",
+      password: "",
+      rememberMe: false,
+    },
     // Validate on submit, then live-correct: nagging about a half-typed
     // username while the user is still typing it is noise, not help.
     mode: "onSubmit",
@@ -51,7 +62,7 @@ export function AdminLoginForm() {
   const onSubmit = async (values: LoginCredentials) => {
     setFormError(null);
 
-    const outcome = await login(values);
+    const outcome = await login(portal, values);
 
     if (!outcome.success) {
       setFormError(outcome.message);
@@ -61,7 +72,7 @@ export function AdminLoginForm() {
     // The session cookie is already set by the Route Handler. `refresh()`
     // re-runs the server components so middleware/layouts see the new session,
     // and `replace` keeps the login page out of the browser's back history.
-    router.replace(routes.adminDashboard);
+    router.replace(portal.landingRoute);
     router.refresh();
   };
 
@@ -78,12 +89,12 @@ export function AdminLoginForm() {
       <TextField
         label="Username"
         icon={User}
-        placeholder="olitharanasinghe2003"
+        placeholder={portal.usernamePlaceholder}
         autoComplete="username"
         autoCapitalize="none"
         autoCorrect="off"
         spellCheck={false}
-        // Focus the first field on load so an admin can start typing straight
+        // Focus the first field on load so the user can start typing straight
         // away — this page has no other purpose.
         autoFocus
         error={errors.username?.message}
@@ -95,14 +106,18 @@ export function AdminLoginForm() {
         placeholder="••••••••"
         autoComplete="current-password"
         labelAction={
-          <Link
-            href={routes.forgotPassword}
-            // The page is not built yet; skip prefetch so it does not 404.
-            prefetch={false}
-            className="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
-          >
-            Forgot Password?
-          </Link>
+          // Cashier accounts are reset by an administrator, so that portal
+          // offers no self-service link rather than a dead end.
+          portal.hasPasswordReset ? (
+            <Link
+              href={routes.forgotPassword}
+              // The page is not built yet; skip prefetch so it does not 404.
+              prefetch={false}
+              className="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
+            >
+              Forgot Password?
+            </Link>
+          ) : null
         }
         error={errors.password?.message}
         {...register("password")}

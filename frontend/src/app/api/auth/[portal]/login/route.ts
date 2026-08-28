@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
+import { isPortalId, type PortalId } from "@/modules/auth/constants/portals";
 import { loginSchema } from "@/modules/auth/schemas/login.schema";
-import { authenticateAdmin } from "@/modules/auth/services/auth.server";
+import { authenticateUser } from "@/modules/auth/services/auth.server";
 import type { LoginOutcome } from "@/modules/auth/types/auth.types";
 import {
   REMEMBERED_SESSION_SECONDS,
@@ -17,25 +18,54 @@ import {
 } from "@/shared/lib/rate-limit";
 
 /**
- * POST /api/auth/login — the browser's only entry point for signing in.
+ * POST /api/auth/{portal}/login — the browser's only entry point for signing
+ * in, serving both the admin portal and the cashier till.
  *
  * Responsibilities, in order:
- *   1. Throttle repeated attempts from the same client.
- *   2. Re-validate the request body server-side (the client schema is a UX aid,
+ *   1. Resolve the portal from the URL against a closed set.
+ *   2. Throttle repeated attempts from the same client on that portal.
+ *   3. Re-validate the request body server-side (the client schema is a UX aid,
  *      not a control — this endpoint is publicly reachable).
- *   3. Delegate the actual credential check to the Spring Boot API.
- *   4. Store the returned tokens in httpOnly cookies, so no token is ever
+ *   4. Delegate the actual credential check to the Spring Boot API, against the
+ *      endpoint scoped to that portal.
+ *   5. Store the returned tokens in httpOnly cookies, so no token is ever
  *      readable by JavaScript in the browser.
  *
- * The response body carries the admin profile only — never a token.
+ * The response body carries the user profile only — never a token.
+ *
+ * One handler serves both portals on purpose: throttling, cookie attributes and
+ * error shaping are security-relevant and must not drift between two
+ * near-identical copies of this file.
+ *
+ * The portal travels in the URL rather than in the body specifically so that
+ * steps 1 and 2 both happen *before* the body is read — an unthrottled client
+ * should never be able to make this route buffer a request payload.
  */
 
 // Session cookies must never be cached, and this route has no static output.
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request): Promise<NextResponse> {
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ portal: string }> },
+): Promise<NextResponse> {
+  const { portal: rawPortal } = await params;
+
+  // A path segment is attacker-controlled text. Narrowing it to a known portal
+  // here is what lets everything downstream — the throttle key, the backend
+  // URL — treat it as trusted.
+  if (!isPortalId(rawPortal)) {
+    return jsonError(errorMessages.unexpected, 404);
+  }
+
+  const portal: PortalId = rawPortal;
   const clientKey = clientKeyFromHeaders(request.headers);
-  const limit = checkRateLimit(`login:${clientKey}`);
+
+  // Throttled per portal as well as per client: a shop-floor till and the
+  // owner's laptop can share one public IP, and a cashier fumbling their
+  // password should not lock the owner out of the management portal.
+  const throttleKey = `login:${portal}:${clientKey}`;
+  const limit = checkRateLimit(throttleKey);
 
   if (!limit.allowed) {
     return jsonError(errorMessages.rateLimited, 429, {
@@ -58,11 +88,11 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     // The service decides what actually reaches the backend; `rememberMe` is
     // dropped there because cookie lifetime is a browser-side concern.
-    const session = await authenticateAdmin(parsed.data);
+    const session = await authenticateUser(portal, parsed.data);
 
     // A genuine sign-in clears the throttle so one user's typo streak does not
     // lock them out after they succeed.
-    resetRateLimit(`login:${clientKey}`);
+    resetRateLimit(throttleKey);
 
     const outcome: LoginOutcome = { success: true, user: session.user };
     const response = NextResponse.json(outcome, { status: 200 });
@@ -87,7 +117,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       return jsonError(error.message, error.status === 503 ? 503 : 401);
     }
 
-    console.error("[auth] Unhandled error during admin login:", error);
+    console.error(`[auth] Unhandled error during ${portal} login:`, error);
     return jsonError(errorMessages.unexpected, 500);
   }
 }

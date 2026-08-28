@@ -1,12 +1,12 @@
 import Link from "next/link";
 
+import { AuthBrandLink } from "@/modules/auth/components/auth-brand-link";
 import { BrandShowcase } from "@/modules/auth/components/brand-showcase";
-import { Logo } from "@/shared/components/brand/logo";
 import { appConfig, routes } from "@/shared/config/app.config";
 
 /**
- * Shell shared by every unauthenticated screen (sign in, forgot password,
- * password reset).
+ * Shell shared by every unauthenticated screen — both portals' sign-in pages,
+ * plus forgot password and password reset.
  *
  * Layout is a two-column split from `lg` up: the form column carries the brand
  * header and legal footer, beside a presentational showcase panel.
@@ -44,13 +44,7 @@ export default function AuthLayout({
           ~410px wide, and wider gutters would squeeze the footer onto two lines. */}
       <div className="flex flex-col px-6 py-6 sm:px-10 sm:py-10 lg:overflow-y-auto lg:px-10 lg:py-8 xl:px-24">
         <header className="mx-auto w-full max-w-sm shrink-0 lg:mx-0 lg:max-w-80">
-          <Link
-            href={routes.adminLogin}
-            aria-label={`${appConfig.name} home`}
-            className="inline-flex rounded-lg"
-          >
-            <Logo />
-          </Link>
+          <AuthBrandLink />
         </header>
 
         {/* `flex-1` absorbs the leftover height and centres the form in it;

@@ -9,6 +9,7 @@ import {
   messageForStatus,
 } from "@/shared/lib/http-error";
 
+import type { PortalId } from "../constants/portals";
 import type { LoginCredentials } from "../schemas/login.schema";
 import type { BackendLoginResponse } from "../types/auth.types";
 
@@ -39,14 +40,32 @@ const backendLoginResponseSchema = z.object({
   }),
 });
 
-const LOGIN_ENDPOINT = "/api/v1/auth/login";
+/**
+ * One backend endpoint per portal, rather than a single endpoint told which
+ * role to grant.
+ *
+ * This is the crux of keeping the two portals apart. Because the path is
+ * chosen from a closed map keyed by an already-validated `PortalId`, the
+ * browser can ask to be authenticated as a cashier or as an admin, but the
+ * decision of whether those credentials qualify stays entirely with the Spring
+ * Boot service. A cashier posting to the admin endpoint simply fails there.
+ *
+ * BACKEND CONTRACT: both endpoints must reject credentials belonging to the
+ * other role with 401 — returning a valid token for a cashier on the admin
+ * endpoint would defeat this split.
+ */
+const LOGIN_ENDPOINTS: Record<PortalId, string> = {
+  admin: "/api/v1/auth/admin/login",
+  cashier: "/api/v1/auth/cashier/login",
+};
 
 /**
- * Exchanges admin credentials for a token pair.
+ * Exchanges credentials for a token pair against the given portal's endpoint.
  *
  * @throws {ApiError} with copy that is already safe to render to the user.
  */
-export async function authenticateAdmin(
+export async function authenticateUser(
+  portal: PortalId,
   credentials: LoginCredentials,
 ): Promise<BackendLoginResponse> {
   const { API_BASE_URL, API_TIMEOUT_MS } = getServerEnv();
@@ -58,21 +77,26 @@ export async function authenticateAdmin(
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${LOGIN_ENDPOINT}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
+    response = await fetch(
+      `${API_BASE_URL}${LOGIN_ENDPOINTS[portal]}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        // `rememberMe` is a browser-session concern and is deliberately NOT
+        // sent to the backend: token lifetime stays entirely the backend's
+        // decision. The portal is not sent either — it is already expressed by
+        // the endpoint chosen above.
+        body: JSON.stringify({
+          username: credentials.username,
+          password: credentials.password,
+        }),
+        cache: "no-store",
+        signal: controller.signal,
       },
-      // `rememberMe` is a browser-session concern and is deliberately NOT sent
-      // to the backend: token lifetime stays entirely the backend's decision.
-      body: JSON.stringify({
-        username: credentials.username,
-        password: credentials.password,
-      }),
-      cache: "no-store",
-      signal: controller.signal,
-    });
+    );
   } catch {
     // Covers DNS failures, connection refused and the abort above. The reason
     // is not echoed to the user — it would disclose internal infrastructure.

@@ -1,6 +1,7 @@
 import { apiRoutes } from "@/shared/config/app.config";
 import { errorMessages } from "@/shared/lib/http-error";
 
+import type { PortalDefinition } from "../constants/portals";
 import type { LoginFormValues } from "../schemas/login.schema";
 import type { LoginOutcome } from "../types/auth.types";
 
@@ -13,13 +14,19 @@ import type { LoginOutcome } from "../types/auth.types";
  */
 
 /**
- * Submits credentials to the internal BFF endpoint.
+ * Submits credentials to the sign-in endpoint belonging to `portal`.
+ *
+ * The portal is part of the URL rather than the payload so the server can
+ * identify and throttle the attempt before reading the body.
  *
  * Never throws — a login form should render a message, not a crashed boundary.
  */
-export async function login(values: LoginFormValues): Promise<LoginOutcome> {
+export async function login(
+  portal: PortalDefinition,
+  values: LoginFormValues,
+): Promise<LoginOutcome> {
   try {
-    const response = await fetch(apiRoutes.login, {
+    const response = await fetch(portal.apiEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),

@@ -1,7 +1,10 @@
 import { z } from "zod";
 
 /**
- * Validation rules for the admin sign-in form.
+ * Validation rules for the sign-in form, shared by both portals.
+ *
+ * The credential fields are identical for both portals — which portal a sign-in
+ * belongs to is carried by the endpoint URL, not by the body.
  *
  * This schema is intentionally shared: the browser uses it for instant
  * feedback, and the Route Handler re-validates the parsed body with the very
