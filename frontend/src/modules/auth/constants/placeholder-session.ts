@@ -1,4 +1,4 @@
-import type { AdminProfile } from "../types/auth.types";
+import type { UserProfile } from "../types/auth.types";
 
 /**
  * PLACEHOLDER — the signed-in administrator shown in the portal chrome.
@@ -10,7 +10,7 @@ import type { AdminProfile } from "../types/auth.types";
  *
  * Kept in one clearly named module so there is exactly one thing to delete.
  */
-export const placeholderAdmin: AdminProfile = {
+export const placeholderAdmin: UserProfile = {
   id: "placeholder",
   username: "olitharanasinghe2003",
   fullName: "Olitha Ranasinghe",

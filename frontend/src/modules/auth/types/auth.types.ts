@@ -5,8 +5,15 @@
  * a TypeScript error here rather than as an `undefined` at runtime.
  */
 
-/** The authenticated administrator, as returned by the backend. */
-export interface AdminProfile {
+/**
+ * An authenticated user of either portal — an administrator or a cashier.
+ *
+ * The shape is deliberately common to both: the portal decides which screens a
+ * session may reach, while `role` is display copy returned by the backend
+ * ("Owner", "Cashier") and must never be used to make an access decision on
+ * the client.
+ */
+export interface UserProfile {
   id: string;
   username: string;
   fullName: string;
@@ -19,13 +26,13 @@ export interface AdminProfile {
   avatarUrl?: string | null;
 }
 
-/** Raw payload returned by `POST {API_BASE_URL}/api/v1/auth/login`. */
+/** Raw payload returned by the backend's role-scoped login endpoints. */
 export interface BackendLoginResponse {
   accessToken: string;
   refreshToken?: string;
   /** Access-token lifetime in seconds, as issued by the backend. */
   expiresIn: number;
-  user: AdminProfile;
+  user: UserProfile;
 }
 
 /**
@@ -35,5 +42,5 @@ export interface BackendLoginResponse {
  * cookies by the Route Handler and never travel through JavaScript.
  */
 export type LoginOutcome =
-  | { success: true; user: AdminProfile }
+  | { success: true; user: UserProfile }
   | { success: false; message: string };
