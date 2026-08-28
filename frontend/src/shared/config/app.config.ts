@@ -13,15 +13,17 @@ export const appConfig = {
   copyrightStartYear: 2024,
 
   /**
-   * Symbol shown against monetary figures.
+   * Fallback symbol shown against monetary figures.
    *
-   * NOTE FOR REVIEW: the supplied designs disagree — the inventory screen uses
-   * "$" while the dashboard uses "Rs.". This follows the inventory design; the
-   * dashboard figures are still literal strings in its placeholder data.
-   * Confirm the intended currency before either screen goes live, then drive
-   * both from here.
+   * The shop's real symbol is a saved setting (Settings → Business Logic), and
+   * this is the build-time default the portal renders until that setting is
+   * loaded from the backend. It matches `businessLogicDefaults.currencySymbol`
+   * and must be kept in step with it.
+   *
+   * Settled as the rupee: the dashboard, the till and the business-logic
+   * default all use it, against the inventory design's lone "$".
    */
-  currencySymbol: "$",
+  currencySymbol: "Rs.",
 } as const;
 
 /** Canonical route table — avoids magic strings scattered across components. */

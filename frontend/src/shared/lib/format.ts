@@ -29,20 +29,37 @@ const percentFormatter = new Intl.NumberFormat(LOCALE, {
   maximumFractionDigits: 1,
 });
 
-/** Money with the store's symbol, e.g. 4520 -> "$4,520.00". */
-export function formatCurrency(value: number, symbol: string): string {
-  return `${symbol}${amountFormatter.format(value)}`;
+/**
+ * Separator between the symbol and the digits.
+ *
+ * A glyph ("$") sits flush against the number, but a letter-based symbol
+ * ("Rs.") runs into it and has to be spaced.
+ *
+ * This is an ordinary space, so a price can in principle wrap between the
+ * symbol and the figure. Callers that render money in a narrow column are
+ * expected to set `whitespace-nowrap`, which is the more reliable fix — a
+ * non-breaking space here would not survive a copy-paste into a spreadsheet.
+ */
+function symbolGap(symbol: string): string {
+  return /[a-z]\.?$/i.test(symbol) ? " " : "";
 }
 
-/** Compact money for axis ticks, e.g. 4520 -> "$4.5k". */
+/** Money with the store's symbol, e.g. 4520 -> "Rs. 4,520.00". */
+export function formatCurrency(value: number, symbol: string): string {
+  return `${symbol}${symbolGap(symbol)}${amountFormatter.format(value)}`;
+}
+
+/** Compact money for axis ticks, e.g. 4520 -> "Rs. 4.5k". */
 export function formatCompactCurrency(value: number, symbol: string): string {
+  const prefix = `${symbol}${symbolGap(symbol)}`;
+
   if (Math.abs(value) >= 1_000_000) {
-    return `${symbol}${percentFormatter.format(value / 1_000_000)}M`;
+    return `${prefix}${percentFormatter.format(value / 1_000_000)}M`;
   }
   if (Math.abs(value) >= 1_000) {
-    return `${symbol}${percentFormatter.format(value / 1_000)}k`;
+    return `${prefix}${percentFormatter.format(value / 1_000)}k`;
   }
-  return `${symbol}${countFormatter.format(value)}`;
+  return `${prefix}${countFormatter.format(value)}`;
 }
 
 /** A share as a whole-ish percentage, e.g. 0.45 -> "45%". */
