@@ -29,15 +29,18 @@ frontend/src/
 ├── app/                      # Routing only — thin, delegates to modules
 │   ├── (auth)/               #   Route group: shared shell for signed-out pages
 │   │   ├── layout.tsx        #   Split-screen shell (form column + showcase)
-│   │   └── admin/login/      #   /admin/login
-│   └── api/auth/             #   BFF endpoints: login, logout
+│   │   ├── admin/login/      #   /admin/login
+│   │   └── cashier/login/    #   /cashier/login
+│   ├── cashier/pos/          #   /cashier/pos — till landing (placeholder)
+│   └── api/auth/             #   BFF endpoints: [portal]/login, logout
 ├── modules/                  # Feature modules — self-contained
-│   └── auth/
-│       ├── components/       #   UI specific to authentication
-│       ├── constants/        #   Editable content (showcase copy)
-│       ├── schemas/          #   Zod validation, shared by client and server
-│       ├── services/         #   auth.client.ts (browser) / auth.server.ts (BFF)
-│       └── types/            #   Backend contract types
+│   ├── auth/
+│   │   ├── components/       #   UI specific to authentication
+│   │   ├── constants/        #   Portal definitions, showcase copy
+│   │   ├── schemas/          #   Zod validation, shared by client and server
+│   │   ├── services/         #   auth.client.ts (browser) / auth.server.ts (BFF)
+│   │   └── types/            #   Backend contract types
+│   └── pos/                  #   Cashier till (placeholder only, so far)
 └── shared/                   # Cross-module building blocks only
     ├── components/ui/        #   Button, TextField, PasswordField, Checkbox, Alert
     ├── components/brand/     #   Logo
@@ -74,6 +77,7 @@ hard-codes a path string.
 | ------------------- | ----------- | ------------------------------------------- | ----- |
 | `/`                 | —           | `app/page.tsx`                              | Redirects to `/admin/login` |
 | `/admin/login`      | `(auth)`    | `app/(auth)/admin/login/page.tsx`           | Built |
+| `/cashier/login`    | `(auth)`    | `app/(auth)/cashier/login/page.tsx`         | Built |
 | `/admin/dashboard`  | `(portal)`  | `app/(portal)/admin/dashboard/page.tsx`     | Built |
 | `/admin/inventory`  | `(portal)`  | `app/(portal)/admin/inventory/page.tsx`     | Built |
 | `/admin/inventory/new` | `(portal)` | `app/(portal)/admin/inventory/new/page.tsx` | Placeholder |
@@ -86,12 +90,14 @@ hard-codes a path string.
 | `/admin/settings/business-logic` | `(portal)` | `app/(portal)/admin/settings/business-logic/page.tsx` | Built |
 | `/admin/settings/receipts` | `(portal)` | `app/(portal)/admin/settings/receipts/page.tsx` | Built |
 | `/admin/settings/security` | `(portal)` | `app/(portal)/admin/settings/security/page.tsx` | Built |
-| `/api/auth/login`   | —           | `app/api/auth/login/route.ts`               | BFF endpoint |
+| `/cashier/pos`      | —           | `app/cashier/pos/page.tsx`                  | Placeholder — till not designed yet |
+| `/api/auth/{portal}/login` | —    | `app/api/auth/[portal]/login/route.ts`      | BFF endpoint (both portals) |
 | `/api/auth/logout`  | —           | `app/api/auth/logout/route.ts`              | BFF endpoint |
 
 Route groups are folder-only conventions and never appear in a URL. `(auth)`
-carries the split-screen sign-in shell; `(portal)` carries the sidebar shell.
-Both live under the same `/admin/*` space.
+carries the split-screen sign-in shell and is shared by both portals'
+sign-in pages; `(portal)` carries the sidebar shell. `/cashier/pos` sits in
+neither, because the admin navigation rail is not the cashier's chrome.
 
 Placeholder pages exist so every navigation target leads somewhere and says
 plainly that the screen is still to come, rather than dead-ending on a 404 that
@@ -241,13 +247,42 @@ Decisions worth knowing about:
   always agree. The supplied design had them disagree — a 450-unit line drawn
   shorter than a 142-unit one — which was corrected rather than reproduced.
 
+## Two sign-in portals
+
+There are two doors into the system, and they are separate URLs rather than a
+role picker on one page — a shop-floor terminal can be bookmarked straight to
+the till, and the two portals stay separable if that machine is later locked
+down.
+
+| Portal    | Sign in at      | Lands on        | Password reset |
+| --------- | --------------- | --------------- | -------------- |
+| Admin     | `/admin/login`  | `/admin/dashboard` | Self-service link |
+| Cashier   | `/cashier/login`| `/cashier/pos`  | By an administrator |
+
+Everything that differs between them is data, in
+`modules/auth/constants/portals.ts`: heading copy, the username placeholder,
+where a success lands, and whether recovery is offered. Both screens render
+from one `LoginForm` and post to one hardened endpoint, so throttling, cookie
+attributes and error shaping cannot drift between two near-identical copies.
+
+**The portal id is not a permission.** It appears in the BFF's URL
+(`/api/auth/{portal}/login`), where it is narrowed to a known portal and then
+used only to choose the matching role-scoped backend endpoint. It rides in the
+URL rather than the request body so the handler can identify and throttle an
+attempt *before* it reads the body — an unthrottled client should never make
+the route buffer a payload. A user changing the portal in the browser changes
+which door they knock on, never whether it opens: the Spring Boot service
+remains the sole authority.
+
 ## Backend contract — authentication
 
-The sign-in flow expects this endpoint to exist:
+The sign-in flow expects one endpoint per portal:
 
-`POST {API_BASE_URL}/api/v1/auth/login`
+`POST {API_BASE_URL}/api/v1/auth/admin/login`
+`POST {API_BASE_URL}/api/v1/auth/cashier/login`
 
-Request:
+Request (identical for both — the role is expressed by the URL, and neither
+`portal` nor `rememberMe` is forwarded):
 
 ```json
 { "username": "olitharanasinghe2003", "password": "..." }
@@ -275,6 +310,10 @@ when throttled. Do **not** distinguish "unknown user" from "wrong password" in
 the status or body: the frontend maps `400`, `401` and `404` to one generic
 message precisely so the endpoint cannot be used to enumerate usernames.
 
+**Each endpoint must reject the other role's credentials with `401`.** Issuing a
+token for a cashier on the admin endpoint would defeat the split described
+above — the frontend cannot enforce this and does not try to.
+
 ## Security practices
 
 These are enforced in code, not just by convention:
@@ -290,8 +329,13 @@ These are enforced in code, not just by convention:
   never trusts the client's copy.
 - **Errors are mapped, not echoed.** Backend failures become vetted user-facing
   copy; the raw reason is logged server-side only.
-- **Login is rate limited** per client at the BFF (with the authoritative limit
-  still to be added in Spring Boot — see `shared/lib/rate-limit.ts`).
+- **Login is rate limited** per client *and per portal* at the BFF, so a
+  cashier fumbling their password at a till cannot lock the owner out of the
+  management portal from the same shop IP. The authoritative limit still has to
+  be added in Spring Boot — see `shared/lib/rate-limit.ts`.
+- **Portal separation is enforced server-side.** The browser names a portal;
+  the BFF maps it to a role-scoped backend endpoint through a closed lookup, so
+  no client-supplied text ever reaches the backend URL.
 - **Security response headers** — CSP, HSTS, `X-Frame-Options: DENY`,
   `nosniff`, `Referrer-Policy`, `Permissions-Policy` — are set in
   `next.config.ts`, and `X-Powered-By` is suppressed.
