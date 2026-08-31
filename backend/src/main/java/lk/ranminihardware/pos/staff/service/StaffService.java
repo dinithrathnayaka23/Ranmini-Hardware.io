@@ -11,7 +11,6 @@ import lk.ranminihardware.pos.staff.domain.StaffStatus;
 import lk.ranminihardware.pos.staff.repository.StaffRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -19,34 +18,27 @@ import org.springframework.stereotype.Service;
  * Staff accounts.
  *
  * <p>Passwords are hashed with BCrypt and never stored, logged or returned. The
- * encoder is created here rather than injected from a security configuration
- * because that configuration does not exist yet — when the authentication phase
- * lands it should take this over, and this class should stop constructing one.
+ * encoder is the one bean defined in SecurityConfig, so the cost factor is set
+ * in a single place and a staff password created here verifies identically at
+ * sign-in.
  */
 @Service
 public class StaffService {
-
-  /**
-   * BCrypt work factor.
-   *
-   * <p>10 is the library default and takes roughly 100ms on modest hardware,
-   * which is the point: it is slow enough to make offline guessing expensive and
-   * fast enough that a cashier does not notice it at sign-in. Raising it later
-   * is safe — BCrypt records the cost in the hash, so existing passwords keep
-   * verifying.
-   */
-  private static final int BCRYPT_STRENGTH = 10;
 
   private final StaffRepository staff;
   private final SettingsService settings;
   private final PasswordEncoder passwords;
   private final Clock clock;
 
-  public StaffService(StaffRepository staff, SettingsService settings, Clock clock) {
+  public StaffService(
+      StaffRepository staff,
+      SettingsService settings,
+      PasswordEncoder passwords,
+      Clock clock) {
     this.staff = staff;
     this.settings = settings;
+    this.passwords = passwords;
     this.clock = clock;
-    this.passwords = new BCryptPasswordEncoder(BCRYPT_STRENGTH);
   }
 
   public Page<StaffMember> list(StaffStatus status, Pageable pageable) {
