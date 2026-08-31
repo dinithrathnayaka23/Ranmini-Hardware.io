@@ -1,6 +1,7 @@
 package lk.ranminihardware.pos.catalog.service;
 
 import java.util.List;
+import lk.ranminihardware.pos.catalog.api.StockReference;
 import lk.ranminihardware.pos.catalog.domain.Category;
 import lk.ranminihardware.pos.catalog.domain.Product;
 import lk.ranminihardware.pos.catalog.domain.StockStatus;
@@ -27,10 +28,13 @@ public class ProductService {
 
   private final ProductRepository products;
   private final CategoryService categories;
+  private final CatalogApiAdapter stock;
 
-  public ProductService(ProductRepository products, CategoryService categories) {
+  public ProductService(
+      ProductRepository products, CategoryService categories, CatalogApiAdapter stock) {
     this.products = products;
     this.categories = categories;
+    this.stock = stock;
   }
 
   public Page<Product> search(ProductSearchCriteria criteria, Pageable pageable) {
@@ -148,22 +152,22 @@ public class ProductService {
    * <p>Routed through the same atomic primitive the till uses, so an adjustment
    * landing at the same moment as a sale cannot lose one of them.
    */
-  public Product adjustStock(String id, int delta) {
+  public Product adjustStock(String id, int delta, String reason) {
     if (delta == 0) return get(id);
 
+    // Routed through the catalogue API so the ledger entry is written by the
+    // same code path the till uses. An adjustment that left no trace would be
+    // the one entry nobody can account for at stocktake.
+    StockReference reference = StockReference.adjustment(reason);
+
     if (delta > 0) {
-      return products
-          .incrementStock(id, delta)
-          .orElseThrow(() -> ApiException.notFound("Product", id));
+      stock.releaseStock(id, delta, reference);
+    } else if (stock.reserveStock(id, -delta, reference).isEmpty()) {
+      throw ApiException.unprocessable(
+          "INSUFFICIENT_STOCK", "That adjustment would take the stock below zero.");
     }
 
-    return products
-        .decrementStock(id, -delta)
-        .orElseThrow(
-            () ->
-                ApiException.unprocessable(
-                    "INSUFFICIENT_STOCK",
-                    "That adjustment would take the stock below zero."));
+    return get(id);
   }
 
   /**
