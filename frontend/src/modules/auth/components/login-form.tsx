@@ -36,7 +36,21 @@ import { login } from "../services/auth.client";
  * and stores the session in httpOnly cookies. No token ever reaches this
  * component.
  */
-export function LoginForm({ portal }: { portal: PortalDefinition }) {
+export function LoginForm({
+  portal,
+  redirectTo,
+}: {
+  portal: PortalDefinition;
+  /**
+   * Where to go after signing in, when the middleware bounced the user here
+   * from somewhere else.
+   *
+   * Read on the server and passed down rather than pulled from
+   * `useSearchParams`, which would force this whole page out of static
+   * prerendering for one optional string.
+   */
+  redirectTo?: string;
+}) {
   const router = useRouter();
 
   /** Form-level failure (bad credentials, throttling, network) — not field-level. */
@@ -72,7 +86,16 @@ export function LoginForm({ portal }: { portal: PortalDefinition }) {
     // The session cookie is already set by the Route Handler. `refresh()`
     // re-runs the server components so middleware/layouts see the new session,
     // and `replace` keeps the login page out of the browser's back history.
-    router.replace(portal.landingRoute);
+    //
+    // If the middleware bounced them here from somewhere else, send them back
+    // there. Only same-origin paths are honoured: an open redirect would let a
+    // crafted link carry a freshly signed-in user to another site.
+    const destination =
+      redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")
+        ? redirectTo
+        : portal.landingRoute;
+
+    router.replace(destination);
     router.refresh();
   };
 

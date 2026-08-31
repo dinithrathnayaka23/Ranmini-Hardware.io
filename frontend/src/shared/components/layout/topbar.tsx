@@ -3,6 +3,7 @@
 import { Bell, Menu } from "lucide-react";
 
 import { AdminMenu } from "@/modules/auth/components/admin-menu";
+import type { UserProfile } from "@/modules/auth/types/auth.types";
 
 /**
  * Slim application bar above the content region.
@@ -10,7 +11,13 @@ import { AdminMenu } from "@/modules/auth/components/admin-menu";
  * On phones it also owns the button that opens the navigation drawer; from
  * `lg` the rail is always visible so the button is hidden.
  */
-export function Topbar({ onOpenNav }: { onOpenNav: () => void }) {
+export function Topbar({
+  onOpenNav,
+  user,
+}: {
+  onOpenNav: () => void;
+  user: UserProfile;
+}) {
   return (
     // Sticky below `lg` because the page itself scrolls there; from `lg` the
     // shell is fixed height and only the content region moves, so it can be
@@ -39,7 +46,7 @@ export function Topbar({ onOpenNav }: { onOpenNav: () => void }) {
         >
           <Bell aria-hidden className="size-5" />
         </button>
-        <AdminMenu />
+        <AdminMenu admin={user} />
       </div>
     </header>
   );

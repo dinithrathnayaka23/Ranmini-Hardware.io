@@ -9,7 +9,7 @@ import * as React from "react";
 import { Avatar } from "@/shared/components/ui/avatar";
 import { routes } from "@/shared/config/app.config";
 
-import { placeholderAdmin } from "../constants/placeholder-session";
+import type { UserProfile } from "../types/auth.types";
 
 /**
  * Signed-in administrator control in the top bar.
@@ -18,9 +18,12 @@ import { placeholderAdmin } from "../constants/placeholder-session";
  * reach their settings. Deliberately a plain popover rather than `role="menu"`:
  * most of what it shows is static detail, and announcing static text as menu
  * items misrepresents it to a screen reader.
+ *
+ * The user is passed down from the server rather than fetched here. This is a
+ * Client Component, and a session lookup from the browser would need an
+ * endpoint that hands out account details to whoever asks.
  */
-export function AdminMenu() {
-  const admin = placeholderAdmin;
+export function AdminMenu({ admin }: { admin: UserProfile }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
@@ -71,7 +74,7 @@ export function AdminMenu() {
         aria-label={`Account menu for ${admin.fullName}`}
         className="inline-flex size-10 items-center justify-center rounded-full transition-shadow hover:ring-2 hover:ring-line aria-expanded:ring-2 aria-expanded:ring-brand-600/30"
       >
-        <Avatar fullName={admin.fullName} imageUrl={admin.avatarUrl} size={36} />
+        <Avatar fullName={admin.fullName} imageUrl={admin.avatarUrl ?? null} size={36} />
       </button>
 
       {isOpen ? (
@@ -80,27 +83,19 @@ export function AdminMenu() {
           className="absolute right-0 z-30 mt-2 w-72 overflow-hidden rounded-xl border border-line bg-surface shadow-lg"
         >
           <div className="flex items-center gap-3 border-b border-line p-4">
-            <Avatar
-              fullName={admin.fullName}
-              imageUrl={admin.avatarUrl}
-              size={44}
-            />
+            <Avatar fullName={admin.fullName} imageUrl={admin.avatarUrl ?? null} size={44} />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-ink">
                 {admin.fullName}
               </p>
-              <p className="truncate text-xs text-muted">{admin.role}</p>
+              <p className="truncate text-xs text-muted">{roleLabel(admin.role)}</p>
             </div>
           </div>
 
           <dl className="space-y-3 p-4">
             <DetailRow icon={IdCard} label="Username" value={admin.username} />
-            <DetailRow icon={AtSign} label="Email" value={admin.email} />
-            <DetailRow
-              icon={ShieldCheck}
-              label="Access"
-              value="Full administrator"
-            />
+            <DetailRow icon={AtSign} label="Email" value={admin.email || "Not set"} />
+            <DetailRow icon={ShieldCheck} label="Access" value={roleLabel(admin.role)} />
           </dl>
 
           <div className="border-t border-line p-2">
@@ -115,6 +110,11 @@ export function AdminMenu() {
       ) : null}
     </div>
   );
+}
+
+/** The stored role, in the words the shop uses. */
+function roleLabel(role: UserProfile["role"]): string {
+  return role === "ADMIN" ? "Administrator" : "Cashier";
 }
 
 function DetailRow({

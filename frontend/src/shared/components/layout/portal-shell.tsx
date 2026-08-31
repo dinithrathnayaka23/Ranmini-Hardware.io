@@ -4,6 +4,8 @@ import { X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 
+import type { UserProfile } from "@/modules/auth/types/auth.types";
+
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 
@@ -19,7 +21,20 @@ import { Topbar } from "./topbar";
  * screen and locking the viewport there would trap the user — the top bar is
  * sticky so navigation stays reachable while scrolling.
  */
-export function PortalShell({ children }: { children: React.ReactNode }) {
+export function PortalShell({
+  children,
+  user,
+}: {
+  children: React.ReactNode;
+  /**
+   * Resolved on the server by the portal layout and handed down.
+   *
+   * The shell is a Client Component, so it cannot read the session cookie —
+   * which is the point. Looking the user up from the browser would need an
+   * endpoint that hands out account details to whoever asks.
+   */
+  user: UserProfile;
+}) {
   const [isNavOpen, setIsNavOpen] = React.useState(false);
   const pathname = usePathname();
 
@@ -92,7 +107,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
 
       {/* ---------------------------- Content column --------------------------- */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar onOpenNav={() => setIsNavOpen(true)} />
+        <Topbar onOpenNav={() => setIsNavOpen(true)} user={user} />
 
         {/* The scroll container on desktop: the page stays fixed, this moves. */}
         <main data-print="expand" className="min-h-0 flex-1 lg:overflow-y-auto">

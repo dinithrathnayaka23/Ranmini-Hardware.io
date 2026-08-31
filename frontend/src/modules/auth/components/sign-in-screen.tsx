@@ -10,7 +10,14 @@ import { LoginForm } from "./login-form";
  * `(auth)` layout, so a portal's page file is left with nothing but its
  * metadata and which portal it is.
  */
-export function SignInScreen({ portal }: { portal: PortalDefinition }) {
+export function SignInScreen({
+  portal,
+  redirectTo,
+}: {
+  portal: PortalDefinition;
+  /** Forwarded from the page's search params; see LoginForm. */
+  redirectTo?: string;
+}) {
   return (
     <div>
       <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-ink sm:text-[2rem]">
@@ -21,7 +28,7 @@ export function SignInScreen({ portal }: { portal: PortalDefinition }) {
       </p>
 
       <div className="mt-8 sm:mt-12">
-        <LoginForm portal={portal} />
+        <LoginForm portal={portal} redirectTo={redirectTo} />
       </div>
     </div>
   );

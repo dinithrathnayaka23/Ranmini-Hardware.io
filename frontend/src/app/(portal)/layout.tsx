@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/modules/auth/services/session.server";
 import { PortalShell } from "@/shared/components/layout/portal-shell";
 
 /**
@@ -7,12 +8,19 @@ import { PortalShell } from "@/shared/components/layout/portal-shell";
  * `(auth)` while leaving both under the same `/admin/*` URL space — the group
  * name is a folder convention only and never appears in the path.
  *
- * TODO(auth): once middleware is in place, this is where the session cookie
- * should be checked so an unauthenticated request is redirected to sign-in
- * before any portal markup is rendered.
+ * This is where access to the whole portal is decided. The middleware already
+ * bounced anyone without a session cookie, but that check only looks for the
+ * cookie's presence — it cannot verify a token without a network call on every
+ * navigation. `requireAdmin` asks the backend who the token actually belongs
+ * to, so a forged or expired cookie stops here, and a signed-in cashier is sent
+ * to the till rather than shown a portal they cannot use.
+ *
+ * Doing it in the layout rather than in each page means a screen added later is
+ * protected by default instead of by remembering.
  */
-export default function PortalLayout({
+export default async function PortalLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return <PortalShell>{children}</PortalShell>;
+  const user = await requireAdmin();
+  return <PortalShell user={user}>{children}</PortalShell>;
 }
