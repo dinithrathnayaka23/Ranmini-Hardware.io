@@ -1,20 +1,8 @@
 import "server-only";
 
-/**
- * Session cookie names.
- *
- * The `__Host-` prefix is a browser-enforced guarantee: the cookie must be
- * Secure, path `/`, and carry no Domain attribute. That stops a compromised
- * sibling subdomain from overwriting our session cookie. It requires HTTPS,
- * so the prefix is applied only outside development.
- */
-const useHostPrefix = process.env.NODE_ENV === "production";
-const prefix = useHostPrefix ? "__Host-" : "";
-
-export const cookieNames = {
-  accessToken: `${prefix}rh_access_token`,
-  refreshToken: `${prefix}rh_refresh_token`,
-} as const;
+// Names live in their own module so the middleware, which runs in a different
+// runtime, can read them without pulling in this server-only file.
+export { cookieNames } from "./cookie-names";
 
 /**
  * Baseline attributes for every auth cookie.
