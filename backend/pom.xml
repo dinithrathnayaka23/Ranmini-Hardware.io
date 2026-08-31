@@ -21,6 +21,7 @@
     <java.version>21</java.version>
     <springdoc.version>2.8.13</springdoc.version>
     <testcontainers.version>1.20.6</testcontainers.version>
+    <jjwt.version>0.12.6</jjwt.version>
   </properties>
 
   <dependencies>
@@ -61,11 +62,37 @@
       <artifactId>caffeine</artifactId>
     </dependency>
 
-    <!-- Password hashing for staff records. The full authentication flow is a
-         later phase; only the encoder is used for now. -->
+    <!-- Authentication and authorisation. Brings the password encoder with it. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+
+    <!-- Stateless JWT sessions. Signed tokens rather than server-side session
+         state, so the API stays horizontally scalable: any instance can verify
+         a token without a shared session store. -->
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>${jjwt.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.security</groupId>
-      <artifactId>spring-security-crypto</artifactId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <!-- Browsable API docs at /swagger-ui.html, so the frontend work that comes
