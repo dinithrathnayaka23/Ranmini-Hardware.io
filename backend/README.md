@@ -4,8 +4,8 @@ Spring Boot 3.5 on Java 21, MongoDB. A modular monolith: one deployable,
 organised by feature rather than by technical layer, mirroring the frontend's
 own module layout.
 
-Authentication is **not** built yet — every endpoint below is currently open.
-That is the next phase, along with wiring the frontend to these endpoints.
+Authentication is JWT-based and every endpoint except sign-in and health
+requires it.
 
 ## Running it
 
@@ -26,6 +26,22 @@ already exists.
 
 - API docs: `http://localhost:8080/swagger-ui.html`
 - Health: `http://localhost:8080/actuator/health`
+
+### The two owner accounts
+
+Both are plain `ADMIN` with **identical** privileges — the owner and his son.
+There is deliberately no senior admin: a hierarchy nobody asked for becomes a
+permission check nobody can explain.
+
+They are created on a fresh database and never overwritten afterwards, so a
+redeploy cannot reset a password that has since been changed. Passwords come
+from the environment; leave them blank and a strong one is generated and printed
+**once** at first startup. Nothing is hard-coded, because a default password in
+the repository means every deployment of this code shares it.
+
+Cashiers are not seeded. An admin creates them from the portal and hands over
+the credentials directly — there is no mail server to send an invitation
+through.
 
 ### Tests
 
@@ -99,6 +115,36 @@ would reintroduce the race the first one closed.
 
 Verified under load: twenty concurrent checkouts against ten units yield exactly
 ten sales and a stock of zero, never negative.
+
+### Authentication
+
+Sessions are signed tokens rather than server state, so any instance can verify
+one without a shared store — the alternative needs sticky routing or a shared
+cache the moment there is a second instance. The cost is that a token cannot be
+revoked before it expires, so access tokens are short-lived and refresh re-reads
+the account: a cashier deactivated this morning cannot mint a session this
+afternoon.
+
+**Every sign-in failure looks the same.** Unknown username, wrong password,
+deactivated account, wrong portal — one message, one status, and the same time
+spent hashing even when the username does not exist. Distinguishing them turns
+the endpoint into an oracle: "no such user" versus "wrong password" tells an
+attacker which usernames are real.
+
+**The portal check is server-side.** The frontend has separate admin and cashier
+sign-in pages, but that is presentation; a cashier posting to the admin endpoint
+is rejected by the service, because the client choosing which door to knock on
+must never decide whether it opens. Admins can use the till as well as the
+portal, so the owner can cover the counter without a second account.
+
+Authorisation is written **deny-by-default**: `anyRequest().authenticated()` is
+the last rule, so an endpoint added tomorrow is protected until somebody
+deliberately opens it. Failed sign-ins are counted on the account, not in
+memory, so a lockout survives a restart and holds across instances.
+
+**The cashier on a receipt comes from the token, never the request body.** A
+till that could name somebody else would make the sales ledger useless for
+exactly the question it exists to answer.
 
 ### Retries are safe
 
@@ -179,15 +225,13 @@ Mongo pull the whole result set into memory and fail past 32MB.
 
 ## Still to do
 
-1. **Authentication and authorisation.** The staff documents already carry
-   password hashes, lockout counters and roles so this is an addition rather
-   than a migration. `/swagger-ui.html` must go behind it in the same change.
-2. **Wire the frontend** to these endpoints, replacing its placeholder
-   constants.
-3. **`cashierId` is currently accepted from the client** on checkout. It must
-   come from the session once sessions exist — a till should not be able to
-   attribute a sale to somebody else.
-4. **Rate limiting** on the API, matching the throttle already in the Next.js
-   BFF.
-5. **A summary rebuild job**, so the derived daily totals can be recomputed from
+1. **`/swagger-ui.html` is still open.** It is reachable by anyone who can reach
+   the service. Acceptable while this is bound to a shop's local network, but it
+   must go behind authentication before the API is exposed more widely.
+2. **Rate limiting** on the API, matching the throttle already in the Next.js
+   BFF. The per-account lockout covers password guessing against one user; it
+   does not cover a spray across many.
+3. **A summary rebuild job**, so the derived daily totals can be recomputed from
    sales on demand rather than only in principle.
+4. **Refresh-token rotation.** A refresh token is currently reusable until it
+   expires; rotating it on each use would limit the damage from a stolen one.

@@ -86,7 +86,20 @@ ids and quantities and no amounts at all, because a total posted by a browser is
 a number the customer can edit. And stock only ever moves through a single
 atomic conditional update, so two tills cannot sell the same last bag of cement.
 
-**Authentication is not built yet**; every backend endpoint is currently open.
+### Signing in
+
+Two roles, because the shop has two jobs. **Admin** is the owner and his son,
+with identical privileges. **Cashier** is whoever is on the counter: they reach
+the till and nothing else.
+
+The two admin accounts are created on a fresh database from environment
+variables; leave the passwords blank and a strong one is generated and printed
+once at first startup. Cashiers are created by an admin from the Staff screen,
+who then hands the credentials over directly — there is no mail server to send
+an invitation through.
+
+An admin can also sign in at the till, so the owner can cover the counter
+without a second account.
 
 ## Routes
 
@@ -128,16 +141,32 @@ nothing when clicked. Delete each as its real design lands.
 Nested routes keep their parent section highlighted in the sidebar, so
 `/admin/inventory/new` still shows Inventory as current.
 
-**Not yet implemented:** nothing guards the portal. Any visitor can open
-`/admin/dashboard` without signing in. Add a middleware session check — the
-`TODO(auth)` in `app/(portal)/layout.tsx` marks the spot — before this is
-exposed to anyone.
+**How the portal is guarded.** Two layers doing different jobs. `middleware.ts`
+checks only that a session cookie exists and redirects to the right sign-in page
+if not — it cannot verify a token without a network call on every navigation,
+and it is not trying to. What it buys is that a signed-out visitor lands on the
+sign-in page immediately rather than watching a portal shell render and vanish.
 
-## Placeholder data
+The check that actually holds is `requireAdmin()` in the `(portal)` layout,
+which asks the backend who the token belongs to. A forged or expired cookie
+stops there. Doing it in the layout rather than each page means a screen added
+later is protected by default. A signed-in cashier who opens a portal URL is
+sent to the till, not to a login form they would pass and be rejected from
+again.
 
-No screen is wired to a backend yet. Every figure is illustrative and isolated
-in a small number of clearly named modules, each naming the endpoint that should
-replace it:
+## Data
+
+Every screen reads from the Spring Boot API. Server Components fetch on the
+server so pages arrive with their data in them, and mutations go through Server
+Actions rather than hand-written BFF routes — the session token is in an
+httpOnly cookie the browser cannot read, so the call has to happen server-side
+anyway.
+
+`shared/lib/api.server.ts` is the single way this app reaches the backend. Its
+`server-only` import breaks the build if a Client Component imports it, which is
+what keeps the session token out of the browser bundle.
+
+What remains as illustrative data:
 
 | Module | Feeds |
 | ------ | ----- |
@@ -146,8 +175,7 @@ replace it:
 | `modules/reports/constants/reports-data.ts` | Report stats, sales trend, categories, top products, daily rows |
 | `modules/staff/constants/staff-data.ts` | The staff record shown on the staff screen |
 | `modules/settings/constants/settings-data.ts` | Stored configuration for all four settings sections |
-| `modules/pos/constants/pos-data.ts` | The till's sellable catalogue and its category chips |
-| `modules/auth/constants/placeholder-session.ts` | The signed-in user in the portal chrome and on the till |
+| `modules/pos/constants/pos-data.ts` | The terminal name only — the catalogue is live |
 
 Every widget already takes its rows as props, so swapping in live calls is a
 change to each page's data source rather than a rewrite.
