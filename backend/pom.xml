@@ -121,6 +121,42 @@
         </configuration>
       </plugin>
 
+      <!--
+        Two test phases, on purpose.
+
+        `mvn test` runs only the fast unit tests (*Test), so the loop while
+        writing code stays quick and needs nothing installed. `mvn verify` also
+        runs the integration tests (*IT), which start a real MongoDB through
+        Testcontainers and therefore need Docker running.
+
+        The split matters because the integration tests are the ones that catch
+        the bugs that matter here — an atomic update that is not atomic, a
+        unique index that does not reject — and those cannot be checked without
+        a real database. Making them opt-in keeps them from being deleted for
+        being slow.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <!--
+            Run against the plain compiled classes, not the repackaged jar.
+            Spring Boot's repackage step moves classes under BOOT-INF/classes,
+            which the test classloader cannot read: without this, discovery
+            fails with a NoClassDefFoundError for the application's own types.
+          -->
+          <classesDirectory>${project.build.outputDirectory}</classesDirectory>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
