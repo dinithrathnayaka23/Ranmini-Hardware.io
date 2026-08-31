@@ -2,6 +2,7 @@ import "server-only";
 
 import { apiFetch, type PageResponse } from "@/shared/lib/api.server";
 
+import { ALL_CATEGORIES } from "../constants/pos-data";
 import type { PosCategory, PosProduct } from "../types/pos.types";
 
 /**
@@ -52,7 +53,13 @@ export async function fetchCategories(): Promise<PosCategory[]> {
     tags: ["categories"],
   });
 
-  return categories.map((category) => ({ id: category.id, label: category.label }));
+  // "All Items" is part of the filter UI, not a stored category, so it is
+  // prepended here rather than existing as a row in the database that every
+  // product would then have to avoid being assigned to.
+  return [
+    { id: ALL_CATEGORIES, label: "All Items" },
+    ...categories.map((category) => ({ id: category.id, label: category.label })),
+  ];
 }
 
 export async function fetchProducts(): Promise<PosProduct[]> {
