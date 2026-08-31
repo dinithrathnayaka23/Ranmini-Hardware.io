@@ -118,7 +118,7 @@ public class ProductController {
   @PostMapping("/products/{id}/stock")
   public ProductDtos.Response adjustStock(
       @PathVariable String id, @Valid @RequestBody ProductDtos.StockAdjustment adjustment) {
-    return ProductDtos.Response.from(products.adjustStock(id, adjustment.delta()));
+    return ProductDtos.Response.from(products.adjustStock(id, adjustment.delta(), adjustment.reason()));
   }
 
   @GetMapping("/summary")
