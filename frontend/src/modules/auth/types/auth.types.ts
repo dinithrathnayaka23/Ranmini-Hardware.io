@@ -13,12 +13,18 @@
  * ("Owner", "Cashier") and must never be used to make an access decision on
  * the client.
  */
+export type UserRole = "ADMIN" | "CASHIER";
+
 export interface UserProfile {
   id: string;
   username: string;
   fullName: string;
   email: string;
-  role: string;
+  /**
+   * Two roles, matching the backend exactly. ADMIN is the owner and his son
+   * with identical privileges; CASHIER reaches the till and nothing else.
+   */
+  role: UserRole;
   /**
    * Path to a profile photo under `public/`, or null for the initials
    * fallback. Optional because the backend may not store one.

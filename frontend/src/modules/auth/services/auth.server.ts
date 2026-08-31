@@ -36,7 +36,9 @@ const backendLoginResponseSchema = z.object({
     username: z.string().min(1),
     fullName: z.string(),
     email: z.string(),
-    role: z.string().min(1),
+    // A closed set, not a free string: an unexpected role must fail here with
+    // a clear message rather than flow into the UI as an unhandled branch.
+    role: z.enum(["ADMIN", "CASHIER"]),
   }),
 });
 

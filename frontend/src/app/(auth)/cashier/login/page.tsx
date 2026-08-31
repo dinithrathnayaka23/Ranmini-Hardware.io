@@ -10,11 +10,15 @@ export const metadata: Metadata = {
 /**
  * `/cashier/login` — the till's own door into the system.
  *
- * Deliberately a separate URL from the admin sign-in rather than a role picker
- * on one page: shop-floor machines can be bookmarked straight to this address,
- * and the two portals stay separable if the till is later locked down to
- * specific devices.
+ * Reads the `next` search param the middleware adds when it bounces a
+ * signed-out visitor here, so signing in returns them to where they were going
+ * rather than dumping everyone on the landing page.
  */
-export default function CashierLoginPage() {
-  return <SignInScreen portal={portals.cashier} />;
+export default async function CashierLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
+  return <SignInScreen portal={portals.cashier} redirectTo={next} />;
 }
