@@ -12,6 +12,7 @@ import lk.ranminihardware.pos.catalog.repository.dto.InventorySummary;
 import lk.ranminihardware.pos.catalog.repository.dto.ProductSearchCriteria;
 import org.bson.Document;
 import org.bson.types.Decimal128;
+import org.bson.types.ObjectId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -42,7 +43,7 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
     // the update as one atomic step, so two tills racing for the last unit
     // cannot both satisfy `stock >= quantity`.
     Document filter =
-        new Document("_id", productId)
+        new Document("_id", idValue(productId))
             .append("active", true)
             .append("stock", new Document("$gte", quantity));
 
@@ -53,7 +54,7 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
   public Optional<Product> incrementStock(String productId, int quantity) {
     if (quantity <= 0) return Optional.empty();
     // No stock guard: returning stock must never be refused.
-    return applyStockChange(new Document("_id", productId), quantity);
+    return applyStockChange(new Document("_id", idValue(productId)), quantity);
   }
 
   /**
@@ -92,6 +93,20 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
     // the same and distinguishing them would leak catalogue state.
     return Optional.ofNullable(updated)
         .map(doc -> mongo.getConverter().read(Product.class, doc));
+  }
+
+  /**
+   * Converts an id string into the type it is actually stored as.
+   *
+   * <p>Spring Data maps a hex string id onto a real {@code ObjectId} in the
+   * database, so a raw-driver filter built with the plain {@code String} matches
+   * nothing at all. That failure is silent and looks exactly like "no stock" —
+   * which is precisely how it first showed up: a sale of two units from a shelf
+   * of four was refused. Anything that is not a valid ObjectId is passed through
+   * unchanged, so seeded or externally supplied string ids still work.
+   */
+  private static Object idValue(String id) {
+    return ObjectId.isValid(id) ? new ObjectId(id) : id;
   }
 
   /**
