@@ -1,6 +1,5 @@
 package lk.ranminihardware.pos.sales.repository;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import lk.ranminihardware.pos.sales.domain.Sale;
@@ -36,8 +35,8 @@ public interface SaleRepository extends MongoRepository<Sale, String> {
    * very day the sales were made.
    */
   @Query("{ 'businessDate': { $gte: ?0, $lte: ?1 } }")
-  Page<Sale> findInDateRange(LocalDate from, LocalDate to, Pageable pageable);
+  Page<Sale> findInDateRange(String fromIsoDate, String toIsoDate, Pageable pageable);
 
   /** Shift reconciliation: what one cashier took on one day. */
-  List<Sale> findByCashierIdAndBusinessDate(String cashierId, LocalDate businessDate);
+  List<Sale> findByCashierIdAndBusinessDate(String cashierId, String isoBusinessDate);
 }

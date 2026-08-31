@@ -17,14 +17,20 @@ import org.springframework.data.domain.Sort;
 public interface DailySalesSummaryRepository extends MongoRepository<DailySalesSummary, String> {
 
   /**
-   * Daily totals within an inclusive range.
+   * Daily totals within an inclusive range, by ISO date string.
    *
-   * <p>Explicit rather than a derived {@code Between} for the same reason as
-   * the sales query: Spring Data makes that keyword exclusive at both ends, so
-   * a "this month" chart would silently omit the first and last day.
+   * <p>Two deliberate choices. It matches on {@code _id}, which is the trading
+   * day, so the query runs on the primary key index. And it compares strings
+   * rather than dates, because an ISO date has exactly one meaning while a BSON
+   * date is an instant whose interpretation depends on a timezone the writer
+   * and reader have to agree on — they did not, and the reports screen came back
+   * empty as a result.
+   *
+   * <p>Explicit rather than a derived {@code Between}, which Spring Data makes
+   * exclusive at both ends and would drop the first and last day of the range.
    */
-  @Query(value = "{ 'date': { $gte: ?0, $lte: ?1 } }", sort = "{ 'date': 1 }")
-  List<DailySalesSummary> findInDateRange(LocalDate from, LocalDate to);
+  @Query(value = "{ '_id': { $gte: ?0, $lte: ?1 } }", sort = "{ '_id': 1 }")
+  List<DailySalesSummary> findInDateRange(String fromIsoDate, String toIsoDate);
 
-  Optional<DailySalesSummary> findByDate(LocalDate date);
+  Optional<DailySalesSummary> findByDate(String isoDate);
 }

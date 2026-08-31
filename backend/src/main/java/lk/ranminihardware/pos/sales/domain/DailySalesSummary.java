@@ -36,10 +36,26 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @AllArgsConstructor
 public class DailySalesSummary {
 
+  /**
+   * The trading day in ISO form, e.g. "2026-08-31" — and also the document id.
+   *
+   * <p>Using the date itself as {@code _id} means the concurrent upsert is
+   * guarded by the primary key, needs no second unique index, and every range
+   * query runs on the fastest index the collection has.
+   */
   @Id private String id;
 
-  /** The trading day. Unique, which is what makes the concurrent upsert safe. */
-  private LocalDate date;
+  /**
+   * The trading day, repeated as an ISO string rather than a date type.
+   *
+   * <p>Deliberate: a BSON date is an instant, so writing "31 August" and reading
+   * it back involves two timezone conversions that must agree. They did not —
+   * the summary was written at UTC midnight and queried with the JVM's local
+   * zone, which silently returned nothing for the current day and made the
+   * whole reports screen look empty. An ISO string has one meaning, sorts
+   * correctly, and compares correctly with $gte/$lte.
+   */
+  private String date;
 
   private long transactions;
 

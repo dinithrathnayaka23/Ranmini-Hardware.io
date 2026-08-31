@@ -3,8 +3,6 @@ package lk.ranminihardware.pos.sales.service;
 import com.mongodb.client.model.UpdateOptions;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.Date;
 import lk.ranminihardware.pos.sales.domain.Sale;
 import lk.ranminihardware.pos.sales.domain.SaleLine;
@@ -83,20 +81,19 @@ public class DailySummaryService {
               .append("costTotal", signed(sale.getCostTotal(), sign))
               .append("profit", signed(sale.getProfit(), sign));
 
-      LocalDate date = sale.getBusinessDate();
+      String date = sale.getBusinessDate().toString();
 
       mongo
           .getCollection(COLLECTION)
           .updateOne(
-              new Document("_id", date.toString()),
+              new Document("_id", date),
               new Document("$inc", increments)
-                  // `date` is set rather than incremented, and only on insert
-                  // for the immutable parts. Stored as a UTC instant so range
-                  // queries use the index.
+                  // The day is stored as its own ISO string rather than a BSON
+                  // date: an instant would need the writer and every reader to
+                  // agree on a timezone, and they did not.
                   .append(
                       "$set",
-                      new Document("updatedAt", Date.from(Instant.now()))
-                          .append("date", Date.from(date.atStartOfDay(ZoneOffset.UTC).toInstant()))),
+                      new Document("updatedAt", Date.from(Instant.now())).append("date", date)),
               new UpdateOptions().upsert(true));
 
     } catch (RuntimeException ex) {

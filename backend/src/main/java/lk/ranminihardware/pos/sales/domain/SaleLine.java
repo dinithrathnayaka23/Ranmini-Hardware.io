@@ -36,6 +36,21 @@ public class SaleLine {
   /** The product name as it read on the day. */
   private String name;
 
+  /**
+   * Category of the product at the time of sale.
+   *
+   * <p>Copied onto the line so revenue-by-category reports are a plain group on
+   * the sales collection. The alternative is a lookup into products for every
+   * line of every sale in the range, which is the difference between a report
+   * that runs in milliseconds and one that gets slower every month.
+   *
+   * <p>It also keeps history honest: moving a product to a different shelf next
+   * year does not retroactively move last year's revenue with it.
+   */
+  private String categoryId;
+
+  private String categoryName;
+
   /** Price charged per unit, at the time of sale. */
   private BigDecimal unitPrice;
 

@@ -117,8 +117,24 @@ public class MongoIndexInitializer {
     ops.createIndex(
         new Index().on("invoiceNumber", Sort.Direction.ASC).unique().named("uk_sale_invoice"));
 
-    // The default listing and every date-range report walk this backwards.
+    // The default listing walks this backwards.
     ops.createIndex(new Index().on("soldAt", Sort.Direction.DESC).named("ix_sale_sold_at"));
+
+    // Date-range listings: the trading day narrows the scan, then the timestamp
+    // orders what is left without a separate in-memory sort.
+    ops.createIndex(
+        new Index()
+            .on("businessDate", Sort.Direction.ASC)
+            .on("soldAt", Sort.Direction.DESC)
+            .named("ix_sale_business_date"));
+
+    // Every report matches completed sales within a range, in that order, so
+    // status leads the compound index and the range is served by its second key.
+    ops.createIndex(
+        new Index()
+            .on("status", Sort.Direction.ASC)
+            .on("businessDate", Sort.Direction.ASC)
+            .named("ix_sale_status_business_date"));
 
     // "What did this cashier take today" — for shift reconciliation.
     ops.createIndex(
@@ -145,10 +161,10 @@ public class MongoIndexInitializer {
   }
 
   private void dailySalesSummary() {
-    IndexOperations ops = mongo.indexOps("daily_sales_summary");
-    // One document per trading day, upserted as sales land. The unique index is
-    // what makes the concurrent upsert safe.
-    ops.createIndex(new Index().on("date", Sort.Direction.DESC).unique().named("uk_summary_date"));
+    // Deliberately empty. The trading day IS the document id, so the concurrent
+    // upsert is already guarded by the primary key and every range query runs on
+    // the fastest index the collection has. Kept as a named method rather than
+    // omitted, so the next person looking for the index finds the reason.
   }
 
   private void stockMovements() {

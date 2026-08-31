@@ -2,7 +2,6 @@ package lk.ranminihardware.pos.sales.domain;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -37,15 +36,21 @@ public class Sale {
   private String invoiceNumber;
 
   /**
-   * The trading day this sale belongs to, as a plain date.
+   * The trading day this sale belongs to, as an ISO string, e.g. 2026-08-31.
    *
    * <p>Stored alongside the timestamp on purpose. Grouping a year of sales by
    * day from {@code soldAt} alone means a {@code $dateToString} over every
-   * document on every report, which cannot use an index. A stored date is one
-   * equality match, and it also lets the shop decide that a sale rung up at
-   * 00:30 belongs to the previous trading day without rewriting reports.
+   * document on every report, which cannot use an index. A stored day is one
+   * indexed range match, and it also lets the shop decide that a sale rung up
+   * at 00:30 belongs to the previous trading day without rewriting reports.
+   *
+   * <p>A string rather than a date type, deliberately. A BSON date is an
+   * instant, so a trading day written by the service and read back by a query
+   * involves two timezone conversions that have to agree. They did not, and
+   * range queries silently returned nothing for the current day. An ISO string
+   * has exactly one meaning and compares correctly with $gte and $lte.
    */
-  private LocalDate businessDate;
+  private String businessDate;
 
   private Instant soldAt;
 

@@ -51,12 +51,12 @@ public class SaleService {
   }
 
   public Page<Sale> listBetween(LocalDate from, LocalDate to, Pageable pageable) {
-    return sales.findInDateRange(from, to, pageable);
+    return sales.findInDateRange(from.toString(), to.toString(), pageable);
   }
 
   /** Shift reconciliation: every sale one cashier rang up on one day. */
   public List<Sale> forCashier(String cashierId, LocalDate businessDate) {
-    return sales.findByCashierIdAndBusinessDate(cashierId, businessDate);
+    return sales.findByCashierIdAndBusinessDate(cashierId, businessDate.toString());
   }
 
   /**

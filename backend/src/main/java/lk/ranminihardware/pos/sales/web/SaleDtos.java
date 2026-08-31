@@ -99,7 +99,7 @@ public final class SaleDtos {
       return new Response(
           sale.getId(),
           sale.getInvoiceNumber(),
-          sale.getBusinessDate(),
+          LocalDate.parse(sale.getBusinessDate()),
           sale.getSoldAt(),
           sale.getCashierName(),
           sale.getTerminalName(),
