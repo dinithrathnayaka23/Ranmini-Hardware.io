@@ -51,7 +51,7 @@ public class SaleService {
   }
 
   public Page<Sale> listBetween(LocalDate from, LocalDate to, Pageable pageable) {
-    return sales.findByBusinessDateBetweenOrderBySoldAtDesc(from, to, pageable);
+    return sales.findInDateRange(from, to, pageable);
   }
 
   /** Shift reconciliation: every sale one cashier rang up on one day. */

@@ -8,6 +8,7 @@ import lk.ranminihardware.pos.sales.domain.SaleStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 
 /**
  * Sale persistence.
@@ -25,8 +26,17 @@ public interface SaleRepository extends MongoRepository<Sale, String> {
 
   Page<Sale> findByStatusOrderBySoldAtDesc(SaleStatus status, Pageable pageable);
 
-  Page<Sale> findByBusinessDateBetweenOrderBySoldAtDesc(
-      LocalDate from, LocalDate to, Pageable pageable);
+  /**
+   * Sales within an inclusive date range.
+   *
+   * <p>Written as an explicit query rather than a derived {@code Between},
+   * because Spring Data translates that keyword to {@code $gt}/{@code $lt} —
+   * exclusive at BOTH ends. On dates that quietly drops the first and last day
+   * of every range, which showed up here as a sales list that was empty on the
+   * very day the sales were made.
+   */
+  @Query("{ 'businessDate': { $gte: ?0, $lte: ?1 } }")
+  Page<Sale> findInDateRange(LocalDate from, LocalDate to, Pageable pageable);
 
   /** Shift reconciliation: what one cashier took on one day. */
   List<Sale> findByCashierIdAndBusinessDate(String cashierId, LocalDate businessDate);
