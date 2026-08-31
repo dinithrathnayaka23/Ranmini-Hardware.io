@@ -1,6 +1,7 @@
 "use client";
 
 import { ShoppingCart } from "lucide-react";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { Alert } from "@/shared/components/ui/alert";
@@ -8,9 +9,15 @@ import { appConfig } from "@/shared/config/app.config";
 import { cn } from "@/shared/lib/cn";
 import { formatCurrency } from "@/shared/lib/format";
 
+import { completeSale } from "../actions";
 import { ALL_CATEGORIES } from "../constants/pos-data";
 import { useCart } from "../lib/use-cart";
-import type { PosCategory, PosProduct, TenderMethod } from "../types/pos.types";
+import type {
+  CompletedSale,
+  PosCategory,
+  PosProduct,
+  TenderMethod,
+} from "../types/pos.types";
 
 import { CategoryFilter } from "./category-filter";
 import { OrderPanel } from "./order-panel";
@@ -63,6 +70,7 @@ export function PosTerminal({
   cashierName: string;
 }) {
   const cart = useCart();
+  const router = useRouter();
   const searchRef = React.useRef<HTMLInputElement>(null);
   const closeOrderRef = React.useRef<HTMLButtonElement>(null);
   const openOrderRef = React.useRef<HTMLButtonElement>(null);
@@ -71,7 +79,19 @@ export function PosTerminal({
   const [categoryId, setCategoryId] = React.useState(ALL_CATEGORIES);
   const [tender, setTender] = React.useState<TenderMethod>("CASH");
   const [isOrderOpen, setIsOrderOpen] = React.useState(false);
-  const [hasRequestedPayment, setHasRequestedPayment] = React.useState(false);
+  const [isPaying, setIsPaying] = React.useState(false);
+  const [completed, setCompleted] = React.useState<CompletedSale | null>(null);
+  const [payError, setPayError] = React.useState<string | null>(null);
+
+  /**
+   * Identifies this basket to the backend across retries.
+   *
+   * Created on the first attempt and kept until the sale succeeds, so a cashier
+   * pressing pay again after a network timeout gets the original sale back
+   * rather than charging the customer twice. Cleared on success, so the next
+   * basket is genuinely a new sale.
+   */
+  const idempotencyKey = React.useRef<string | null>(null);
 
   const visibleProducts = React.useMemo(
     () => filterProducts(products, categoryId, query),
@@ -149,6 +169,43 @@ export function PosTerminal({
     wasOrderOpen.current = isOrderOpen;
   }, [isOrderOpen]);
 
+  const handlePay = async () => {
+    if (cart.isEmpty || isPaying) return;
+
+    setIsPaying(true);
+    setPayError(null);
+
+    idempotencyKey.current ??= crypto.randomUUID();
+
+    const result = await completeSale({
+      // Only ids and quantities travel. Every amount is recomputed by the
+      // backend, because a total posted by a browser is one a customer can edit.
+      lines: cart.lines.map((line) => ({
+        productId: line.productId,
+        quantity: line.quantity,
+      })),
+      discountPercent: cart.discountPercent,
+      tender,
+      terminalName,
+      idempotencyKey: idempotencyKey.current,
+    });
+
+    setIsPaying(false);
+
+    if (!result.success) {
+      setPayError(result.message);
+      return;
+    }
+
+    setCompleted(result.sale);
+    cart.clear();
+    idempotencyKey.current = null;
+    setIsOrderOpen(false);
+
+    // The catalogue on screen still shows the stock this sale just took.
+    router.refresh();
+  };
+
   const handleSelectProduct = (product: PosProduct) => {
     addToCart(product);
     // Keep the keyboard pointed at the search box so the next scan still lands
@@ -219,7 +276,8 @@ export function PosTerminal({
             cart={cart}
             tender={tender}
             onTenderChange={setTender}
-            onPay={() => setHasRequestedPayment(true)}
+            onPay={handlePay}
+            isPaying={isPaying}
             onClose={() => setIsOrderOpen(false)}
             closeRef={closeOrderRef}
           />
@@ -250,8 +308,16 @@ export function PosTerminal({
         </span>
       </button>
 
-      {hasRequestedPayment ? (
-        <PaymentNotice onDismiss={() => setHasRequestedPayment(false)} />
+      {payError ? (
+        <PaymentBanner tone="danger" message={payError} onDismiss={() => setPayError(null)} />
+      ) : null}
+
+      {completed ? (
+        <PaymentBanner
+          tone="success"
+          message={buildReceiptMessage(completed)}
+          onDismiss={() => setCompleted(null)}
+        />
       ) : null}
     </div>
   );
@@ -284,21 +350,30 @@ function filterProducts(
 }
 
 /**
- * Shown when the cashier commits a sale.
+ * The outcome of a checkout, over the till.
  *
- * The order is deliberately NOT cleared and no receipt is claimed: there is no
- * sales endpoint yet, and a till that appears to take money it has not recorded
- * is the most damaging thing this screen could pretend to do. Replace this with
- * the real `POST /api/v1/pos/sales` call and the receipt hand-off.
+ * A refused sale is an ordinary event at a counter — the last bag of cement went
+ * to the other till — so it renders as a message the cashier can act on rather
+ * than a crashed page with a customer waiting.
+ *
+ * Both outcomes are dismissed by hand rather than fading out: a cashier reading
+ * a change amount off the screen should not have it disappear mid-sentence.
  */
-function PaymentNotice({ onDismiss }: { onDismiss: () => void }) {
+function PaymentBanner({
+  tone,
+  message,
+  onDismiss,
+}: {
+  tone: "success" | "danger";
+  message: string;
+  onDismiss: () => void;
+}) {
   return (
-    <div className="fixed inset-x-0 bottom-24 z-50 mx-auto w-[min(28rem,calc(100%-2rem))] md:bottom-6">
-      <Alert
-        tone="info"
-        className="shadow-lg"
-        message="Payment is not connected yet — the sales endpoint is still to be built, so nothing has been charged and the order is untouched."
-      />
+    <div
+      className="fixed inset-x-0 bottom-24 z-50 mx-auto w-[min(28rem,calc(100%-2rem))] md:bottom-6"
+      role="status"
+    >
+      <Alert tone={tone} className="shadow-lg" message={message} />
       <button
         type="button"
         onClick={onDismiss}
@@ -308,4 +383,20 @@ function PaymentNotice({ onDismiss }: { onDismiss: () => void }) {
       </button>
     </div>
   );
+}
+
+/**
+ * What the cashier is told after a successful sale.
+ *
+ * Leads with the invoice number, because that is what a customer quotes if they
+ * come back, and includes the change only when there is some to hand over.
+ */
+function buildReceiptMessage(sale: CompletedSale): string {
+  const total = formatCurrency(sale.total, appConfig.currencySymbol);
+  const change =
+    sale.changeDue > 0
+      ? `, change ${formatCurrency(sale.changeDue, appConfig.currencySymbol)}`
+      : "";
+
+  return `Sale ${sale.invoiceNumber} completed — ${total}${change}.`;
 }

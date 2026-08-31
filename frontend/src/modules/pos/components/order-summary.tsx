@@ -27,6 +27,7 @@ export function OrderSummary({
   tender,
   onTenderChange,
   onPay,
+  isPaying,
   isPayable,
 }: {
   totals: OrderTotals;
@@ -35,6 +36,7 @@ export function OrderSummary({
   tender: TenderMethod;
   onTenderChange: (tender: TenderMethod) => void;
   onPay: () => void;
+  isPaying: boolean;
   isPayable: boolean;
 }) {
   const symbol = appConfig.currencySymbol;
@@ -122,13 +124,17 @@ export function OrderSummary({
       <button
         type="button"
         onClick={onPay}
-        disabled={!isPayable}
+        // Disabled while in flight as well as when empty: a double press is how
+        // one basket becomes two charges, and a counter is exactly where an
+        // impatient second tap happens.
+        disabled={!isPayable || isPaying}
+        aria-busy={isPaying}
         className="mt-3 h-13 w-full touch-manipulation rounded-[10px] bg-pay text-base font-semibold text-white shadow-sm select-none
                    transition-[background-color,transform,box-shadow] duration-150 @min-[28rem]:h-14 @min-[28rem]:text-lg
                    hover:bg-pay-strong hover:shadow active:scale-[0.99] active:bg-pay-strong
                    disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-sm"
       >
-        Pay &amp; Print Receipt
+        {isPaying ? "Processing…" : "Pay & Print Receipt"}
       </button>
     </div>
   );

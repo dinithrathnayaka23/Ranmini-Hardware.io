@@ -75,3 +75,42 @@ export interface OrderTotals {
   /** Total units across all lines, not the number of distinct lines. */
   itemCount: number;
 }
+
+/** A completed sale, as the backend returns it. */
+export interface CompletedSale {
+  id: string;
+  invoiceNumber: string;
+  businessDate: string;
+  soldAt: string;
+  cashierName: string | null;
+  terminalName: string | null;
+  lines: {
+    productId: string;
+    sku: string;
+    name: string;
+    unitPrice: number;
+    quantity: number;
+    lineTotal: number;
+  }[];
+  subtotal: number;
+  discountPercent: number;
+  discountAmount: number;
+  taxRate: number;
+  taxAmount: number;
+  total: number;
+  tender: TenderMethod;
+  amountTendered: number | null;
+  changeDue: number;
+  status: "COMPLETED" | "VOIDED";
+}
+
+/**
+ * What the checkout action gives back.
+ *
+ * A result rather than a thrown error: a refused sale is an ordinary event at a
+ * counter — the last bag of cement went to the other till — and it has to render
+ * as a message the cashier can act on, not a crashed page.
+ */
+export type CheckoutResult =
+  | { success: true; sale: CompletedSale }
+  | { success: false; message: string };
