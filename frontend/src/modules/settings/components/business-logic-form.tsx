@@ -8,7 +8,8 @@ import { SelectField } from "@/shared/components/ui/select-field";
 import { TextField } from "@/shared/components/ui/text-field";
 
 import { SETTINGS_FORM_ID } from "../constants/settings-sections";
-import { usePendingSave } from "../lib/use-pending-save";
+import { saveBusinessLogic } from "../actions";
+import { useSectionSave } from "../lib/use-section-save";
 import {
   businessLogicSchema,
   type BusinessLogicValues,
@@ -35,7 +36,7 @@ export function BusinessLogicForm({
 }: {
   defaults: BusinessLogicValues;
 }) {
-  const { notice, reportValid } = usePendingSave("Business logic");
+  const { notice, save, isSaving } = useSectionSave<BusinessLogicValues>(saveBusinessLogic);
 
   const {
     register,
@@ -50,12 +51,13 @@ export function BusinessLogicForm({
 
   return (
     <SettingsPanel
+      isSaving={isSaving}
       title="Business Logic"
       description="Tax rates, low stock thresholds, and operational defaults."
     >
       <form
         id={SETTINGS_FORM_ID}
-        onSubmit={handleSubmit(reportValid)}
+        onSubmit={handleSubmit(save)}
         noValidate
         className="space-y-6"
       >

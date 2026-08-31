@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 
 import { ReceiptsForm } from "@/modules/settings/components/receipts-form";
-import { receiptsDefaults } from "@/modules/settings/constants/settings-data";
+import { fetchSettings } from "@/modules/settings/services/settings.server";
 
 export const metadata: Metadata = {
   title: "Receipts",
 };
 
-/** `/admin/settings/receipts` — printed receipt and invoice layout. */
-export default function ReceiptsSettingsPage() {
-  return <ReceiptsForm defaults={receiptsDefaults} />;
+/** `/admin/settings/receipts` — one section of the shop's configuration. */
+export default async function ReceiptsFormPage() {
+  const settings = await fetchSettings();
+  return <ReceiptsForm defaults={settings.receipts} />;
 }

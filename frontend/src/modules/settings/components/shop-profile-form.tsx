@@ -8,7 +8,8 @@ import { TextField } from "@/shared/components/ui/text-field";
 import { TextareaField } from "@/shared/components/ui/textarea-field";
 
 import { SETTINGS_FORM_ID } from "../constants/settings-sections";
-import { usePendingSave } from "../lib/use-pending-save";
+import { saveShopProfile } from "../actions";
+import { useSectionSave } from "../lib/use-section-save";
 import {
   shopProfileSchema,
   type ShopProfileValues,
@@ -24,7 +25,7 @@ import { SettingsPanel } from "./settings-panel";
  * id that lets the page header's "Save Changes" button submit it from outside.
  */
 export function ShopProfileForm({ defaults }: { defaults: ShopProfileValues }) {
-  const { notice, reportValid } = usePendingSave("Shop profile");
+  const { notice, save, isSaving } = useSectionSave<ShopProfileValues>(saveShopProfile);
 
   const {
     register,
@@ -38,10 +39,10 @@ export function ShopProfileForm({ defaults }: { defaults: ShopProfileValues }) {
   });
 
   return (
-    <SettingsPanel title="Shop Profile">
+    <SettingsPanel isSaving={isSaving} title="Shop Profile">
       <form
         id={SETTINGS_FORM_ID}
-        onSubmit={handleSubmit(reportValid)}
+        onSubmit={handleSubmit(save)}
         noValidate
         className="space-y-6"
       >

@@ -15,17 +15,16 @@ import type { ReportPeriod } from "../types/reports.types";
  * bespoke dropdown: the platform control already brings keyboard support,
  * type-ahead and the right picker on mobile.
  *
- * Changing the period currently only changes the label. Once the reporting
- * endpoints exist this should push the value into the URL as a search param so
- * the selection survives a refresh and can be linked to, and the page should
- * read its data from that param on the server.
+ * The selection is pushed into the URL by the view above, so a reporting window
+ * survives a refresh and can be linked to, and the page fetches for that range
+ * on the server rather than filtering in the browser.
  */
 export function PeriodToolbar({
   periods,
   value,
   onChange,
 }: {
-  periods: ReportPeriod[];
+  periods: readonly ReportPeriod[];
   value: string;
   onChange: (value: string) => void;
 }) {

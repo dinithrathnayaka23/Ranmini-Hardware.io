@@ -10,7 +10,8 @@ import { TextField } from "@/shared/components/ui/text-field";
 import { TextareaField } from "@/shared/components/ui/textarea-field";
 
 import { SETTINGS_FORM_ID } from "../constants/settings-sections";
-import { usePendingSave } from "../lib/use-pending-save";
+import { saveReceipts } from "../actions";
+import { useSectionSave } from "../lib/use-section-save";
 import {
   receiptsSchema,
   type ReceiptsValues,
@@ -29,7 +30,7 @@ const PAPER_OPTIONS = [
  * NOT YET PERSISTED — see the note on the shop profile form.
  */
 export function ReceiptsForm({ defaults }: { defaults: ReceiptsValues }) {
-  const { notice, reportValid } = usePendingSave("Receipt");
+  const { notice, save, isSaving } = useSectionSave<ReceiptsValues>(saveReceipts);
 
   const {
     register,
@@ -44,12 +45,13 @@ export function ReceiptsForm({ defaults }: { defaults: ReceiptsValues }) {
 
   return (
     <SettingsPanel
+      isSaving={isSaving}
       title="Receipts"
       description="How printed receipts and invoices are laid out."
     >
       <form
         id={SETTINGS_FORM_ID}
-        onSubmit={handleSubmit(reportValid)}
+        onSubmit={handleSubmit(save)}
         noValidate
         className="space-y-6"
       >

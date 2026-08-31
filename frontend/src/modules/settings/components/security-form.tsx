@@ -9,7 +9,8 @@ import { SelectField } from "@/shared/components/ui/select-field";
 import { TextField } from "@/shared/components/ui/text-field";
 
 import { SETTINGS_FORM_ID } from "../constants/settings-sections";
-import { usePendingSave } from "../lib/use-pending-save";
+import { saveSecurity } from "../actions";
+import { useSectionSave } from "../lib/use-section-save";
 import {
   securitySchema,
   type SecurityValues,
@@ -35,7 +36,7 @@ const TIMEOUT_OPTIONS = [
  * server-side where an attacker cannot skip past it.
  */
 export function SecurityForm({ defaults }: { defaults: SecurityValues }) {
-  const { notice, reportValid } = usePendingSave("Security");
+  const { notice, save, isSaving } = useSectionSave<SecurityValues>(saveSecurity);
 
   const {
     register,
@@ -50,12 +51,13 @@ export function SecurityForm({ defaults }: { defaults: SecurityValues }) {
 
   return (
     <SettingsPanel
+      isSaving={isSaving}
       title="Security"
       description="Session handling and sign-in protection."
     >
       <form
         id={SETTINGS_FORM_ID}
-        onSubmit={handleSubmit(reportValid)}
+        onSubmit={handleSubmit(save)}
         noValidate
         className="space-y-6"
       >
