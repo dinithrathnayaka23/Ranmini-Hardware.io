@@ -3,14 +3,13 @@ import type { Metadata } from "next";
 
 import { InventoryTable } from "@/modules/inventory/components/inventory-table";
 import {
-  inventoryStats,
-  pageMeta,
-  products,
-} from "@/modules/inventory/constants/inventory-data";
+  fetchInventoryPage,
+  fetchInventoryStats,
+} from "@/modules/inventory/services/inventory.server";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { ButtonLink } from "@/shared/components/ui/button";
-import { routes } from "@/shared/config/app.config";
 import { StatCardGrid } from "@/shared/components/ui/stat-card";
+import { routes } from "@/shared/config/app.config";
 
 export const metadata: Metadata = {
   title: "Inventory",
@@ -19,11 +18,26 @@ export const metadata: Metadata = {
 /**
  * `/admin/inventory` — product catalogue, stock levels and pricing.
  *
- * A Server Component that only assembles widgets and hands them their rows, so
- * replacing the placeholder constants with calls to the Spring Boot inventory
- * endpoints will not change a single child component.
+ * <p>The page number and the search term live in the URL rather than in
+ * component state, so a shopkeeper can bookmark or share a filtered view, and
+ * the back button behaves. It also means the search runs against the backend's
+ * text index instead of filtering a page of rows that were already sent.
  */
-export default function AdminInventoryPage() {
+export default async function AdminInventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; q?: string }>;
+}) {
+  const params = await searchParams;
+  const requestedPage = Number.parseInt(params.page ?? "1", 10);
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+
+  // Independent reads, so they run together rather than adding a round trip.
+  const [stats, inventory] = await Promise.all([
+    fetchInventoryStats(),
+    fetchInventoryPage(page, params.q),
+  ]);
+
   return (
     <div className="mx-auto w-full max-w-[90rem] p-4 sm:p-6 lg:p-8">
       <PageHeader
@@ -31,11 +45,6 @@ export default function AdminInventoryPage() {
         description="Manage products, monitor stock levels, and update pricing."
         actions={
           <>
-            {/*
-              Both destinations are placeholder screens for now. Routing to them
-              keeps the buttons honest — they go where they say they go — rather
-              than rendering a control that silently does nothing on click.
-            */}
             <ButtonLink
               href={routes.adminInventoryCategories}
               variant="secondary"
@@ -53,11 +62,11 @@ export default function AdminInventoryPage() {
       />
 
       <div className="mt-6">
-        <StatCardGrid stats={inventoryStats} />
+        <StatCardGrid stats={stats} />
       </div>
 
       <div className="mt-5">
-        <InventoryTable products={products} meta={pageMeta} />
+        <InventoryTable products={inventory.products} meta={inventory.meta} />
       </div>
     </div>
   );
