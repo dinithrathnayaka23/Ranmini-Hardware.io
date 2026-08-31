@@ -76,6 +76,30 @@ ranmini:
     # by the environment.
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
+  auth:
+    # Signing key for session tokens. No default on purpose: the service refuses
+    # to start without one rather than inventing a key, which would invalidate
+    # every session on restart and accept tokens signed by a key nobody chose.
+    jwt-secret: ${RANMINI_AUTH_JWT_SECRET:}
+    # Short-lived, because a signed token cannot be revoked before it expires.
+    access-token-minutes: ${RANMINI_AUTH_ACCESS_MINUTES:30}
+    refresh-token-days: ${RANMINI_AUTH_REFRESH_DAYS:7}
+
+  # The two owner accounts, created on a fresh database only. Passwords come
+  # from the environment; leave them unset and a strong one is generated and
+  # logged once at first startup.
+  admin:
+    primary:
+      username: ${RANMINI_ADMIN_PRIMARY_USERNAME:owner}
+      name: ${RANMINI_ADMIN_PRIMARY_NAME:Shop Owner}
+      email: ${RANMINI_ADMIN_PRIMARY_EMAIL:owner@ranminihardware.lk}
+      password: ${RANMINI_ADMIN_PRIMARY_PASSWORD:}
+    secondary:
+      username: ${RANMINI_ADMIN_SECONDARY_USERNAME:manager}
+      name: ${RANMINI_ADMIN_SECONDARY_NAME:Assistant Owner}
+      email: ${RANMINI_ADMIN_SECONDARY_EMAIL:manager@ranminihardware.lk}
+      password: ${RANMINI_ADMIN_SECONDARY_PASSWORD:}
+
 logging:
   level:
     lk.ranminihardware.pos: ${APP_LOG_LEVEL:INFO}
