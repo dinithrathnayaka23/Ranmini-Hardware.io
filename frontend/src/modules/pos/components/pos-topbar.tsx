@@ -1,3 +1,4 @@
+import { Logo } from "@/shared/components/brand/logo";
 import { appConfig } from "@/shared/config/app.config";
 
 import { PosClock } from "./pos-clock";
@@ -21,6 +22,10 @@ export function PosTopbar({
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-3 sm:h-16 sm:px-6">
       <div className="flex min-w-0 items-center gap-2.5 sm:gap-4">
+        {/* Mark only: the shop name is already rendered beside it, and a second
+            copy inside a 32px circle would just be noise. */}
+        <Logo markOnly size={32} className="shrink-0" />
+
         {/* The short name on a phone: at 390px the full lockup truncates to
             "Ranmini Hard…", which is worse than simply saying "Ranmini" and
             leaving room for the terminal number beside it. */}

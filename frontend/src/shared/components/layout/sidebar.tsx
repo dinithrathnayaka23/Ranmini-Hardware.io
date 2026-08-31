@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { LogoutButton } from "@/modules/auth/components/logout-button";
+import { Logo } from "@/shared/components/brand/logo";
 import { appConfig, routes } from "@/shared/config/app.config";
 import { cn } from "@/shared/lib/cn";
 
@@ -31,12 +32,11 @@ export function Sidebar({
           onClick={onNavigate}
           className="flex items-center gap-3 rounded-lg"
         >
-          <span
-            aria-hidden
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white text-base font-bold text-rail"
-          >
-            {appConfig.name.charAt(0)}
-          </span>
+          {/* The mark is a white badge, which is exactly what the navy rail
+              wants. The name is spelled out beside it because the lettering
+              inside the circle is illegible at 36px. */}
+          <Logo markOnly size={36} />
+
           <span className="min-w-0">
             <span className="block truncate text-[0.95rem] font-semibold tracking-tight text-white">
               {appConfig.name}

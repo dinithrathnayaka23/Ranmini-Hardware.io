@@ -25,7 +25,7 @@ export function AuthBrandLink() {
       aria-label={`${appConfig.name} home`}
       className="inline-flex rounded-lg"
     >
-      <Logo />
+      <Logo size={44} priority />
     </Link>
   );
 }
