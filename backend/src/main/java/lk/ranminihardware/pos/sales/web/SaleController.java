@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Set;
+import lk.ranminihardware.pos.auth.service.JwtService.AuthenticatedUser;
 import lk.ranminihardware.pos.sales.domain.Sale;
 import lk.ranminihardware.pos.sales.service.CheckoutService;
 import lk.ranminihardware.pos.sales.service.SaleService;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -62,19 +64,29 @@ public class SaleController {
   /**
    * Completes a sale.
    *
+   * <p><b>The cashier is taken from the verified token, never from the request
+   * body.</b> Whatever the client sends for the cashier is discarded: a till
+   * that could name somebody else on a receipt would make the sales ledger
+   * useless for exactly the question it exists to answer — who rang this up.
+   *
    * <p>The idempotency key may also arrive as a header, which is the convention
-   * an HTTP client library will already follow on a retry. The body wins if both
-   * are present, since that is the one the till explicitly set.
+   * an HTTP client library already follows on a retry. The body wins if both are
+   * present, since that is the one the till explicitly set.
    */
   @PostMapping("/api/v1/pos/sales")
   @ResponseStatus(HttpStatus.CREATED)
   public SaleDtos.Response checkout(
       @Valid @RequestBody SaleDtos.CheckoutRequest request,
-      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyHeader) {
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyHeader,
+      Authentication authentication) {
 
     var command = request.toCommand();
     if (command.idempotencyKey() == null && idempotencyHeader != null) {
       command = command.withIdempotencyKey(idempotencyHeader);
+    }
+
+    if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedUser user) {
+      command = command.withCashier(user.id(), user.fullName());
     }
 
     return SaleDtos.Response.from(checkout.checkout(command));

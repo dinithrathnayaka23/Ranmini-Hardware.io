@@ -159,6 +159,20 @@ public class JwtService {
     }
   }
 
-  /** Who a valid token says the caller is. */
-  public record AuthenticatedUser(String id, String username, String fullName, String role) {}
+  /**
+   * Who a valid token says the caller is.
+   *
+   * Implements {@link java.security.Principal} so Spring keeps reporting the
+   * username from {@code Authentication.getName()} while a controller that
+   * needs the id or the display name can cast the principal and read it —
+   * without a database lookup on every request.
+   */
+  public record AuthenticatedUser(String id, String username, String fullName, String role)
+      implements java.security.Principal {
+
+    @Override
+    public String getName() {
+      return username;
+    }
+  }
 }

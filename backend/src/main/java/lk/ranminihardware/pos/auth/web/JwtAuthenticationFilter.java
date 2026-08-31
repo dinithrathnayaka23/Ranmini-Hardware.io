@@ -54,8 +54,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // by this service and carries everything the check needs.
                 var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.role()));
 
+                // The whole record is the principal, so an endpoint that needs
+                // the signed-in person's id or name reads it from the verified
+                // token rather than trusting a field in the request body.
                 var authentication =
-                    new UsernamePasswordAuthenticationToken(user.username(), null, authorities);
+                    new UsernamePasswordAuthenticationToken(user, null, authorities);
                 authentication.setDetails(
                     new WebAuthenticationDetailsSource().buildDetails(request));
 

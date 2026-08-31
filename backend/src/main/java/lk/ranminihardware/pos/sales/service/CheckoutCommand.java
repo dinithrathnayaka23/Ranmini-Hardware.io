@@ -45,6 +45,18 @@ public record CheckoutCommand(
         lines, discountPercent, tender, amountTendered, cashierId, cashierName, terminalName, key);
   }
 
+  /**
+   * Returns a copy attributed to the signed-in cashier.
+   *
+   * <p>Called by the controller with the identity from the verified token,
+   * overwriting anything the client sent. A receipt has to name who actually
+   * rang it up.
+   */
+  public CheckoutCommand withCashier(String id, String name) {
+    return new CheckoutCommand(
+        lines, discountPercent, tender, amountTendered, id, name, terminalName, idempotencyKey);
+  }
+
   /** One scanned product and how many of it. */
   public record Line(String productId, int quantity) {}
 }

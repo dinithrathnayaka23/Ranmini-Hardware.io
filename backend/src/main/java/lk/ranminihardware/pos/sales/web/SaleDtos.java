@@ -48,10 +48,8 @@ public final class SaleDtos {
       @DecimalMin(value = "0.0", message = "Amount tendered cannot be negative.")
           @Digits(integer = 12, fraction = 2, message = "Enter a valid amount.")
           BigDecimal amountTendered,
-      // Supplied by the session once authentication lands; accepted from the
-      // client for now so the till can be wired before that work is done.
-      String cashierId,
-      @Size(max = 120) String cashierName,
+      // No cashier fields. Who rang up a sale comes from the verified session,
+      // so there is deliberately nothing here for a client to set.
       @Size(max = 60) String terminalName,
       @Size(max = 100) String idempotencyKey) {
 
@@ -61,8 +59,8 @@ public final class SaleDtos {
           discountPercent,
           tender,
           amountTendered,
-          cashierId,
-          cashierName,
+          null,
+          null,
           terminalName,
           idempotencyKey);
     }

@@ -43,5 +43,18 @@ public abstract class MongoIntegrationTest {
     // assert on, and a background fixture appearing underneath them is how a
     // suite becomes order-dependent.
     registry.add("ranmini.seed.enabled", () -> "false");
+
+    // The service refuses to start without a signing key, deliberately. Tests
+    // supply their own throwaway one rather than the code inventing a default,
+    // which is exactly the behaviour that would make production unsafe.
+    registry.add(
+        "ranmini.auth.jwt-secret",
+        () -> "test-only-signing-key-that-is-long-enough-to-pass");
+
+    // Administrators are seeded on every startup, including in tests. Given
+    // fixed passwords here so a test that needs to sign in has something to use
+    // and nothing is written to the log.
+    registry.add("ranmini.admin.primary.password", () -> "TestOwnerPassword123");
+    registry.add("ranmini.admin.secondary.password", () -> "TestManagerPassword123");
   }
 }
