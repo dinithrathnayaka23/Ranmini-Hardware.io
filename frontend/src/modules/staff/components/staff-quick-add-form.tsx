@@ -95,6 +95,12 @@ export function StaffQuickAddForm() {
         </p>
 
         <form
+          // `method="post"` matters even though JavaScript handles the submit.
+          // If someone hits Enter before React has hydrated, the browser falls
+          // back to a native submission — and the default method is GET, which
+          // would put the password in the URL, the browser history, the server
+          // log and the Referer header. POST keeps it in the body.
+          method="post"
           onSubmit={handleSubmit(onSubmit)}
           noValidate
           className="mt-5 space-y-4"
