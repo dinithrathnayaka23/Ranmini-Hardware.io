@@ -17,6 +17,7 @@ import { PasswordField } from "@/shared/components/ui/password-field";
 import { SelectField } from "@/shared/components/ui/select-field";
 import { TextField } from "@/shared/components/ui/text-field";
 
+import { createStaffMember } from "../actions";
 import { staffRoles } from "../constants/staff-roles";
 import {
   staffQuickAddSchema,
@@ -26,10 +27,14 @@ import {
 /**
  * Dashboard widget for onboarding a staff member without leaving the overview.
  *
- * NOT YET PERSISTED. Validation is complete and real, but there is no backend
- * endpoint to submit to, so a valid submission reports that plainly instead of
- * pretending the record was saved. When `POST /api/v1/staff` exists, add a BFF
- * route handler mirroring `/api/auth/login` and call it from `onSubmit`.
+ * This is how a cashier gets an account: the admin fills it in, chooses a first
+ * password, and hands the credentials over directly. There is no invitation
+ * email, because that would mean depending on a mail server the shop does not
+ * have.
+ *
+ * The submission goes through a Server Action rather than a fetch from here.
+ * The session token lives in an httpOnly cookie the browser cannot read, so the
+ * call to the API has to be made on the server.
  */
 export function StaffQuickAddForm() {
   const [notice, setNotice] = React.useState<{
@@ -55,14 +60,24 @@ export function StaffQuickAddForm() {
   });
 
   const onSubmit = async (values: StaffQuickAddValues) => {
+    setNotice(null);
+
+    const result = await createStaffMember(values);
+
     setNotice({
-      tone: "info",
-      message: `Details for ${values.fullName} are valid. Staff records cannot be saved until the backend staff endpoint is available.`,
+      tone: result.success ? "success" : "danger",
+      message: result.message,
     });
 
-    // Clear the credential fields either way — an initial password should not
-    // sit in the DOM after the form has been submitted.
-    reset({ ...values, username: "", initialPassword: "" });
+    if (result.success) {
+      // Only cleared on success. A failed submission — a username already taken,
+      // say — should leave what was typed on screen to be corrected, not make
+      // the admin enter it all again.
+      reset({ fullName: "", role: "CASHIER", username: "", initialPassword: "" });
+    } else {
+      // The password should not sit in the DOM after a failed attempt either.
+      reset({ ...values, initialPassword: "" });
+    }
   };
 
   return (

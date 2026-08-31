@@ -1,17 +1,19 @@
 import type { SelectOption } from "@/shared/components/ui/select-field";
 
 /**
- * Roles that can be assigned when onboarding a staff member.
+ * The roles a staff member can hold.
  *
- * The values are the identifiers the backend is expected to store; the labels
- * are what the shop floor calls them. Keeping both here means renaming a role
- * in the UI never silently changes what is persisted.
+ * Two, because the shop has two jobs. **Admin** is the owner and his son, with
+ * identical privileges — there is deliberately no senior or junior admin.
+ * **Cashier** is whoever is on the counter: they reach the till and nothing
+ * else.
+ *
+ * The values are exactly what the backend stores, so a role chosen here is
+ * persisted verbatim rather than translated.
  */
 export const staffRoles = [
   { value: "CASHIER", label: "Cashier" },
-  { value: "STOREKEEPER", label: "Storekeeper" },
-  { value: "MANAGER", label: "Manager" },
-  { value: "ADMINISTRATOR", label: "Administrator" },
+  { value: "ADMIN", label: "Admin" },
 ] as const satisfies readonly SelectOption[];
 
 export type StaffRole = (typeof staffRoles)[number]["value"];
@@ -20,3 +22,9 @@ export const staffRoleValues = staffRoles.map((role) => role.value) as [
   StaffRole,
   ...StaffRole[],
 ];
+
+/** How each role is described where a label alone is not enough. */
+export const staffRoleDescription: Record<StaffRole, string> = {
+  CASHIER: "Can sign in to the till and ring up sales.",
+  ADMIN: "Full access to the management portal and the till.",
+};
