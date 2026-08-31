@@ -1,0 +1,29 @@
+# Local development database.
+#
+# Production is expected to run against MongoDB Atlas (the client chose Mongo
+# for scalability), so this exists only so a developer can work offline without
+# pointing at shared data.
+#
+#   docker compose up -d
+#   MONGODB_URI=mongodb://localhost:27017/ranmini_pos ./mvnw spring-boot:run
+#
+# No credentials are set: the container is bound to localhost only and holds
+# nothing but throwaway seed data. Do not copy this file into production.
+services:
+  mongo:
+    image: mongo:7
+    container_name: ranmini-mongo
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    command: ["--wiredTigerCacheSizeGB", "1"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongo-data:

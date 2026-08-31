@@ -1,0 +1,81 @@
+# ---------------------------------------------------------------------------
+# Ranmini Hardware POS — service configuration
+#
+# Nothing secret lives in this file. The Mongo connection string is supplied by
+# the environment (see .env.example); it carries credentials and must never be
+# committed.
+# ---------------------------------------------------------------------------
+spring:
+  application:
+    name: ranmini-pos
+
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/ranmini_pos}
+      # Index creation is deliberately OFF. Spring's automatic creation runs on
+      # first use of each collection, which on a large collection means a
+      # surprise foreground build in the middle of a trading day. Indexes are
+      # instead declared in MongoIndexInitializer and created at startup, in
+      # the background, where they can be reviewed as code.
+      auto-index-creation: false
+
+  # Settings and category lists are read constantly and written rarely.
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=500,expireAfterWrite=300s
+
+  jackson:
+    default-property-inclusion: non_null
+    deserialization:
+      fail-on-unknown-properties: false
+    serialization:
+      write-dates-as-timestamps: false
+
+  threads:
+    virtual:
+      # Java 21 virtual threads. Request handling here is dominated by waiting
+      # on Mongo, which is exactly the workload they are for.
+      enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    # Never leak stack traces or internal paths to an API client.
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+  compression:
+    enabled: true
+    mime-types: application/json
+    min-response-size: 2KB
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Health only. Metrics and env are useful but are not for the public
+        # internet without authentication, which is a later phase.
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+# Application-specific settings, bound by typed @ConfigurationProperties rather
+# than scattered @Value annotations.
+ranmini:
+  api:
+    # Hard ceiling on any page size a client can ask for. Without it, one
+    # `?size=1000000` turns a paged endpoint into a full collection scan.
+    max-page-size: 200
+    default-page-size: 25
+  cors:
+    # The Next.js frontend during development. Production origins are supplied
+    # by the environment.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+logging:
+  level:
+    lk.ranminihardware.pos: ${APP_LOG_LEVEL:INFO}
