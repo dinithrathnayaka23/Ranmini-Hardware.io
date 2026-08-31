@@ -70,7 +70,23 @@ npm run dev                    # http://localhost:3000
 
 ### Backend
 
-Not yet scaffolded. The frontend expects a Spring Boot service at `API_BASE_URL`.
+Spring Boot 3.5 on Java 21 with MongoDB, in `backend/`. See
+[backend/README.md](backend/README.md) for how to run it, the endpoint table,
+and the reasoning behind the storage and concurrency decisions.
+
+```bash
+cd backend
+cp .env.example .env          # fill in MONGODB_URI
+mvn spring-boot:run           # docs at /swagger-ui.html
+```
+
+The two rules that govern the money endpoints are worth knowing before reading
+any of it. The server prices every basket — a checkout request carries product
+ids and quantities and no amounts at all, because a total posted by a browser is
+a number the customer can edit. And stock only ever moves through a single
+atomic conditional update, so two tills cannot sell the same last bag of cement.
+
+**Authentication is not built yet**; every backend endpoint is currently open.
 
 ## Routes
 
