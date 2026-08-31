@@ -25,4 +25,17 @@ public record ProductWrite(
     BigDecimal sellingPrice,
     int openingStock,
     int reorderLevel,
-    String imageUrl) {}
+    String imageUrl) {
+
+  /**
+   * Returns a copy carrying a product photograph.
+   *
+   * <p>A small convenience for building catalogue fixtures, where most fields
+   * are the same shape and only some products have a picture on file.
+   */
+  public ProductWrite withImage(String url) {
+    return new ProductWrite(
+        sku, name, brand, categoryId, unit, buyingPrice, sellingPrice, openingStock,
+        reorderLevel, url);
+  }
+}

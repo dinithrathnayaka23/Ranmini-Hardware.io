@@ -54,15 +54,19 @@ public class DevelopmentSeeder {
       // lines, and a sold-out product the till must refuse to add.
       List<ProductWrite> seed =
           List.of(
-              write("CEM-001", "Cemex Portland 50kg", cement, "bags", "1900.00", "2450.00", 4, 5),
+              write("CEM-001", "Cemex Portland 50kg", cement, "bags", "1900.00", "2450.00", 4, 5)
+                  .withImage("/images/products/cement-portland.jpg"),
               write("CEM-SAND", "River Sand (cube)", cement, "cubes", "24000.00", "29500.00", 8, 3),
-              write("PNT-WHT", "Emulsion Paint White 4L", paints, "tins", "3400.00", "4200.00", 36, 10),
+              write("PNT-WHT", "Emulsion Paint White 4L", paints, "tins", "3400.00", "4200.00", 36, 10)
+                  .withImage("/images/products/emulsion-paint.jpg"),
               write("PNT-THN", "Paint Thinner 1L", paints, "bottles", "740.00", "980.00", 54, 12),
-              write("PVC-100", "PVC Pipe 1\" 10ft", plumbing, "pcs", "620.00", "850.00", 120, 25),
+              write("PVC-100", "PVC Pipe 1\" 10ft", plumbing, "pcs", "620.00", "850.00", 120, 25)
+                  .withImage("/images/products/pvc-pipe.jpg"),
               write("PLB-ELB", "PVC Elbow 1\" 90deg", plumbing, "pcs", "120.00", "180.00", 340, 50),
               write("ELC-WR15", "Copper Wire 1.5mm (100m)", electrical, "rolls", "15200.00", "18500.00", 12, 5),
               write("ELC-SWT1", "1-Gang Switch White", electrical, "pcs", "310.00", "420.00", 6, 10),
-              write("HW-NW2", "Wire Nails 2\" (1kg)", tools, "kg", "260.00", "350.00", 210, 40),
+              write("HW-NW2", "Wire Nails 2\" (1kg)", tools, "kg", "260.00", "350.00", 210, 40)
+                  .withImage("/images/products/wire-nails.jpg"),
               write("TOL-HMR", "Claw Hammer 16oz", tools, "pcs", "2100.00", "2900.00", 0, 4));
 
       seed.forEach(productService::create);
