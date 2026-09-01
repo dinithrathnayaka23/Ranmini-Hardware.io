@@ -26,10 +26,13 @@ export interface UserProfile {
    */
   role: UserRole;
   /**
-   * Path to a profile photo under `public/`, or null for the initials
-   * fallback. Optional because the backend may not store one.
+   * When the profile picture last changed, or null when there is none.
+   *
+   * <p>Not a URL. The picture is served through this app's own avatar route,
+   * which builds the URL from the id and this stamp — so a new photograph is a
+   * new URL and the browser cannot show a cached copy of the old one.
    */
-  avatarUrl?: string | null;
+  avatarVersion?: string | null;
 }
 
 /** Raw payload returned by the backend's role-scoped login endpoints. */

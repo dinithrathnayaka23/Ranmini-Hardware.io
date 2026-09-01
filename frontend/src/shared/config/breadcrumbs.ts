@@ -42,6 +42,10 @@ const LABELS: ReadonlyMap<string, string> = (() => {
     if (section.href !== routes.adminSettings) labels.set(section.href, section.label);
   }
 
+  // Reached from the account menu rather than the sidebar, so it has no nav
+  // entry to take a label from.
+  labels.set(routes.adminProfile, "My Profile");
+
   // Leaves that live in no navigation: reached from a button on their parent.
   labels.set(routes.adminInventoryNew, "Add Product");
   labels.set(routes.adminInventoryCategories, "Categories");

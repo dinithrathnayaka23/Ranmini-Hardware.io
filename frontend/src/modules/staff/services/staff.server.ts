@@ -24,6 +24,7 @@ interface StaffResponse {
   status: StaffStatus;
   joinedOn: string | null;
   lastActiveAt: string | null;
+  avatarVersion: string | null;
 }
 
 export async function fetchStaff(): Promise<StaffMember[]> {
@@ -43,6 +44,7 @@ function toStaffMember(response: StaffResponse): StaffMember {
     joinedOn: response.joinedOn ?? "",
     joinedLabel: formatJoinedDate(response.joinedOn),
     lastActive: formatLastActive(response.lastActiveAt),
+    avatarVersion: response.avatarVersion ?? null,
   };
 }
 

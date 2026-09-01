@@ -42,6 +42,7 @@ export const routes = {
   adminReportsGenerate: "/admin/reports/generate",
   adminReportsDaily: "/admin/reports/daily",
   adminStaff: "/admin/staff",
+  adminProfile: "/admin/profile",
   adminSettings: "/admin/settings",
   adminSettingsBusinessLogic: "/admin/settings/business-logic",
   adminSettingsReceipts: "/admin/settings/receipts",

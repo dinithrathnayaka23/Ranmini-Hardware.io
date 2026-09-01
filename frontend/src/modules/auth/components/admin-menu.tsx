@@ -8,6 +8,7 @@ import * as React from "react";
 
 import { Avatar } from "@/shared/components/ui/avatar";
 import { routes } from "@/shared/config/app.config";
+import { avatarUrlFor } from "@/shared/lib/avatar-url";
 
 import type { UserProfile } from "../types/auth.types";
 
@@ -24,6 +25,7 @@ import type { UserProfile } from "../types/auth.types";
  * endpoint that hands out account details to whoever asks.
  */
 export function AdminMenu({ admin }: { admin: UserProfile }) {
+  const avatarUrl = avatarUrlFor(admin.id, admin.avatarVersion);
   const [isOpen, setIsOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
@@ -74,7 +76,7 @@ export function AdminMenu({ admin }: { admin: UserProfile }) {
         aria-label={`Account menu for ${admin.fullName}`}
         className="inline-flex size-10 items-center justify-center rounded-full transition-shadow hover:ring-2 hover:ring-line aria-expanded:ring-2 aria-expanded:ring-brand-600/30"
       >
-        <Avatar fullName={admin.fullName} imageUrl={admin.avatarUrl ?? null} size={36} />
+        <Avatar fullName={admin.fullName} imageUrl={avatarUrl} size={36} />
       </button>
 
       {isOpen ? (
@@ -83,7 +85,7 @@ export function AdminMenu({ admin }: { admin: UserProfile }) {
           className="absolute right-0 z-30 mt-2 w-72 overflow-hidden rounded-xl border border-line bg-surface shadow-lg"
         >
           <div className="flex items-center gap-3 border-b border-line p-4">
-            <Avatar fullName={admin.fullName} imageUrl={admin.avatarUrl ?? null} size={44} />
+            <Avatar fullName={admin.fullName} imageUrl={avatarUrl} size={44} />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-ink">
                 {admin.fullName}
@@ -99,6 +101,14 @@ export function AdminMenu({ admin }: { admin: UserProfile }) {
           </dl>
 
           <div className="border-t border-line p-2">
+            {/* Your own account first, the shop's configuration second: the one
+                you reach from your own avatar should be about you. */}
+            <Link
+              href={routes.adminProfile}
+              className="block rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-canvas-subtle hover:text-ink"
+            >
+              My profile
+            </Link>
             <Link
               href={routes.adminSettings}
               className="block rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-canvas-subtle hover:text-ink"

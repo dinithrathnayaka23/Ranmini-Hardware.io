@@ -6,7 +6,8 @@ import { initialsOf } from "@/shared/lib/initials";
 export interface AvatarProps {
   fullName: string;
   /**
-   * Path under `public/`, or null to fall back to initials.
+   * A local path — either under `public/` or this app's own avatar route — or
+   * null to fall back to initials.
    *
    * Restricted to local paths on purpose: a remote URL would need an entry in
    * `next.config.ts` image domains, and pulling a portrait from a third-party
@@ -46,6 +47,13 @@ export function Avatar({
           alt=""
           width={size * 2}
           height={size * 2}
+          // Not run through the image optimiser, and it must not be. The
+          // optimiser fetches the URL from the server, without the browser's
+          // cookies — so an avatar served from this app's authenticated route
+          // would come back 401 and render as a broken image. Unoptimised, the
+          // browser fetches it directly and the session goes with it. The file
+          // is already a small square, so there is nothing to optimise anyway.
+          unoptimized
           className="size-full object-cover"
         />
       ) : (

@@ -9,6 +9,7 @@ import { PageHeader } from "@/shared/components/layout/page-header";
 import { Avatar } from "@/shared/components/ui/avatar";
 import { Badge } from "@/shared/components/ui/badge";
 import { Card, CardBody } from "@/shared/components/ui/card";
+import { avatarUrlFor } from "@/shared/lib/avatar-url";
 
 export const metadata: Metadata = {
   title: "Staff",
@@ -53,7 +54,11 @@ export default async function AdminStaffPage() {
                 <Card key={member.id}>
                   <CardBody className="space-y-4">
                     <div className="flex items-start gap-4">
-                      <Avatar fullName={member.fullName} imageUrl={null} size={44} />
+                      <Avatar
+                        fullName={member.fullName}
+                        imageUrl={avatarUrlFor(member.id, member.avatarVersion)}
+                        size={44}
+                      />
 
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">

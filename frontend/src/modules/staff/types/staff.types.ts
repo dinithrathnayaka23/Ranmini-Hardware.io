@@ -26,6 +26,8 @@ export interface StaffMember {
   joinedLabel: string;
   /** Human-readable recency, e.g. "Clocked in 2 hours ago". */
   lastActive: string;
+  /** Null when there is no picture; otherwise the cache-busting token. */
+  avatarVersion: string | null;
 }
 
 /** How each status is labelled and coloured wherever it appears. */

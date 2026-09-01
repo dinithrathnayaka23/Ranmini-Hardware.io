@@ -133,6 +133,74 @@ async function readMessage(response: Response): Promise<string> {
   return messageForStatus(response.status);
 }
 
+/**
+ * Calls the backend and hands back the raw {@link Response}.
+ *
+ * <p>For the few endpoints that do not return JSON — an avatar's bytes — where
+ * the caller needs the status, the content type and the body as they came.
+ * Everything else should use {@link apiFetch}, which parses and maps errors.
+ */
+export async function apiFetchRaw(path: string): Promise<Response> {
+  const { API_BASE_URL, API_TIMEOUT_MS } = getServerEnv();
+
+  const headers: Record<string, string> = {};
+  const token = (await cookies()).get(cookieNames.accessToken)?.value;
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+  try {
+    return await fetch(`${API_BASE_URL}${path}`, {
+      headers,
+      signal: controller.signal,
+      cache: "no-store",
+    });
+  } catch {
+    throw new ApiError(errorMessages.network, 503);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Posts multipart form data — a file upload — to the backend.
+ *
+ * <p>Kept apart from {@link apiFetch} because the Content-Type header must NOT
+ * be set by hand here: the boundary is generated with the body, and setting the
+ * type without it produces a request the server cannot parse. Letting fetch
+ * derive the header is the only way to get it right.
+ */
+export async function apiFetchMultipart<T>(path: string, body: FormData): Promise<T> {
+  const { API_BASE_URL, API_TIMEOUT_MS } = getServerEnv();
+
+  const headers: Record<string, string> = { Accept: "application/json" };
+  const token = (await cookies()).get(cookieNames.accessToken)?.value;
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: "POST",
+      headers,
+      body,
+      signal: controller.signal,
+      cache: "no-store",
+    });
+  } catch {
+    throw new ApiError(errorMessages.network, 503);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!response.ok) throw new ApiError(await readMessage(response), response.status);
+  if (response.status === 204) return undefined as T;
+  return (await response.json()) as T;
+}
+
 /** Shape of the backend's paged responses. */
 export interface PageResponse<T> {
   content: T[];
