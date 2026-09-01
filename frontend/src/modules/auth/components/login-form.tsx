@@ -140,7 +140,9 @@ export function LoginForm({
           portal.hasPasswordReset ? (
             <Link
               href={routes.forgotPassword}
-              // The page is not built yet; skip prefetch so it does not 404.
+              // Not prefetched. Almost nobody who reaches the sign-in page has
+              // forgotten their password, so fetching the recovery route for
+              // every visitor is bandwidth spent on the rare case.
               prefetch={false}
               className="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
             >
