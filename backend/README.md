@@ -146,6 +146,40 @@ memory, so a lockout survives a restart and holds across instances.
 till that could name somebody else would make the sales ledger useless for
 exactly the question it exists to answer.
 
+### Forgotten passwords
+
+An admin who cannot sign in asks for a link by email; the link opens the reset
+page, and the new password takes effect immediately. Cashiers are not offered
+this — an admin resets those in person, which is why the till's sign-in page
+shows no recovery link rather than a dead end.
+
+Four things make an open, unauthenticated endpoint safe to expose:
+
+- **Asking never reveals whether an account exists.** Registered, unregistered,
+  and deactivated addresses all get the same answer. A different response would
+  make the form a tool for discovering who works at the shop.
+- **Only a SHA-256 of the token is stored.** The value in the email is the only
+  copy. That collection is by definition a list of ways into accounts; hashed, a
+  leak of it yields nothing usable. SHA-256 rather than BCrypt is deliberate —
+  the token is 32 bytes of secure randomness, so slowing a guess down buys
+  nothing and costs latency on every validation.
+- **A link is single-use and expires** (45 minutes by default, enforced in code
+  as well as by a TTL index, because the TTL sweep runs on its own schedule and
+  is not prompt enough to be a security control). Spending one link retires the
+  person's other outstanding links, so an older email cannot be replayed.
+- **Requests are rate-limited** per email address and per caller address, so the
+  endpoint cannot be used to flood a member of staff with mail or to get the
+  shop's sending domain blacklisted.
+
+A successful reset also clears any lockout: somebody who has just proved control
+of the mailbox should not then be told to wait fifteen minutes.
+
+**It works with no mail server.** Leave `SPRING_MAIL_HOST` unset and the service
+still starts, still issues links, and writes each one to the log instead of
+sending it — loudly, so an operator can see that somebody asked and did not
+receive one. A recovery flow that cannot be exercised until a relay is
+provisioned is a flow nobody tests.
+
 ### Retries are safe
 
 A till that loses the network after posting cannot tell whether the sale landed.

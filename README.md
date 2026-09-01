@@ -95,8 +95,15 @@ the till and nothing else.
 The two admin accounts are created on a fresh database from environment
 variables; leave the passwords blank and a strong one is generated and printed
 once at first startup. Cashiers are created by an admin from the Staff screen,
-who then hands the credentials over directly — there is no mail server to send
-an invitation through.
+who then hands the credentials over directly — there is no invitation email.
+
+An admin who forgets their password recovers it themselves: **Forgot Password?**
+on the admin sign-in page mails a single-use link that expires in
+three-quarters of an hour. With no SMTP settings configured the service prints
+the link to its log rather than failing, so the flow works on a development
+machine and a locked-out owner can still be helped by hand. See
+[backend/README.md](backend/README.md) for the rules that make an open reset
+endpoint safe.
 
 An admin can also sign in at the till, so the owner can cover the counter
 without a second account.
