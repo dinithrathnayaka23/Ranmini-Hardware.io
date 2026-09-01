@@ -68,6 +68,14 @@
       <artifactId>spring-boot-starter-security</artifactId>
     </dependency>
 
+    <!-- Password reset emails. Sent through whatever SMTP relay the shop
+         configures; with none configured the link is logged instead, so the
+         flow is testable without credentials. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
+    </dependency>
+
     <!-- Stateless JWT sessions. Signed tokens rather than server-side session
          state, so the API stays horizontally scalable: any instance can verify
          a token without a shared session store. -->

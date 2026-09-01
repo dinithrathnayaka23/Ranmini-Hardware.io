@@ -40,6 +40,30 @@ spring:
       max-file-size: 1MB
       max-request-size: 2MB
 
+  # Outgoing mail, for password-reset links.
+  #
+  # Note what is NOT here: spring.mail.host. Spring only defines a
+  # JavaMailSender when that property exists, and ResetMailer relies on its
+  # absence to fall back to logging the link — so setting it here to an empty
+  # default would create a sender pointed at nowhere and break the fallback.
+  # The host, username and password come straight from the environment
+  # (SPRING_MAIL_HOST and friends); see .env.example.
+  #
+  # Only the timeouts are pinned, because they are wrong by default: the JavaMail
+  # defaults are infinite, so one unreachable relay would pin a request thread
+  # until the client gave up.
+  mail:
+    port: ${SPRING_MAIL_PORT:587}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
   threads:
     virtual:
       # Java 21 virtual threads. Request handling here is dominated by waiting
@@ -92,6 +116,27 @@ ranmini:
     # Short-lived, because a signed token cannot be revoked before it expires.
     access-token-minutes: ${RANMINI_AUTH_ACCESS_MINUTES:30}
     refresh-token-days: ${RANMINI_AUTH_REFRESH_DAYS:7}
+
+    # How long a "forgot password" link stays good. Long enough to survive a
+    # slow mail relay and somebody reading their email after lunch; short
+    # enough that a link left in an inbox stops being a key to the account.
+    reset-token-minutes: ${RANMINI_AUTH_RESET_MINUTES:45}
+
+    # Ceiling on password-reset requests, counted per email address and per
+    # caller address. Stops the endpoint being used to flood a member of staff
+    # with mail, or to get the shop's sending domain blacklisted.
+    reset-rate-limit:
+      attempts: ${RANMINI_AUTH_RESET_ATTEMPTS:5}
+      window-minutes: ${RANMINI_AUTH_RESET_WINDOW_MINUTES:15}
+
+  app:
+    # Where the reset link points. Must be the address the shop's browsers
+    # actually use, since it is the frontend that renders the reset form.
+    reset-url: ${RANMINI_RESET_URL:http://localhost:3000/admin/reset-password}
+
+  mail:
+    from: ${RANMINI_MAIL_FROM:no-reply@ranminihardware.lk}
+    shop-name: ${RANMINI_MAIL_SHOP_NAME:Ranmini Hardware}
 
   # The two owner accounts, created on a fresh database only. Passwords come
   # from the environment; leave them unset and a strong one is generated and
