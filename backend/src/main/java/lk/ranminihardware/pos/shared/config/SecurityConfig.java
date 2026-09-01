@@ -73,6 +73,15 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/auth/*/login", "/api/v1/auth/refresh")
                     .permitAll()
 
+                    // Forgotten passwords, for the same reason: somebody who
+                    // cannot sign in cannot be asked to sign in first. The
+                    // endpoints are safe to expose because they are rate
+                    // limited and answer identically whether or not the
+                    // address belongs to an account — see
+                    // PasswordResetController.
+                    .requestMatchers("/api/v1/auth/password-reset/**")
+                    .permitAll()
+
                     // Liveness and readiness, for the shop's monitoring.
                     .requestMatchers("/actuator/health", "/actuator/health/**")
                     .permitAll()
