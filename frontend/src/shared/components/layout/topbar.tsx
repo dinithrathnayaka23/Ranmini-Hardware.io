@@ -5,8 +5,15 @@ import { Bell, Menu } from "lucide-react";
 import { AdminMenu } from "@/modules/auth/components/admin-menu";
 import type { UserProfile } from "@/modules/auth/types/auth.types";
 
+import { Breadcrumbs } from "./breadcrumbs";
+
 /**
  * Slim application bar above the content region.
+ *
+ * Carries the breadcrumb trail, which is the only place in the portal that says
+ * where the current screen sits — the sidebar highlights a section but says
+ * nothing about depth, so a sub-page like Settings → Receipts otherwise looks
+ * identical to a top-level one.
  *
  * On phones it also owns the button that opens the navigation drawer; from
  * `lg` the rail is always visible so the button is hidden.
@@ -35,8 +42,10 @@ export function Topbar({
         <Menu aria-hidden className="size-5" />
       </button>
 
-      {/* Spacer keeps the actions right-aligned once the menu button is gone. */}
-      <div className="flex-1" />
+      {/* Takes the free space, which also keeps the actions right-aligned once
+          the menu button is gone. `min-w-0` lets a long trail truncate rather
+          than push the account menu off the bar. */}
+      <Breadcrumbs className="flex-1" />
 
       <div className="flex items-center gap-2">
         <button
