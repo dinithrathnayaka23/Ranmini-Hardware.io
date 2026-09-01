@@ -22,5 +22,14 @@ public interface StaffRepository extends MongoRepository<StaffMember, String> {
 
   boolean existsByEmailIgnoreCase(String email);
 
+  /**
+   * Finds an account by its email address, for password reset.
+   *
+   * Case-insensitive because nobody types their own address the same way twice,
+   * and an address that fails to match here would look to the person like the
+   * reset silently doing nothing.
+   */
+  Optional<StaffMember> findByEmailIgnoreCase(String email);
+
   Page<StaffMember> findByStatusOrderByFullNameAsc(StaffStatus status, Pageable pageable);
 }

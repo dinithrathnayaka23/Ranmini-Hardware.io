@@ -50,6 +50,7 @@ public class MongoIndexInitializer {
       dailySalesSummary();
       stockMovements();
       staff();
+      passwordResetTokens();
       log.info("MongoDB indexes verified in {} ms", System.currentTimeMillis() - started);
     } catch (RuntimeException ex) {
       // A missing index must not stop the till from opening: the shop can trade
@@ -184,6 +185,27 @@ public class MongoIndexInitializer {
             .on("occurredAt", Sort.Direction.ASC)
             .expire(730, TimeUnit.DAYS)
             .named("ttl_movement_occurred_at"));
+  }
+
+  private void passwordResetTokens() {
+    IndexOperations ops = mongo.indexOps("password_reset_tokens");
+
+    // The only lookup this collection ever serves, and it happens while
+    // somebody waits on a page, so it is unique and indexed.
+    ops.createIndex(
+        new Index().on("tokenHash", Sort.Direction.ASC).unique().named("uk_reset_token_hash"));
+
+    // Finding a person's other outstanding tokens, to invalidate them.
+    ops.createIndex(new Index().on("staffId", Sort.Direction.ASC).named("ix_reset_staff"));
+
+    // Expired requests remove themselves. Without this the collection grows for
+    // ever on abandoned resets, and it is a collection of ways into accounts —
+    // the fewer that linger, the better.
+    ops.createIndex(
+        new Index()
+            .on("expiresAt", Sort.Direction.ASC)
+            .expire(0)
+            .named("ttl_reset_expires_at"));
   }
 
   private void staff() {
