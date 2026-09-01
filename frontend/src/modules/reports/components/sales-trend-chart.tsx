@@ -10,10 +10,7 @@ import {
 } from "@/shared/components/ui/card";
 import { appConfig } from "@/shared/config/app.config";
 import { useElementWidth } from "@/shared/hooks/use-element-width";
-import {
-  formatCompactCurrency,
-  formatCurrency,
-} from "@/shared/lib/format";
+import { formatCompactCurrency, formatCurrency } from "@/shared/lib/format";
 
 import {
   areaPathFrom,
@@ -23,6 +20,7 @@ import {
   type Point,
 } from "../lib/chart-geometry";
 import type { SalesPoint } from "../types/reports.types";
+import { ReportEmpty } from "./report-empty";
 
 const HEIGHT = 280;
 const PADDING = { top: 16, right: 16, bottom: 32, left: 56 } as const;
@@ -54,10 +52,7 @@ export function SalesTrendChart({ points }: { points: SalesPoint[] }) {
 
     return points.map((point, index) => ({
       x: PADDING.left + step * index,
-      y:
-        PADDING.top +
-        plotHeight -
-        (point.revenue / maxRevenue) * plotHeight,
+      y: PADDING.top + plotHeight - (point.revenue / maxRevenue) * plotHeight,
     }));
   }, [points, plotWidth, plotHeight, maxRevenue]);
 
@@ -86,7 +81,24 @@ export function SalesTrendChart({ points }: { points: SalesPoint[] }) {
   };
 
   const activePoint = activeIndex === null ? null : points[activeIndex];
-  const activeCoordinate = activeIndex === null ? null : coordinates[activeIndex];
+  const activeCoordinate =
+    activeIndex === null ? null : coordinates[activeIndex];
+
+  // With no points the axis would still be drawn, labelled Rs. 0 to Rs. 1 from
+  // the niceCeiling of nothing — a chart with a scale invented out of no data,
+  // which reads as broken rather than empty.
+  if (points.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Sales Trends</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <ReportEmpty message="The revenue trend appears here once there are sales in the selected range." />
+        </CardBody>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -101,7 +113,13 @@ export function SalesTrendChart({ points }: { points: SalesPoint[] }) {
               width={width}
               height={HEIGHT}
               role="img"
-              aria-label={`Revenue by day. Highest ${formatCurrency(Math.max(...points.map((p) => p.revenue)), appConfig.currencySymbol)}.`}
+              // The zero is not decoration: spreading an empty array into
+              // Math.max yields -Infinity, which a screen reader would read out
+              // as "minus infinity rupees".
+              aria-label={`Revenue by day. Highest ${formatCurrency(
+                Math.max(...points.map((p) => p.revenue), 0),
+                appConfig.currencySymbol,
+              )}.`}
               onPointerMove={handlePointerMove}
               onPointerLeave={() => setActiveIndex(null)}
               className="touch-pan-y"

@@ -13,6 +13,7 @@ import { formatPercent } from "@/shared/lib/format";
 
 import { donutSegmentPath } from "../lib/chart-geometry";
 import type { CategoryShare } from "../types/reports.types";
+import { ReportEmpty } from "./report-empty";
 
 const SIZE = 200;
 const OUTER_RADIUS = 92;
@@ -33,6 +34,22 @@ const GAP_FRACTION = 0.005;
  */
 export function CategoryDonut({ shares }: { shares: CategoryShare[] }) {
   const [activeId, setActiveId] = React.useState<string | null>(null);
+
+  // Nothing sold in this period. Returned before anything below runs, because
+  // the `reduce` that finds the leading category has no initial value and
+  // throws outright on an empty list — which is exactly how this surfaced.
+  if (shares.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Category Distribution</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <ReportEmpty message="Category split appears here once there are sales in the selected range." />
+        </CardBody>
+      </Card>
+    );
+  }
 
   // Running offsets turn a list of shares into arc start/end positions.
   let cursor = 0;

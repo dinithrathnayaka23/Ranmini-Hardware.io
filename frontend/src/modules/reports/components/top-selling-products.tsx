@@ -7,6 +7,7 @@ import {
 import { formatCount } from "@/shared/lib/format";
 
 import type { TopProduct } from "../types/reports.types";
+import { ReportEmpty } from "./report-empty";
 
 /**
  * Best-selling products as a meter list.
@@ -17,7 +18,21 @@ import type { TopProduct } from "../types/reports.types";
  * that contradicts its own number is worse than no bar at all.
  */
 export function TopSellingProducts({ products }: { products: TopProduct[] }) {
+  // The trailing 1 keeps the bar scale from dividing by zero on an empty list.
   const highest = Math.max(...products.map((product) => product.unitsSold), 1);
+
+  if (products.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Top Selling Products</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <ReportEmpty message="Best sellers appear here once there are sales in the selected range." />
+        </CardBody>
+      </Card>
+    );
+  }
 
   return (
     <Card>
