@@ -32,6 +32,14 @@ export const routes = {
   adminLogin: "/admin/login",
   cashierLogin: "/cashier/login",
   forgotPassword: "/admin/forgot-password",
+  /**
+   * Where the link in a reset email lands.
+   *
+   * Kept in step with the backend's `ranmini.app.reset-url`, which is what
+   * actually builds the address that gets emailed. Changing one without the
+   * other sends staff to a 404.
+   */
+  resetPassword: "/admin/reset-password",
 
   // Management portal
   adminDashboard: "/admin/dashboard",
