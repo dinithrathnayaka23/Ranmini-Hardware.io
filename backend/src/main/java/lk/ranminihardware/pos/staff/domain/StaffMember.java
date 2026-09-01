@@ -48,6 +48,17 @@ public class StaffMember {
   private Instant lastActiveAt;
 
   /**
+   * When the profile picture was last written, or null when there is none.
+   *
+   * <p>The picture itself lives in its own collection — see {@link StaffAvatar}
+   * for why. Only this stamp sits on the staff document, which is read on every
+   * authenticated request: it answers "is there a picture" without a second
+   * query, and doubles as the cache-busting token in the image URL, so a new
+   * photograph appears immediately while an unchanged one stays cached.
+   */
+  private Instant avatarVersion;
+
+  /**
    * BCrypt hash of the password. Never the password itself.
    *
    * <p>Marked {@code @JsonIgnore} as a second line of defence. The API already

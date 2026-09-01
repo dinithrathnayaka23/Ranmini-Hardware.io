@@ -32,6 +32,14 @@ spring:
     serialization:
       write-dates-as-timestamps: false
 
+  servlet:
+    multipart:
+      # Profile pictures only. The service rejects anything over 512KB itself,
+      # so this is the outer bound that stops a large upload being buffered at
+      # all rather than being read and then refused.
+      max-file-size: 1MB
+      max-request-size: 2MB
+
   threads:
     virtual:
       # Java 21 virtual threads. Request handling here is dominated by waiting

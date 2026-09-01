@@ -14,8 +14,10 @@ import lk.ranminihardware.pos.shared.web.PageResponse;
 import lk.ranminihardware.pos.staff.domain.StaffMember;
 import lk.ranminihardware.pos.staff.domain.StaffRole;
 import lk.ranminihardware.pos.staff.domain.StaffStatus;
+import lk.ranminihardware.pos.staff.service.ProfileService;
 import lk.ranminihardware.pos.staff.service.StaffService;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -38,10 +40,12 @@ public class StaffController {
   private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.ASC, "fullName");
 
   private final StaffService staff;
+  private final ProfileService profiles;
   private final PageQuery pageQuery;
 
-  public StaffController(StaffService staff, PageQuery pageQuery) {
+  public StaffController(StaffService staff, ProfileService profiles, PageQuery pageQuery) {
     this.staff = staff;
+    this.profiles = profiles;
     this.pageQuery = pageQuery;
   }
 
@@ -83,6 +87,17 @@ public class StaffController {
     return Response.from(staff.deactivate(id));
   }
 
+  /**
+   * Another staff member's profile picture, for the staff list.
+   *
+   * <p>Administrator-only, like the rest of this controller. Somebody editing
+   * their own picture uses {@code /api/v1/profile/avatar}, which needs no id.
+   */
+  @GetMapping("/{id}/avatar")
+  public ResponseEntity<byte[]> avatar(@PathVariable String id) {
+    return ProfileController.serveAvatar(profiles, staff.get(id));
+  }
+
   @PostMapping("/{id}/reactivate")
   public Response reactivate(@PathVariable String id) {
     return Response.from(staff.reactivate(id));
@@ -104,7 +119,9 @@ public class StaffController {
       StaffRole role,
       StaffStatus status,
       LocalDate joinedOn,
-      Instant lastActiveAt) {
+      Instant lastActiveAt,
+      /** Null when there is no picture; otherwise the cache-busting token. */
+      Instant avatarVersion) {
 
     static Response from(StaffMember m) {
       return new Response(
@@ -116,7 +133,8 @@ public class StaffController {
           m.getRole(),
           m.getStatus(),
           m.getJoinedOn(),
-          m.getLastActiveAt());
+          m.getLastActiveAt(),
+          m.getAvatarVersion());
     }
   }
 

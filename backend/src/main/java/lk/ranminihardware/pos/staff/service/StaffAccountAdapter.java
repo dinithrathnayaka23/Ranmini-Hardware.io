@@ -93,6 +93,7 @@ public class StaffAccountAdapter implements StaffAccountApi {
         member.getRole(),
         member.getStatus(),
         member.getPasswordHash(),
-        member.getLockedUntil());
+        member.getLockedUntil(),
+        member.getAvatarVersion());
   }
 }

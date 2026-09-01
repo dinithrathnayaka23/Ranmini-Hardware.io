@@ -81,6 +81,13 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.OPTIONS, "/**")
                     .permitAll()
 
+                    // Your own account. Any signed-in role: a cashier owns
+                    // their name and their password too. Every endpoint under
+                    // it acts on the token's own user, so there is no id to
+                    // check and no way to reach somebody else's record.
+                    .requestMatchers("/api/v1/profile/**")
+                    .authenticated()
+
                     // The till: read the catalogue, ring up a sale.
                     .requestMatchers("/api/v1/pos/**")
                     .hasAnyRole("CASHIER", "ADMIN")

@@ -2,6 +2,7 @@ package lk.ranminihardware.pos.auth.web;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.time.Instant;
 import lk.ranminihardware.pos.staff.api.StaffAccount;
 import lk.ranminihardware.pos.staff.domain.StaffRole;
 
@@ -41,7 +42,19 @@ public final class AuthDtos {
    * carries those; this is what makes it impossible for them to reach a client.
    */
   public record UserResponse(
-      String id, String username, String fullName, String email, StaffRole role) {
+      String id,
+      String username,
+      String fullName,
+      String email,
+      StaffRole role,
+      /**
+       * When the profile picture last changed, or null when there is none.
+       *
+       * <p>Carried here so the portal chrome can render an avatar from the
+       * session it already has, without a second request on every page load —
+       * and so the URL it builds changes when the picture does.
+       */
+      Instant avatarVersion) {
 
     public static UserResponse from(StaffAccount account) {
       return new UserResponse(
@@ -49,7 +62,8 @@ public final class AuthDtos {
           account.username(),
           account.fullName(),
           account.email(),
-          account.role());
+          account.role(),
+          account.avatarVersion());
     }
   }
 }

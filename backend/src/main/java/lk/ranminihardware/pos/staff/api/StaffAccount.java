@@ -22,7 +22,9 @@ public record StaffAccount(
     StaffRole role,
     StaffStatus status,
     String passwordHash,
-    Instant lockedUntil) {
+    Instant lockedUntil,
+    /** When the profile picture last changed, or null when there is none. */
+    Instant avatarVersion) {
 
   /** An inactive account can never sign in, whatever the password is. */
   public boolean isActive() {
