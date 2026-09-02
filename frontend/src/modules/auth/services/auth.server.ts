@@ -35,10 +35,21 @@ const backendLoginResponseSchema = z.object({
     id: z.string().min(1),
     username: z.string().min(1),
     fullName: z.string(),
-    email: z.string(),
+    // An email address is optional on a staff record — the admin portal's
+    // quick-add form creates cashiers without one — so the backend legitimately
+    // sends null here. Requiring a string made every such account fail this
+    // parse and be reported to the user as an unexpected server error.
+    email: z.string().nullish().transform((value) => value ?? null),
     // A closed set, not a free string: an unexpected role must fail here with
     // a clear message rather than flow into the UI as an unhandled branch.
     role: z.enum(["ADMIN", "CASHIER"]),
+    // Listed even though nothing on the login path reads it: zod drops keys a
+    // schema does not name, so leaving it out would silently strip the avatar
+    // stamp out of the profile this function returns.
+    avatarVersion: z
+      .string()
+      .nullish()
+      .transform((value) => value ?? null),
   }),
 });
 

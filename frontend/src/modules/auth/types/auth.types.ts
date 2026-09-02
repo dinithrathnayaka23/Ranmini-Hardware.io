@@ -19,7 +19,8 @@ export interface UserProfile {
   id: string;
   username: string;
   fullName: string;
-  email: string;
+  /** Null for accounts created without one, which the quick-add form does. */
+  email: string | null;
   /**
    * Two roles, matching the backend exactly. ADMIN is the owner and his son
    * with identical privileges; CASHIER reaches the till and nothing else.
