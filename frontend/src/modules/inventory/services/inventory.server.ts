@@ -91,7 +91,15 @@ export async function fetchInventoryPage(
  * than one that says less.
  */
 export async function fetchInventoryStats(): Promise<StatCardModel[]> {
-  const summary = await apiFetch<SummaryResponse>("/api/v1/inventory/summary");
+  const summary = await apiFetch<SummaryResponse>("/api/v1/inventory/summary", {
+    // The endpoint sends `Cache-Control: private, max-age=30` because these are
+    // aggregates over the whole catalogue and are expensive relative to how
+    // fast they change. Reading them with `no-store` threw that away and re-ran
+    // the pipeline on every page view; this honours the window the API itself
+    // declares, and the tag lets a product write clear it immediately.
+    revalidate: 30,
+    tags: ["inventory-summary"],
+  });
 
   return [
     {

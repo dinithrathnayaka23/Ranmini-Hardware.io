@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import { routes } from "@/shared/config/app.config";
 import { apiFetch } from "@/shared/lib/api.server";
@@ -65,6 +65,12 @@ export async function createProduct(values: unknown): Promise<InventoryActionRes
     // The catalogue table, the four summary cards above it and the dashboard's
     // low-stock panel all count this product now. The till is not listed: it
     // reads products with `no-store`, so its next load already sees this one.
+    //
+    // The summary cards are read through a 30-second cache, so the path sweep
+    // alone would leave them a half-minute out of date after a save. Dropping
+    // the tag is what makes the new product show up in the counts at once.
+    revalidateTag("inventory-summary");
+    revalidateTag("dashboard");
     revalidatePath(routes.adminInventory);
     revalidatePath(routes.adminDashboard);
 
