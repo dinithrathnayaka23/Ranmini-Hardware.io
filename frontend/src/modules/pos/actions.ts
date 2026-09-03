@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import { apiFetch } from "@/shared/lib/api.server";
 import { routes } from "@/shared/config/app.config";
@@ -58,6 +58,14 @@ export async function completeSale(input: {
     // The catalogue the page rendered with now has stale stock levels, since
     // this sale just took some off the shelf.
     revalidatePath(routes.cashierPos);
+
+    // The admin dashboard and the inventory summary cards are read through a
+    // thirty-second cache. Dropping their tags from the till is what keeps the
+    // owner's figures honest: without this a sale would take up to half a
+    // minute to appear in today's revenue and in the stock counts, on a screen
+    // whose whole purpose is to say what is happening right now.
+    revalidateTag("dashboard");
+    revalidateTag("inventory-summary");
 
     return { success: true, sale };
   } catch (error) {
