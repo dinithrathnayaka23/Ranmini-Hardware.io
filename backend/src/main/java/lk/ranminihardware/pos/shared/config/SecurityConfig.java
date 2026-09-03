@@ -109,10 +109,15 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/api/v1/sales/by-invoice/**")
                     .hasAnyRole("CASHIER", "ADMIN")
 
-                    // Everything else in the management portal.
+                    // Everything else in the management portal. Notifications
+                    // are listed explicitly rather than left to the
+                    // deny-by-default rule: that rule only requires a signed-in
+                    // account, and the feed reports voided sales across every
+                    // cashier — which is the owner's business, not a cashier's.
                     .requestMatchers("/api/v1/inventory/**", "/api/v1/staff/**",
                         "/api/v1/settings/**", "/api/v1/reports/**", "/api/v1/dashboard/**",
-                        "/api/v1/sales/**", "/api/v1/categories/**")
+                        "/api/v1/sales/**", "/api/v1/categories/**",
+                        "/api/v1/notifications/**")
                     .hasRole("ADMIN")
 
                     // Deny by default. New endpoints are protected until opened.

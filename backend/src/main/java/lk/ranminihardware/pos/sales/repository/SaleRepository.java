@@ -1,5 +1,6 @@
 package lk.ranminihardware.pos.sales.repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import lk.ranminihardware.pos.sales.domain.Sale;
@@ -39,4 +40,13 @@ public interface SaleRepository extends MongoRepository<Sale, String> {
 
   /** Shift reconciliation: what one cashier took on one day. */
   List<Sale> findByCashierIdAndBusinessDate(String cashierId, String isoBusinessDate);
+
+  /**
+   * Sales voided since a given moment, most recent first.
+   *
+   * <p>Ordered by when the void happened rather than when the sale was made: a
+   * receipt from last month cancelled this morning is this morning's news, and
+   * ordering by {@code soldAt} would bury it behind sales nobody touched.
+   */
+  List<Sale> findByVoidedAtGreaterThanEqualOrderByVoidedAtDesc(Instant since, Pageable pageable);
 }

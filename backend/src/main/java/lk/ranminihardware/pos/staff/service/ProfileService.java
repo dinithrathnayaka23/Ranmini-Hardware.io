@@ -164,6 +164,26 @@ public class ProfileService {
     return saved;
   }
 
+  /**
+   * Records that this person has seen their notifications.
+   *
+   * <p>Lives here rather than in the notifications module because it writes to
+   * the staff document, and one module owning its own collection is the line
+   * that keeps the other from reaching into it. The notification feed itself is
+   * derived from live data and stores nothing — this stamp is the only piece of
+   * notification state anywhere in the system.
+   *
+   * @param seenAt the moment the feed the person actually saw was generated,
+   *     supplied by the caller rather than read from the clock here. A stamp
+   *     taken after the feed was built would silently swallow anything that
+   *     happened in between.
+   */
+  public StaffMember markNotificationsRead(String username, Instant seenAt) {
+    StaffMember member = get(username);
+    member.setNotificationsReadAt(seenAt);
+    return staff.save(member);
+  }
+
   /** The stored picture for a staff member, for the image endpoint. */
   public Optional<StaffAvatar> findAvatar(String staffId) {
     return avatars.findById(staffId);

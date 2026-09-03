@@ -144,6 +144,16 @@ public class MongoIndexInitializer {
             .on("soldAt", Sort.Direction.DESC)
             .named("ix_sale_cashier_sold_at"));
 
+    // The notification feed asks for sales voided since a moment. Sparse
+    // because only a voided sale carries the field, which on a healthy shop is
+    // a tiny fraction of the collection — a full index here would be almost
+    // entirely empty entries.
+    ops.createIndex(
+        new Index()
+            .on("voidedAt", Sort.Direction.DESC)
+            .sparse()
+            .named("ix_sale_voided_at"));
+
     // Lets a refund or a receipt reprint find the sale a line item belongs to
     // without scanning; multikey over the embedded array.
     ops.createIndex(

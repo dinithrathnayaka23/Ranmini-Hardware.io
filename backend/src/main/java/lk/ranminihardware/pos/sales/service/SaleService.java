@@ -12,6 +12,7 @@ import lk.ranminihardware.pos.sales.domain.SaleStatus;
 import lk.ranminihardware.pos.sales.repository.SaleRepository;
 import lk.ranminihardware.pos.shared.error.ApiException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -57,6 +58,18 @@ public class SaleService {
   /** Shift reconciliation: every sale one cashier rang up on one day. */
   public List<Sale> forCashier(String cashierId, LocalDate businessDate) {
     return sales.findByCashierIdAndBusinessDate(cashierId, businessDate.toString());
+  }
+
+  /**
+   * Sales voided since a given moment, most recent first.
+   *
+   * <p>Capped by the caller rather than open-ended: this feeds the owner's
+   * notification panel, and a shop with a bad week of corrections should slow
+   * nothing down.
+   */
+  public List<Sale> recentlyVoided(Instant since, int limit) {
+    return sales.findByVoidedAtGreaterThanEqualOrderByVoidedAtDesc(
+        since, PageRequest.of(0, Math.clamp(limit, 1, 50)));
   }
 
   /**

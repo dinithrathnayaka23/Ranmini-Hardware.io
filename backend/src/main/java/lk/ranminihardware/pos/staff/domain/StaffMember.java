@@ -80,6 +80,18 @@ public class StaffMember {
   /** Set when the lockout threshold is hit; null when the account is usable. */
   private Instant lockedUntil;
 
+  /**
+   * When this person last opened the notification panel, or null if never.
+   *
+   * <p>One timestamp rather than a read/unread flag per notification, because
+   * the feed is derived from live data instead of stored: there is no
+   * notification document to mark. Anything that happened after this stamp is
+   * unread, which is also what makes a low-stock warning re-appear when the
+   * stock falls further — the underlying product changed, so the alert is new
+   * information rather than the same one dismissed twice.
+   */
+  private Instant notificationsReadAt;
+
   @CreatedDate private Instant createdAt;
 
   @LastModifiedDate private Instant updatedAt;
