@@ -55,7 +55,6 @@ export const routes = {
   adminInventoryEdit: (id: string) => `/admin/inventory/${encodeURIComponent(id)}/edit`,
   adminInventoryCategories: "/admin/inventory/categories",
   adminReports: "/admin/reports",
-  adminReportsGenerate: "/admin/reports/generate",
   adminReportsDaily: "/admin/reports/daily",
   adminStaff: "/admin/staff",
   adminProfile: "/admin/profile",

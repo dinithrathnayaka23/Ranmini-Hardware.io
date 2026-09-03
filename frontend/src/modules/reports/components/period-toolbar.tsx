@@ -1,10 +1,7 @@
 "use client";
 
-import { CalendarDays, ChevronDown, Download } from "lucide-react";
+import { CalendarDays, ChevronDown, FileDown } from "lucide-react";
 import * as React from "react";
-
-import { Button, ButtonLink } from "@/shared/components/ui/button";
-import { routes } from "@/shared/config/app.config";
 
 import type { ReportPeriod } from "../types/reports.types";
 
@@ -23,10 +20,13 @@ export function PeriodToolbar({
   periods,
   value,
   onChange,
+  exportHref,
 }: {
   periods: readonly ReportPeriod[];
   value: string;
   onChange: (value: string) => void;
+  /** Where "Export PDF" points — the same window the figures describe. */
+  exportHref: string;
 }) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -60,19 +60,24 @@ export function PeriodToolbar({
 
       <div className="flex shrink-0 items-center gap-2">
         {/*
-          "Export PDF" is the browser's own print-to-PDF. That is a real export
-          today with no backend and no PDF library, and it is why the layout
-          carries print rules that strip the navigation chrome. A server-side
-          renderer would give finer control over pagination later.
-        */}
-        <Button variant="secondary" size="sm" onClick={() => window.print()}>
-          <Download aria-hidden className="size-4" />
-          Export PDF
-        </Button>
+          One button, not two. "Export PDF" used to be the browser's own print
+          dialog and sat beside a "Generate Report" screen that was never
+          designed — so the same request had two half-answers. It is now the
+          server-rendered report: this window's figures, its chart, its category
+          split, its best sellers and its day-by-day table, with the shop's
+          letterhead on top.
 
-        <ButtonLink href={routes.adminReportsGenerate} size="sm">
-          Generate Report
-        </ButtonLink>
+          A link rather than a button, because the response is a file: a
+          download has to be a navigation for the browser to save it under the
+          filename the server chose.
+        */}
+        <a
+          href={exportHref}
+          className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-600 px-3.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 focus-visible:outline-none"
+        >
+          <FileDown aria-hidden className="size-4" />
+          Export PDF
+        </a>
       </div>
     </div>
   );

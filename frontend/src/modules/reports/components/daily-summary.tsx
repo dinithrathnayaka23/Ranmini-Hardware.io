@@ -23,8 +23,16 @@ export function DailySummary({ rows }: { rows: DailySummaryRow[] }) {
     <Card>
       <CardHeader>
         <CardTitle>Daily Summary</CardTitle>
+        {/* Points at the most recent day in the range rather than at the screen
+            with no date: "view details" meaning "today, which may be outside
+            the period you are looking at" is a small lie the reader only
+            notices after wondering why the figures do not match. */}
         <Link
-          href={routes.adminReportsDaily}
+          href={
+            rows.length > 0
+              ? `${routes.adminReportsDaily}?date=${rows[rows.length - 1].date}`
+              : routes.adminReportsDaily
+          }
           className="shrink-0 text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
         >
           View All Details
@@ -70,7 +78,15 @@ export function DailySummary({ rows }: { rows: DailySummaryRow[] }) {
                       scope="row"
                       className="px-5 py-3 text-left font-normal whitespace-nowrap text-ink"
                     >
-                      {row.label}
+                      {/* The date is the drill-down. A figure in this table that
+                          looks wrong is answered by the receipts behind it, and
+                          this is the shortest route to them. */}
+                      <Link
+                        href={`${routes.adminReportsDaily}?date=${row.date}`}
+                        className="font-medium text-brand-600 underline-offset-2 transition-colors hover:text-brand-700 hover:underline"
+                      >
+                        {row.label}
+                      </Link>
                     </th>
                     <td className="px-3 py-3 text-right text-ink-soft tabular-nums">
                       {formatCount(row.transactions)}

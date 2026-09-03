@@ -60,6 +60,10 @@ export function ReportsView({ data }: { data: ReportsData }) {
         periods={reportPeriods}
         value={selected}
         onChange={handlePeriodChange}
+        // The range the API resolved, not the one the URL happens to carry:
+        // with no range at all the backend picks the current month, and the
+        // printed report has to cover the days on screen.
+        exportHref={`/api/reports/export?from=${data.from}&to=${data.to}`}
       />
 
       {/* Dimmed while the new range loads, so it is obvious the figures on

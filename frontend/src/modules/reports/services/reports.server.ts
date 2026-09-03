@@ -40,6 +40,16 @@ interface ReportBundle {
 }
 
 export interface ReportsView {
+  /**
+   * The range the API actually reported on, in ISO form.
+   *
+   * <p>Carried through rather than recomputed in the browser, because when the
+   * screen asks for no range the backend picks one — the current month — and
+   * the export link and the daily drill-down have to name the same days the
+   * figures on screen describe.
+   */
+  from: string;
+  to: string;
   totals: ReportBundle["totals"];
   salesTrend: SalesPoint[];
   categoryShares: CategoryShare[];
@@ -73,6 +83,8 @@ export async function fetchReports(from?: string, to?: string): Promise<ReportsV
   );
 
   return {
+    from: bundle.from,
+    to: bundle.to,
     totals: bundle.totals,
     periodLabel: formatPeriod(bundle.from, bundle.to),
 
