@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -41,6 +42,21 @@ public class CategoryService {
   @Cacheable(CACHE)
   public List<Category> listActive() {
     return categories.findByActiveIsTrueOrderByDisplayOrderAscNameAsc();
+  }
+
+  /**
+   * Every category, deactivated ones included, in display order.
+   *
+   * <p>For the printable stock sheet, which walks the catalogue category by
+   * category. A retired category can still hold products, and stock nobody can
+   * see on the till is exactly the stock a stocktake needs to find — so this
+   * listing deliberately does not filter by {@code active}, unlike
+   * {@link #listActive()}, which feeds the screens where only sellable
+   * categories belong.
+   */
+  public List<Category> listAll() {
+    return categories.findAll(
+        Sort.by(Sort.Direction.ASC, "displayOrder").and(Sort.by(Sort.Direction.ASC, "name")));
   }
 
   public Category get(String id) {

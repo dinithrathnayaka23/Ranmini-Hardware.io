@@ -2,11 +2,15 @@ package lk.ranminihardware.pos.catalog.web;
 
 import jakarta.validation.Valid;
 import java.io.IOException;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.Set;
 import lk.ranminihardware.pos.catalog.domain.Product;
 import lk.ranminihardware.pos.catalog.domain.StockStatus;
 import lk.ranminihardware.pos.catalog.repository.dto.InventorySummary;
 import lk.ranminihardware.pos.catalog.repository.dto.ProductSearchCriteria;
+import lk.ranminihardware.pos.auth.service.JwtService.AuthenticatedUser;
+import lk.ranminihardware.pos.catalog.service.InventoryPdfService;
 import lk.ranminihardware.pos.catalog.service.ProductService;
 import lk.ranminihardware.pos.shared.error.ApiException;
 import lk.ranminihardware.pos.shared.web.PageQuery;
@@ -14,9 +18,12 @@ import lk.ranminihardware.pos.shared.web.PageResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -54,11 +61,33 @@ public class ProductController {
   private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.ASC, "name");
 
   private final ProductService products;
+  private final InventoryPdfService inventoryPdf;
   private final PageQuery pageQuery;
+  private final Clock clock;
 
-  public ProductController(ProductService products, PageQuery pageQuery) {
+  public ProductController(
+      ProductService products,
+      InventoryPdfService inventoryPdf,
+      PageQuery pageQuery,
+      Clock clock) {
     this.products = products;
+    this.inventoryPdf = inventoryPdf;
     this.pageQuery = pageQuery;
+    this.clock = clock;
+  }
+
+  /**
+   * Who to print on an exported document.
+   *
+   * <p>Read from the verified token rather than a parameter. A report that named
+   * whoever asked it to would be worthless as a record of who ran it.
+   */
+  private static String displayName(Authentication authentication) {
+    if (authentication != null
+        && authentication.getPrincipal() instanceof AuthenticatedUser user) {
+      return user.fullName();
+    }
+    return authentication == null ? "" : authentication.getName();
   }
 
   @GetMapping("/products")
@@ -123,6 +152,45 @@ public class ProductController {
   public ProductDtos.Response adjustStock(
       @PathVariable String id, @Valid @RequestBody ProductDtos.StockAdjustment adjustment) {
     return ProductDtos.Response.from(products.adjustStock(id, adjustment.delta(), adjustment.reason()));
+  }
+
+  /**
+   * The catalogue as a printable stock sheet.
+   *
+   * <p>Takes the same filters as the listing above, so the export is what the
+   * person was looking at rather than a different report with the same name. It
+   * is deliberately not paged: the point of this endpoint is that it covers
+   * everything the filters describe, which is exactly what the browser-side CSV
+   * export it replaced could not do.
+   *
+   * <p>The response is a file rather than JSON, so it carries a filename with
+   * the date in it — a folder of downloads called "export.pdf" is a folder
+   * nobody can navigate.
+   */
+  @GetMapping(value = "/export", produces = MediaType.APPLICATION_PDF_VALUE)
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) String q,
+      @RequestParam(required = false) String categoryId,
+      @RequestParam(required = false) StockStatus status,
+      @RequestParam(required = false, defaultValue = "true") boolean activeOnly,
+      Authentication authentication) {
+
+    byte[] pdf =
+        inventoryPdf.render(
+            new ProductSearchCriteria(q, categoryId, status, activeOnly),
+            displayName(authentication));
+
+    String filename = "inventory-%s.pdf".formatted(LocalDate.now(clock));
+
+    return ResponseEntity.ok()
+        .contentType(MediaType.APPLICATION_PDF)
+        .header(
+            HttpHeaders.CONTENT_DISPOSITION,
+            ContentDisposition.attachment().filename(filename).build().toString())
+        // Stock figures move constantly, and a cached stock sheet is a wrong
+        // stock sheet — the one document where that matters most.
+        .header(HttpHeaders.CACHE_CONTROL, "no-store")
+        .body(pdf);
   }
 
   /**
