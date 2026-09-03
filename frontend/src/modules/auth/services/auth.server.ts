@@ -6,7 +6,7 @@ import { getServerEnv } from "@/shared/lib/env";
 import {
   ApiError,
   errorMessages,
-  messageForStatus,
+  messageForAuthFailure,
 } from "@/shared/lib/http-error";
 
 import type { PortalId } from "../constants/portals";
@@ -119,7 +119,17 @@ export async function authenticateUser(
   }
 
   if (!response.ok) {
-    throw new ApiError(messageForStatus(response.status), response.status);
+    // The API answers a refused sign-in with its standard error envelope. Two
+    // of those codes say something the person actually needs — the account is
+    // locked, or it has been deactivated — and mapping every failure to
+    // "invalid username or password" told a cashier whose account had been
+    // switched off to keep retyping a password that was correct all along.
+    const failure = await readAuthFailure(response);
+
+    throw new ApiError(
+      messageForAuthFailure(response.status, failure.code, failure.message),
+      response.status,
+    );
   }
 
   const parsed = backendLoginResponseSchema.safeParse(
@@ -136,4 +146,30 @@ export async function authenticateUser(
   }
 
   return parsed.data;
+}
+
+/**
+ * The code and message from a failed sign-in response.
+ *
+ * <p>Parsed defensively: this runs on a path where the backend has already
+ * misbehaved once, so an unreadable or unexpected body must produce nulls and
+ * let the status-based copy take over, not throw a second error over the first.
+ */
+async function readAuthFailure(
+  response: Response,
+): Promise<{ code: string | null; message: string | null }> {
+  try {
+    const payload: unknown = await response.json();
+    if (typeof payload !== "object" || payload === null) {
+      return { code: null, message: null };
+    }
+
+    const body = payload as { code?: unknown; message?: unknown };
+    return {
+      code: typeof body.code === "string" ? body.code : null,
+      message: typeof body.message === "string" ? body.message : null,
+    };
+  } catch {
+    return { code: null, message: null };
+  }
 }

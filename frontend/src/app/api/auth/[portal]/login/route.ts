@@ -114,7 +114,13 @@ export async function POST(
     return response;
   } catch (error) {
     if (error instanceof ApiError) {
-      return jsonError(error.message, error.status === 503 ? 503 : 401);
+      // 503 and 403 are passed through as themselves: the first says the
+      // backend is unreachable, the second that the credentials were accepted
+      // and the account still cannot be used. Everything else is reported as
+      // 401, so a refused sign-in cannot be told apart from an unknown user.
+      const status =
+        error.status === 503 || error.status === 403 ? error.status : 401;
+      return jsonError(error.message, status);
     }
 
     console.error(`[auth] Unhandled error during ${portal} login:`, error);
