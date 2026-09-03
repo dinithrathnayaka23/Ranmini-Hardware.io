@@ -1,5 +1,7 @@
 import { requireAdmin } from "@/modules/auth/services/session.server";
 import { PortalShell } from "@/shared/components/layout/portal-shell";
+import { ShopProvider } from "@/shared/components/shop-provider";
+import { getShopSettings } from "@/shared/lib/shop.server";
 
 /**
  * Layout for every signed-in screen in the management portal.
@@ -17,10 +19,23 @@ import { PortalShell } from "@/shared/components/layout/portal-shell";
  *
  * Doing it in the layout rather than in each page means a screen added later is
  * protected by default instead of by remembering.
+ *
+ * It is also where the shop's own settings enter the client tree. Every screen
+ * that prints an amount needs the currency symbol, and reading it once here
+ * beats each of a dozen components asking for it — or, as before, all of them
+ * printing a constant compiled into the build and ignoring the setting the
+ * owner had chosen.
  */
 export default async function PortalLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const user = await requireAdmin();
-  return <PortalShell user={user}>{children}</PortalShell>;
+  // In parallel: neither depends on the other, and the session check is a round
+  // trip to the API that the settings read should not queue behind.
+  const [user, shop] = await Promise.all([requireAdmin(), getShopSettings()]);
+
+  return (
+    <ShopProvider settings={shop}>
+      <PortalShell user={user}>{children}</PortalShell>
+    </ShopProvider>
+  );
 }

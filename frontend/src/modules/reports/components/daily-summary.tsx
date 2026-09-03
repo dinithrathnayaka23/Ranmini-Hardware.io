@@ -2,12 +2,13 @@ import { TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
 import { Card, CardHeader, CardTitle } from "@/shared/components/ui/card";
-import { appConfig, routes } from "@/shared/config/app.config";
+import { routes } from "@/shared/config/app.config";
 import { cn } from "@/shared/lib/cn";
 import { formatCount, formatCurrency } from "@/shared/lib/format";
 
 import type { DailySummaryRow } from "../types/reports.types";
 import { ReportEmpty } from "./report-empty";
+import { useCurrency } from "@/shared/components/shop-provider";
 
 /**
  * Day-by-day figures behind the trend line.
@@ -17,6 +18,7 @@ import { ReportEmpty } from "./report-empty";
  * without a pointer.
  */
 export function DailySummary({ rows }: { rows: DailySummaryRow[] }) {
+  const currency = useCurrency();
   return (
     <Card>
       <CardHeader>
@@ -74,10 +76,10 @@ export function DailySummary({ rows }: { rows: DailySummaryRow[] }) {
                       {formatCount(row.transactions)}
                     </td>
                     <td className="px-3 py-3 text-right whitespace-nowrap text-ink-soft tabular-nums">
-                      {formatCurrency(row.revenue, appConfig.currencySymbol)}
+                      {formatCurrency(row.revenue, currency)}
                     </td>
                     <td className="px-3 py-3 text-right whitespace-nowrap text-ink-soft tabular-nums">
-                      {formatCurrency(row.profit, appConfig.currencySymbol)}
+                      {formatCurrency(row.profit, currency)}
                     </td>
                     <td className="px-5 py-3">
                       {/* `relative` is load-bearing: Tailwind's `sr-only` is

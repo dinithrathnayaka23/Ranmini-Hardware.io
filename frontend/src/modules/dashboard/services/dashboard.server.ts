@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 import type { StatCardModel } from "@/shared/components/ui/stat-card";
-import { appConfig } from "@/shared/config/app.config";
+import { getCurrencySymbol } from "@/shared/lib/shop.server";
 import { apiFetch } from "@/shared/lib/api.server";
 import { formatCompactCurrency, formatCount, formatCurrency } from "@/shared/lib/format";
 
@@ -64,7 +64,9 @@ export async function fetchDashboard(): Promise<DashboardView> {
     revalidate: 30,
     tags: ["dashboard"],
   });
-  const symbol = appConfig.currencySymbol;
+  // The shop's own symbol, not a build-time constant: Settings → Business
+  // Logic owns this choice, and the dashboard was ignoring it.
+  const symbol = await getCurrencySymbol();
 
   return {
     stats: [

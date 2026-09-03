@@ -4,6 +4,8 @@ import { requireSession } from "@/modules/auth/services/session.server";
 import { PosTerminal } from "@/modules/pos/components/pos-terminal";
 import { TERMINAL_NAME } from "@/modules/pos/constants/pos-data";
 import { fetchCategories, fetchProducts } from "@/modules/pos/services/pos.server";
+import { ShopProvider } from "@/shared/components/shop-provider";
+import { getShopSettings } from "@/shared/lib/shop.server";
 
 export const metadata: Metadata = {
   title: "Point of Sale",
@@ -25,18 +27,25 @@ export default async function CashierPosPage() {
   // The middleware already redirected a visitor with no cookie. This is the
   // check that actually holds: it asks the backend who the token belongs to, so
   // a forged or expired cookie stops here rather than rendering the till.
-  const [user, categories, products] = await Promise.all([
+  const [user, categories, products, shop] = await Promise.all([
     requireSession(),
     fetchCategories(),
     fetchProducts(),
+    // The shop's own currency and receipt details, read here rather than in the
+    // components that print them: a client component cannot reach the API, and
+    // fetching after the first paint would show a basket priced in the wrong
+    // symbol for a moment.
+    getShopSettings(),
   ]);
 
   return (
-    <PosTerminal
-      products={products}
-      categories={categories}
-      terminalName={TERMINAL_NAME}
-      cashierName={user.fullName}
-    />
+    <ShopProvider settings={shop}>
+      <PosTerminal
+        products={products}
+        categories={categories}
+        terminalName={TERMINAL_NAME}
+        cashierName={user.fullName}
+      />
+    </ShopProvider>
   );
 }

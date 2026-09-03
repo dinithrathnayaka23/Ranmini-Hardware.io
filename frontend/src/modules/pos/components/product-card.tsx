@@ -4,11 +4,11 @@ import { Package } from "lucide-react";
 import Image from "next/image";
 import * as React from "react";
 
-import { appConfig } from "@/shared/config/app.config";
 import { cn } from "@/shared/lib/cn";
 import { formatCurrency } from "@/shared/lib/format";
 
 import type { PosProduct } from "../types/pos.types";
+import { useCurrency } from "@/shared/components/shop-provider";
 
 /**
  * One sellable product.
@@ -30,6 +30,7 @@ export function ProductCard({
   isAtStockCeiling: boolean;
   onSelect: (product: PosProduct) => void;
 }) {
+  const currency = useCurrency();
   const isSoldOut = product.status === "OUT_OF_STOCK" || product.stock <= 0;
   const isLowStock = product.status === "LOW_STOCK" && !isSoldOut;
   const isDisabled = isSoldOut || isAtStockCeiling;
@@ -43,7 +44,7 @@ export function ProductCard({
       // the price and the stock state the badge conveys with colour.
       aria-label={`${product.name}, ${formatCurrency(
         product.unitPrice,
-        appConfig.currencySymbol,
+        currency,
       )}, SKU ${product.sku}${
         isSoldOut
           ? ", out of stock"
@@ -80,7 +81,7 @@ export function ProductCard({
           {product.name}
         </p>
         <p className="text-[1.05rem] font-bold whitespace-nowrap text-ink">
-          {formatCurrency(product.unitPrice, appConfig.currencySymbol)}
+          {formatCurrency(product.unitPrice, currency)}
         </p>
         <p className="text-xs text-muted">SKU: {product.sku}</p>
       </div>

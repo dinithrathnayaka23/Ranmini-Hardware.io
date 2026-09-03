@@ -8,8 +8,8 @@ import {
 } from "lucide-react";
 
 import { apiFetch, type PageResponse } from "@/shared/lib/api.server";
-import { appConfig } from "@/shared/config/app.config";
 import { formatCompactCurrency, formatCount } from "@/shared/lib/format";
+import { getCurrencySymbol } from "@/shared/lib/shop.server";
 import type { StatCardModel } from "@/shared/components/ui/stat-card";
 
 import type { InventoryPageMeta, Product } from "../types/inventory.types";
@@ -91,6 +91,9 @@ export async function fetchInventoryPage(
  * than one that says less.
  */
 export async function fetchInventoryStats(): Promise<StatCardModel[]> {
+  // Settings → Business Logic owns the currency; this used to print the
+  // build-time default whatever the shop had chosen.
+  const currency = await getCurrencySymbol();
   const summary = await apiFetch<SummaryResponse>("/api/v1/inventory/summary", {
     // The endpoint sends `Cache-Control: private, max-age=30` because these are
     // aggregates over the whole catalogue and are expensive relative to how
@@ -132,7 +135,7 @@ export async function fetchInventoryStats(): Promise<StatCardModel[]> {
     {
       id: "inventory-value",
       label: "Inventory Value",
-      value: formatCompactCurrency(summary.retailValue, appConfig.currencySymbol),
+      value: formatCompactCurrency(summary.retailValue, currency),
       icon: WalletCards,
       accent: "success",
       caption: { label: "Stock on hand at retail", accent: "neutral" },

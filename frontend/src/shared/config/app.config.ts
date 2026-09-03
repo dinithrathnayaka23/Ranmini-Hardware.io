@@ -13,15 +13,16 @@ export const appConfig = {
   copyrightStartYear: 2024,
 
   /**
-   * Fallback symbol shown against monetary figures.
+   * Last-resort symbol shown against monetary figures.
    *
-   * The shop's real symbol is a saved setting (Settings → Business Logic), and
-   * this is the build-time default the portal renders until that setting is
-   * loaded from the backend. It matches `businessLogicDefaults.currencySymbol`
-   * and must be kept in step with it.
+   * The shop's real symbol is a saved setting (Settings → Business Logic) and
+   * is read through `shop.server.ts`; screens get it from `useCurrency()` or
+   * `getCurrencySymbol()`. This constant is only what renders when that read
+   * fails — a till that cannot reach the settings endpoint should still be able
+   * to take money, with a default symbol rather than no prices at all.
    *
-   * Settled as the rupee: the dashboard, the till and the business-logic
-   * default all use it, against the inventory design's lone "$".
+   * Settled as the rupee, matching `businessLogicDefaults.currencySymbol` and
+   * the backend's own default, against the inventory design's lone "$".
    */
   currencySymbol: "Rs.",
 } as const;

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { Alert } from "@/shared/components/ui/alert";
-import { appConfig } from "@/shared/config/app.config";
 import { cn } from "@/shared/lib/cn";
 import { formatCurrency } from "@/shared/lib/format";
 
@@ -24,6 +23,7 @@ import { OrderPanel } from "./order-panel";
 import { PosTopbar } from "./pos-topbar";
 import { ProductGrid } from "./product-grid";
 import { ProductSearch } from "./product-search";
+import { useCurrency } from "@/shared/components/shop-provider";
 
 /**
  * The whole till: catalogue on the left, the order being built on the right.
@@ -70,6 +70,7 @@ export function PosTerminal({
   cashierName: string;
 }) {
   const cart = useCart();
+  const currency = useCurrency();
   const router = useRouter();
   const searchRef = React.useRef<HTMLInputElement>(null);
   const closeOrderRef = React.useRef<HTMLButtonElement>(null);
@@ -300,7 +301,7 @@ export function PosTerminal({
         </span>
         <span className="flex items-center gap-3">
           <span className="text-base font-bold whitespace-nowrap text-brand-600 tabular-nums">
-            {formatCurrency(cart.totals.total, appConfig.currencySymbol)}
+            {formatCurrency(cart.totals.total, currency)}
           </span>
           <span className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white">
             View order
@@ -315,7 +316,7 @@ export function PosTerminal({
       {completed ? (
         <PaymentBanner
           tone="success"
-          message={buildReceiptMessage(completed)}
+          message={buildReceiptMessage(completed, currency)}
           onDismiss={() => setCompleted(null)}
         />
       ) : null}
@@ -391,11 +392,11 @@ function PaymentBanner({
  * Leads with the invoice number, because that is what a customer quotes if they
  * come back, and includes the change only when there is some to hand over.
  */
-function buildReceiptMessage(sale: CompletedSale): string {
-  const total = formatCurrency(sale.total, appConfig.currencySymbol);
+function buildReceiptMessage(sale: CompletedSale, currency: string): string {
+  const total = formatCurrency(sale.total, currency);
   const change =
     sale.changeDue > 0
-      ? `, change ${formatCurrency(sale.changeDue, appConfig.currencySymbol)}`
+      ? `, change ${formatCurrency(sale.changeDue, currency)}`
       : "";
 
   return `Sale ${sale.invoiceNumber} completed — ${total}${change}.`;

@@ -3,11 +3,11 @@
 import { Banknote, CreditCard } from "lucide-react";
 import * as React from "react";
 
-import { appConfig } from "@/shared/config/app.config";
 import { cn } from "@/shared/lib/cn";
 import { formatCurrency } from "@/shared/lib/format";
 
 import type { OrderTotals, TenderMethod } from "../types/pos.types";
+import { useCurrency } from "@/shared/components/shop-provider";
 
 /**
  * Money, tender and the commit action.
@@ -39,7 +39,7 @@ export function OrderSummary({
   isPaying: boolean;
   isPayable: boolean;
 }) {
-  const symbol = appConfig.currencySymbol;
+  const symbol = useCurrency();
 
   return (
     <div className="shrink-0 border-t border-line bg-canvas-subtle px-4 py-4 @min-[28rem]:px-5">

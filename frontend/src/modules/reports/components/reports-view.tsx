@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 
 import { StatCardGrid, type StatCardModel } from "@/shared/components/ui/stat-card";
-import { appConfig } from "@/shared/config/app.config";
 import { formatCompactCurrency, formatCount, formatCurrency } from "@/shared/lib/format";
 
 import type { ReportsView as ReportsData } from "../services/reports.server";
@@ -15,6 +14,7 @@ import { DailySummary } from "./daily-summary";
 import { PeriodToolbar } from "./period-toolbar";
 import { SalesTrendChart } from "./sales-trend-chart";
 import { TopSellingProducts } from "./top-selling-products";
+import { useCurrency } from "@/shared/components/shop-provider";
 
 /**
  * Interactive body of the reports screen.
@@ -105,7 +105,7 @@ export function ReportsView({ data }: { data: ReportsData }) {
  * figure nobody computed.
  */
 function buildStats(data: ReportsData): StatCardModel[] {
-  const symbol = appConfig.currencySymbol;
+  const symbol = useCurrency();
 
   return [
     {

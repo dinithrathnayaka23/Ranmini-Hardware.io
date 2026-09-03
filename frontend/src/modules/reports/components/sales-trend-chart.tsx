@@ -8,7 +8,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/components/ui/card";
-import { appConfig } from "@/shared/config/app.config";
 import { useElementWidth } from "@/shared/hooks/use-element-width";
 import { formatCompactCurrency, formatCurrency } from "@/shared/lib/format";
 
@@ -21,6 +20,7 @@ import {
 } from "../lib/chart-geometry";
 import type { SalesPoint } from "../types/reports.types";
 import { ReportEmpty } from "./report-empty";
+import { useCurrency } from "@/shared/components/shop-provider";
 
 const HEIGHT = 280;
 const PADDING = { top: 16, right: 16, bottom: 32, left: 56 } as const;
@@ -34,6 +34,7 @@ const PADDING = { top: 16, right: 16, bottom: 32, left: 56 } as const;
  * enhancement rather than the only way to read the chart.
  */
 export function SalesTrendChart({ points }: { points: SalesPoint[] }) {
+  const currency = useCurrency();
   const [containerRef, width] = useElementWidth<HTMLDivElement>();
   const [activeIndex, setActiveIndex] = React.useState<number | null>(null);
 
@@ -118,7 +119,7 @@ export function SalesTrendChart({ points }: { points: SalesPoint[] }) {
               // as "minus infinity rupees".
               aria-label={`Revenue by day. Highest ${formatCurrency(
                 Math.max(...points.map((p) => p.revenue), 0),
-                appConfig.currencySymbol,
+                currency,
               )}.`}
               onPointerMove={handlePointerMove}
               onPointerLeave={() => setActiveIndex(null)}
@@ -145,7 +146,7 @@ export function SalesTrendChart({ points }: { points: SalesPoint[] }) {
                       textAnchor="end"
                       className="fill-muted text-[11px]"
                     >
-                      {formatCompactCurrency(tick, appConfig.currencySymbol)}
+                      {formatCompactCurrency(tick, currency)}
                     </text>
                   </g>
                 );
@@ -223,7 +224,7 @@ export function SalesTrendChart({ points }: { points: SalesPoint[] }) {
               className="pointer-events-none absolute rounded-lg border border-line bg-surface px-3 py-2 shadow-sm"
             >
               <p className="text-sm font-semibold text-ink">
-                {formatCurrency(activePoint.revenue, appConfig.currencySymbol)}
+                {formatCurrency(activePoint.revenue, currency)}
               </p>
               <p className="mt-0.5 text-xs text-muted">{activePoint.label}</p>
             </div>
