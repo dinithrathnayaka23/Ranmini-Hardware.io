@@ -1,18 +1,21 @@
 package lk.ranminihardware.pos.catalog.web;
 
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.util.Set;
 import lk.ranminihardware.pos.catalog.domain.Product;
 import lk.ranminihardware.pos.catalog.domain.StockStatus;
 import lk.ranminihardware.pos.catalog.repository.dto.InventorySummary;
 import lk.ranminihardware.pos.catalog.repository.dto.ProductSearchCriteria;
 import lk.ranminihardware.pos.catalog.service.ProductService;
+import lk.ranminihardware.pos.shared.error.ApiException;
 import lk.ranminihardware.pos.shared.web.PageQuery;
 import lk.ranminihardware.pos.shared.web.PageResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Inventory management — the admin side of the catalogue.
@@ -119,6 +123,68 @@ public class ProductController {
   public ProductDtos.Response adjustStock(
       @PathVariable String id, @Valid @RequestBody ProductDtos.StockAdjustment adjustment) {
     return ProductDtos.Response.from(products.adjustStock(id, adjustment.delta(), adjustment.reason()));
+  }
+
+  /**
+   * Uploads or replaces a product's photograph.
+   *
+   * <p>Multipart rather than a JSON field, and bytes rather than a path. The
+   * service validates the type against an allowlist and checks the magic number
+   * before storing anything — the endpoint decides what the API will serve back,
+   * so it cannot serve back whatever it was handed.
+   *
+   * <p>Two requests rather than one on the create screen: the product is created
+   * first, then the picture is attached to its id. A single multipart request
+   * carrying both would have to invent an id before validating the product, and
+   * would leave an orphaned image behind whenever the product was rejected.
+   */
+  @PostMapping(value = "/products/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ProductDtos.Response uploadImage(
+      @PathVariable String id, @RequestParam("file") MultipartFile file) {
+
+    if (file == null || file.isEmpty()) {
+      throw ApiException.badRequest("EMPTY_IMAGE", "Choose a picture to upload.");
+    }
+
+    try {
+      return ProductDtos.Response.from(
+          products.setImage(id, file.getBytes(), file.getContentType()));
+    } catch (IOException ex) {
+      throw ApiException.badRequest("UNREADABLE_IMAGE", "That file could not be read.");
+    }
+  }
+
+  @DeleteMapping("/products/{id}/image")
+  public ProductDtos.Response removeImage(@PathVariable String id) {
+    return ProductDtos.Response.from(products.removeImage(id));
+  }
+
+  /**
+   * A product's photograph.
+   *
+   * <p>404 rather than a placeholder when there is none: an absent picture is an
+   * ordinary state, and the client renders its own neutral tile for it. Sending
+   * back a stand-in image would make "no photograph" indistinguishable from a
+   * photograph of a grey box.
+   */
+  @GetMapping("/products/{id}/image")
+  public ResponseEntity<byte[]> image(@PathVariable String id) {
+    return products
+        .findImage(id)
+        .map(
+            image ->
+                ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(image.getContentType()))
+                    // Immutable: the caller's URL carries the version stamp, so
+                    // a replaced picture is a different address and this
+                    // response can never go stale. Private because the
+                    // catalogue is behind a sign-in.
+                    .header("Cache-Control", "private, max-age=31536000, immutable")
+                    // The bytes were signature-checked on upload; a browser that
+                    // sniffed its own type would make that check pointless.
+                    .header("X-Content-Type-Options", "nosniff")
+                    .body(image.getData()))
+        .orElseGet(() -> ResponseEntity.notFound().build());
   }
 
   @GetMapping("/summary")

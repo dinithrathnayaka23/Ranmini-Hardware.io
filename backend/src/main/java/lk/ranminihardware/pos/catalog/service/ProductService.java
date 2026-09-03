@@ -1,14 +1,20 @@
 package lk.ranminihardware.pos.catalog.service;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import lk.ranminihardware.pos.catalog.api.StockReference;
 import lk.ranminihardware.pos.catalog.domain.Category;
 import lk.ranminihardware.pos.catalog.domain.Product;
+import lk.ranminihardware.pos.catalog.domain.ProductImage;
 import lk.ranminihardware.pos.catalog.domain.StockStatus;
+import lk.ranminihardware.pos.catalog.repository.ProductImageRepository;
 import lk.ranminihardware.pos.catalog.repository.ProductRepository;
 import lk.ranminihardware.pos.catalog.repository.dto.InventorySummary;
 import lk.ranminihardware.pos.catalog.repository.dto.ProductSearchCriteria;
 import lk.ranminihardware.pos.shared.error.ApiException;
+import lk.ranminihardware.pos.shared.media.ImageBytes;
 import lk.ranminihardware.pos.shared.money.Money;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -27,14 +33,22 @@ import org.springframework.stereotype.Service;
 public class ProductService {
 
   private final ProductRepository products;
+  private final ProductImageRepository images;
   private final CategoryService categories;
   private final CatalogApiAdapter stock;
+  private final Clock clock;
 
   public ProductService(
-      ProductRepository products, CategoryService categories, CatalogApiAdapter stock) {
+      ProductRepository products,
+      ProductImageRepository images,
+      CategoryService categories,
+      CatalogApiAdapter stock,
+      Clock clock) {
     this.products = products;
+    this.images = images;
     this.categories = categories;
     this.stock = stock;
+    this.clock = clock;
   }
 
   public Page<Product> search(ProductSearchCriteria criteria, Pageable pageable) {
@@ -115,7 +129,13 @@ public class ProductService {
     product.setUnit(write.unit() == null ? product.getUnit() : write.unit().trim());
     product.setBuyingPrice(Money.of(write.buyingPrice()));
     product.setSellingPrice(Money.of(write.sellingPrice()));
-    product.setImageUrl(trimToNull(write.imageUrl()));
+
+    // Only set when the write actually carries a path. The product endpoints
+    // never send one — photographs are uploaded, not typed — so a null here
+    // means "leave the bundled fixture image alone", not "clear the picture".
+    if (write.imageUrl() != null) {
+      product.setImageUrl(trimToNull(write.imageUrl()));
+    }
 
     // The reorder level moves the low/in-stock boundary, so the stored status
     // has to be recomputed even though the stock itself did not change.
@@ -168,6 +188,59 @@ public class ProductService {
     }
 
     return get(id);
+  }
+
+  /**
+   * Stores or replaces a product's photograph.
+   *
+   * <p>The bytes are validated before anything is written — type allowlist and
+   * magic number both — because this endpoint decides what the API will later
+   * serve back, and an image endpoint that will serve whatever it was given is a
+   * way to host a script on the API's own origin.
+   *
+   * <p>The version stamp on the product and the image document are written with
+   * the same instant, so the URL the frontend builds always names the bytes that
+   * are actually stored.
+   */
+  public Product setImage(String id, byte[] data, String contentType) {
+    ImageBytes.validate(data, contentType, ImageBytes.MAX_PRODUCT_IMAGE_BYTES);
+
+    Product product = get(id);
+    Instant now = Instant.now(clock);
+
+    images.save(
+        ProductImage.builder()
+            .id(product.getId())
+            .contentType(ImageBytes.normaliseType(contentType))
+            .data(data)
+            .updatedAt(now)
+            .build());
+
+    product.setImageVersion(now);
+    return products.save(product);
+  }
+
+  /**
+   * Removes the uploaded photograph, falling the product back to a plain tile.
+   *
+   * <p>The reference is cleared before the bytes are deleted: somebody who asked
+   * for a picture to be gone should stop seeing it even if the second write
+   * fails, and an orphaned image document is harmless where an orphaned
+   * reference would render a broken tile at the counter.
+   */
+  public Product removeImage(String id) {
+    Product product = get(id);
+
+    product.setImageVersion(null);
+    Product saved = products.save(product);
+
+    images.deleteById(product.getId());
+    return saved;
+  }
+
+  /** The stored photograph, for the endpoint that serves the bytes. */
+  public Optional<ProductImage> findImage(String productId) {
+    return images.findById(productId);
   }
 
   /**

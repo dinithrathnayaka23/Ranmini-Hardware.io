@@ -69,8 +69,30 @@ public class Product {
   /** Stored so it can be indexed; recomputed on every stock write. */
   private StockStatus status;
 
-  /** Path or URL to a product photo, or null for the neutral tile. */
+  /**
+   * Path to a photograph bundled with the frontend, or null.
+   *
+   * <p>This is the fallback, not the main route. Pictures the shop uploads live
+   * in {@code product_images} and are pointed at by {@link #imageVersion}; this
+   * field exists for catalogue fixtures that reference an image already shipped
+   * under the frontend's {@code public/} directory, and it is never written
+   * through the product endpoints.
+   */
   private String imageUrl;
+
+  /**
+   * When the uploaded photograph last changed, or null when there is none.
+   *
+   * <p>Kept on the product — rather than asking the image collection whether a
+   * document exists — so a page of the catalogue can tell which products have a
+   * picture without reading a single byte of image data. It doubles as the
+   * cache-busting token in the image URL, which is what lets that URL be cached
+   * immutably: a new picture is a new address.
+   *
+   * <p>An uploaded picture takes precedence over {@link #imageUrl}. A shopkeeper
+   * who photographs a product has plainly said which image they want.
+   */
+  private Instant imageVersion;
 
   /**
    * Products are deactivated, never deleted.

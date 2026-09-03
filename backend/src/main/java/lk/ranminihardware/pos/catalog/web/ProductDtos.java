@@ -46,6 +46,8 @@ public final class ProductDtos {
       int reorderLevel,
       StockStatus status,
       String imageUrl,
+      /** When the uploaded photograph last changed, or null when there is none. */
+      Instant imageVersion,
       boolean active,
       Instant updatedAt) {
 
@@ -64,6 +66,7 @@ public final class ProductDtos {
           p.getReorderLevel(),
           p.getStatus(),
           p.getImageUrl(),
+          p.getImageVersion(),
           p.isActive(),
           p.getUpdatedAt());
     }
@@ -85,7 +88,8 @@ public final class ProductDtos {
       BigDecimal unitPrice,
       int stock,
       StockStatus status,
-      String imageUrl) {
+      String imageUrl,
+      Instant imageVersion) {
 
     public static PosProduct from(Product p) {
       return new PosProduct(
@@ -96,7 +100,8 @@ public final class ProductDtos {
           p.getSellingPrice(),
           p.getStock(),
           p.getStatus(),
-          p.getImageUrl());
+          p.getImageUrl(),
+          p.getImageVersion());
     }
   }
 
@@ -134,13 +139,23 @@ public final class ProductDtos {
           int openingStock,
       @Min(value = 0, message = "Reorder level cannot be negative.")
           @Max(value = 1_000_000, message = "That reorder level is not plausible.")
-          int reorderLevel,
-      @Size(max = 512, message = "Image URL is too long.") String imageUrl) {
+          int reorderLevel) {
 
+    /**
+     * <b>No image field.</b> A photograph is uploaded to
+     * {@code /products/{id}/image} as bytes this service validates, not named by
+     * a path the client chose. A client-supplied path was the earlier design and
+     * it was wrong twice over: it asked a shopkeeper to know where files live on
+     * a server, and it let a request point a product at any address on the
+     * origin.
+     *
+     * <p>Passing {@code null} for the image path is what tells
+     * {@code ProductService.update} to leave the existing one alone.
+     */
     public ProductWrite toWrite() {
       return new ProductWrite(
           sku, name, brand, categoryId, unit, buyingPrice, sellingPrice, openingStock,
-          reorderLevel, imageUrl);
+          reorderLevel, null);
     }
   }
 

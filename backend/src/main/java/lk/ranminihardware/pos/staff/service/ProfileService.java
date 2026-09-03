@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.Optional;
 import lk.ranminihardware.pos.settings.service.SettingsService;
 import lk.ranminihardware.pos.shared.error.ApiException;
+import lk.ranminihardware.pos.shared.media.ImageBytes;
 import lk.ranminihardware.pos.staff.domain.StaffAvatar;
 import lk.ranminihardware.pos.staff.domain.StaffMember;
 import lk.ranminihardware.pos.staff.repository.StaffAvatarRepository;
@@ -133,7 +134,7 @@ public class ProfileService {
    * would advertise a version whose bytes are not there yet.
    */
   public StaffMember setAvatar(String username, byte[] data, String contentType) {
-    ImageBytes.validate(data, contentType);
+    ImageBytes.validate(data, contentType, ImageBytes.MAX_AVATAR_BYTES);
 
     StaffMember member = get(username);
     Instant now = Instant.now(clock);
@@ -141,7 +142,7 @@ public class ProfileService {
     avatars.save(
         StaffAvatar.builder()
             .id(member.getId())
-            .contentType(contentType.toLowerCase().trim())
+            .contentType(ImageBytes.normaliseType(contentType))
             .data(data)
             .updatedAt(now)
             .build());
