@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { Alert } from "@/shared/components/ui/alert";
+import { PrintReceiptButton } from "@/shared/components/receipt/print-receipt-button";
+import { PrintReceiptPortal } from "@/shared/components/receipt/print-receipt-portal";
 import { cn } from "@/shared/lib/cn";
 import { formatCurrency } from "@/shared/lib/format";
 
@@ -82,6 +84,14 @@ export function PosTerminal({
   const [isOrderOpen, setIsOrderOpen] = React.useState(false);
   const [isPaying, setIsPaying] = React.useState(false);
   const [completed, setCompleted] = React.useState<CompletedSale | null>(null);
+  /**
+   * Whether the receipt for {@link completed} is on its way to the printer.
+   *
+   * Separate from the sale itself because the two end at different moments: the
+   * print dialog closes long before the cashier dismisses the banner, and the
+   * banner keeps a "Print again" button for the copy that jammed.
+   */
+  const [isPrinting, setIsPrinting] = React.useState(false);
   const [payError, setPayError] = React.useState<string | null>(null);
 
   /**
@@ -199,6 +209,10 @@ export function PosTerminal({
     }
 
     setCompleted(result.sale);
+    // The button says "Pay & Print Receipt", so it prints. A till that took the
+    // money and then waited to be asked for the receipt would be lying about
+    // what the control does — and the cashier would notice one customer later.
+    setIsPrinting(true);
     cart.clear();
     idempotencyKey.current = null;
     setIsOrderOpen(false);
@@ -206,6 +220,8 @@ export function PosTerminal({
     // The catalogue on screen still shows the stock this sale just took.
     router.refresh();
   };
+
+  const handlePrinted = React.useCallback(() => setIsPrinting(false), []);
 
   const handleSelectProduct = (product: PosProduct) => {
     addToCart(product);
@@ -318,7 +334,14 @@ export function PosTerminal({
           tone="success"
           message={buildReceiptMessage(completed, currency)}
           onDismiss={() => setCompleted(null)}
+          // A second copy, for the receipt that jammed or the customer who
+          // asks for one after saying they did not want it.
+          action={<PrintReceiptButton sale={completed} label="Print again" />}
         />
+      ) : null}
+
+      {completed && isPrinting ? (
+        <PrintReceiptPortal sale={completed} onDone={handlePrinted} />
       ) : null}
     </div>
   );
@@ -364,10 +387,13 @@ function PaymentBanner({
   tone,
   message,
   onDismiss,
+  action,
 }: {
   tone: "success" | "danger";
   message: string;
   onDismiss: () => void;
+  /** An extra control beside Dismiss — reprinting the receipt, in practice. */
+  action?: React.ReactNode;
 }) {
   return (
     <div
@@ -375,13 +401,17 @@ function PaymentBanner({
       role="status"
     >
       <Alert tone={tone} className="shadow-lg" message={message} />
-      <button
-        type="button"
-        onClick={onDismiss}
-        className="mt-2 w-full rounded-lg border border-line bg-surface py-2 text-sm font-medium text-ink-soft shadow-sm transition-colors duration-150 hover:bg-canvas-subtle"
-      >
-        Dismiss
-      </button>
+
+      <div className="mt-2 flex items-center gap-2">
+        {action}
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="flex-1 rounded-lg border border-line bg-surface py-2 text-sm font-medium text-ink-soft shadow-sm transition-colors duration-150 hover:bg-canvas-subtle"
+        >
+          Dismiss
+        </button>
+      </div>
     </div>
   );
 }

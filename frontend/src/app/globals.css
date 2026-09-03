@@ -172,9 +172,17 @@
 /* ---------------------------------------------------------------------------
  * Print
  *
- * The reports screen offers "Export PDF", which is the browser's own
- * print-to-PDF. Without these rules the navigation rail and top bar would be
- * baked into the document, and cards would break across pages mid-table.
+ * Two different jobs.
+ *
+ * A receipt is the important one: it goes to an 80mm thermal roll at the
+ * counter, and nothing but the receipt may reach the paper. The receipt is
+ * portalled to the end of <body> for the duration of the print, which is what
+ * lets one rule hide everything beside it — hiding chrome the usual way means
+ * hiding a sibling at every level between the receipt and the body, and that
+ * breaks the moment somebody adds a wrapper.
+ *
+ * Any other page printed with Ctrl+P — a report somebody wants on paper without
+ * downloading the PDF — just needs the navigation chrome out of the way.
  * ------------------------------------------------------------------------- */
 @media print {
   [data-print="hide"] {
@@ -191,4 +199,26 @@
   body {
     background: #ffffff;
   }
+
+  /* While a receipt is being printed, it is the only thing on the page. */
+  body[data-printing-receipt] > *:not([data-print-receipt]) {
+    display: none !important;
+  }
+
+  body[data-printing-receipt] {
+    /* The roll is 80mm wide with about 72mm printable; the receipt sizes
+       itself to that, and the page must not add margins of its own on top. */
+    margin: 0;
+    padding: 0;
+  }
+
+  [data-print-receipt] {
+    display: block !important;
+  }
+}
+
+/* The printed copy is never shown on screen. The receipt somebody reads in the
+   portal is a separate render of the same component. */
+[data-print-receipt] {
+  display: none;
 }
