@@ -18,11 +18,19 @@ import org.springframework.stereotype.Service;
  *
  * <p>Two rules shape everything here.
  *
- * <p><b>Every failure looks the same.</b> Unknown username, wrong password,
- * deactivated account, wrong portal — all answered with one message and one
- * status. Distinguishing them turns the endpoint into an oracle: "no such user"
- * versus "wrong password" tells an attacker which usernames are real, and that
- * is half of a credential-stuffing run done for them.
+ * <p><b>Every failure looks the same — unless the password was right.</b>
+ * Unknown username, wrong password, wrong portal: one message, one status, and
+ * the same time spent hashing. Distinguishing them turns the endpoint into an
+ * oracle: "no such user" versus "wrong password" tells an attacker which
+ * usernames are real, and that is half of a credential-stuffing run done for
+ * them.
+ *
+ * <p>A locked or deactivated account is told so plainly, but <em>only after the
+ * password has been verified</em>. That ordering is what keeps the honesty free:
+ * the message is unreachable without already holding the credentials, so it
+ * cannot be used to discover who works at the shop, while the cashier who turns
+ * up for a shift and cannot get in learns the actual reason instead of
+ * doubting a password they typed correctly.
  *
  * <p><b>The portal is checked here, not in the browser.</b> The frontend has
  * separate admin and cashier sign-in pages, but that is presentation. A cashier
@@ -78,12 +86,21 @@ public class AuthService {
           "This account is temporarily locked. Try again shortly or contact the owner.");
     }
 
-    if (!account.isActive()
-        || account.passwordHash() == null
-        || !passwords.matches(rawPassword == null ? "" : rawPassword, account.passwordHash())) {
+    boolean passwordMatches =
+        account.passwordHash() != null
+            && passwords.matches(rawPassword == null ? "" : rawPassword, account.passwordHash());
 
+    if (!passwordMatches) {
       accounts.recordFailedLogin(account.id());
       throw rejected();
+    }
+
+    // Reachable only with the correct password, which is what makes it safe to
+    // be specific. Not counted as a failed attempt either: the credentials were
+    // right, so locking the account on top of deactivating it would just give
+    // the owner a second thing to undo when the person is reinstated.
+    if (!account.isActive()) {
+      throw deactivated();
     }
 
     if (!mayUsePortal(account.role(), portal)) {
@@ -116,7 +133,14 @@ public class AuthService {
     StaffAccount account =
         accounts.findForAuthentication(claims.username()).orElseThrow(this::sessionExpired);
 
-    if (!account.isActive() || account.isLocked(Instant.now(clock))) {
+    // Deactivation is reported for what it is. The caller already holds a valid
+    // refresh token, so there is nothing left to disclose — and "your session
+    // has ended" would send a cashier who was let go this morning back round the
+    // sign-in loop trying to work out what they typed wrong.
+    if (!account.isActive()) {
+      throw deactivated();
+    }
+    if (account.isLocked(Instant.now(clock))) {
       throw sessionExpired();
     }
 
@@ -127,13 +151,22 @@ public class AuthService {
         AuthDtos.UserResponse.from(account));
   }
 
-  /** The signed-in user, for the portal chrome. */
+  /**
+   * The signed-in user, for the portal chrome.
+   *
+   * <p>Asked on every page load, so it is also where a mid-session deactivation
+   * surfaces. It is reported distinctly from an expired session because the two
+   * need different things from the person reading the screen: one signs in
+   * again, the other has to speak to the owner.
+   */
   public AuthDtos.UserResponse currentUser(String username) {
-    return accounts
-        .findForAuthentication(username)
-        .filter(StaffAccount::isActive)
-        .map(AuthDtos.UserResponse::from)
-        .orElseThrow(this::sessionExpired);
+    StaffAccount account =
+        accounts.findForAuthentication(username).orElseThrow(this::sessionExpired);
+
+    if (!account.isActive()) {
+      throw deactivated();
+    }
+    return AuthDtos.UserResponse.from(account);
   }
 
   /**
@@ -153,6 +186,22 @@ public class AuthService {
 
   private ApiException rejected() {
     return new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", REJECTED);
+  }
+
+  /**
+   * A correct password on an account that has been switched off.
+   *
+   * <p>403 rather than 401: the credentials were accepted, so re-entering them
+   * changes nothing, and a client that retries a 401 by asking for the password
+   * again would loop forever. The code is distinct so the sign-in screen can say
+   * this rather than fall back to the generic rejection.
+   */
+  private ApiException deactivated() {
+    return new ApiException(
+        HttpStatus.FORBIDDEN,
+        "ACCOUNT_DEACTIVATED",
+        "Your account is currently deactivated. Please contact the shop owner to have"
+            + " it reactivated.");
   }
 
   private ApiException sessionExpired() {
