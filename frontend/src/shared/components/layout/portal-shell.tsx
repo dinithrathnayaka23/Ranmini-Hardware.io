@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import * as React from "react";
 
 import type { UserProfile } from "@/modules/auth/types/auth.types";
+import type { NotificationFeed } from "@/modules/notifications/types/notifications.types";
 
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
@@ -24,6 +25,7 @@ import { Topbar } from "./topbar";
 export function PortalShell({
   children,
   user,
+  notifications,
 }: {
   children: React.ReactNode;
   /**
@@ -34,6 +36,8 @@ export function PortalShell({
    * endpoint that hands out account details to whoever asks.
    */
   user: UserProfile;
+  /** The notification feed, resolved on the server alongside the user. */
+  notifications: NotificationFeed;
 }) {
   const [isNavOpen, setIsNavOpen] = React.useState(false);
   const pathname = usePathname();
@@ -107,7 +111,11 @@ export function PortalShell({
 
       {/* ---------------------------- Content column --------------------------- */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar onOpenNav={() => setIsNavOpen(true)} user={user} />
+        <Topbar
+          onOpenNav={() => setIsNavOpen(true)}
+          user={user}
+          notifications={notifications}
+        />
 
         {/* The scroll container on desktop: the page stays fixed, this moves. */}
         <main data-print="expand" className="min-h-0 flex-1 lg:overflow-y-auto">

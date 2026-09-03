@@ -1,9 +1,11 @@
 "use client";
 
-import { Bell, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 
 import { AdminMenu } from "@/modules/auth/components/admin-menu";
 import type { UserProfile } from "@/modules/auth/types/auth.types";
+import { NotificationBell } from "@/modules/notifications/components/notification-bell";
+import type { NotificationFeed } from "@/modules/notifications/types/notifications.types";
 
 import { Breadcrumbs } from "./breadcrumbs";
 
@@ -21,9 +23,15 @@ import { Breadcrumbs } from "./breadcrumbs";
 export function Topbar({
   onOpenNav,
   user,
+  notifications,
 }: {
   onOpenNav: () => void;
   user: UserProfile;
+  /**
+   * Read on the server by the portal layout, so the badge is right in the
+   * first paint and no client component ever has to fetch it.
+   */
+  notifications: NotificationFeed;
 }) {
   return (
     // Sticky below `lg` because the page itself scrolls there; from `lg` the
@@ -48,13 +56,7 @@ export function Topbar({
       <Breadcrumbs className="flex-1" />
 
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="inline-flex size-10 items-center justify-center rounded-lg text-ink-soft transition-colors hover:bg-canvas-subtle"
-        >
-          <Bell aria-hidden className="size-5" />
-        </button>
+        <NotificationBell initialFeed={notifications} />
         <AdminMenu admin={user} />
       </div>
     </header>

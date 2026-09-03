@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/modules/auth/services/session.server";
+import { fetchNotifications } from "@/modules/notifications/services/notifications.server";
 import { PortalShell } from "@/shared/components/layout/portal-shell";
 import { ShopProvider } from "@/shared/components/shop-provider";
 import { getShopSettings } from "@/shared/lib/shop.server";
@@ -29,13 +30,24 @@ import { getShopSettings } from "@/shared/lib/shop.server";
 export default async function PortalLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  // In parallel: neither depends on the other, and the session check is a round
-  // trip to the API that the settings read should not queue behind.
-  const [user, shop] = await Promise.all([requireAdmin(), getShopSettings()]);
+  // All three in parallel: none depends on another, and the session check is a
+  // round trip the other two should not have to queue behind.
+  //
+  // The notification feed is read here, on every navigation, rather than polled
+  // from the browser. A portal somebody is using navigates often enough to keep
+  // the badge current, and a poll on a screen left open on the counter would be
+  // a request every few seconds all night to learn that nothing had changed.
+  const [user, shop, notifications] = await Promise.all([
+    requireAdmin(),
+    getShopSettings(),
+    fetchNotifications(),
+  ]);
 
   return (
     <ShopProvider settings={shop}>
-      <PortalShell user={user}>{children}</PortalShell>
+      <PortalShell user={user} notifications={notifications}>
+        {children}
+      </PortalShell>
     </ShopProvider>
   );
 }
