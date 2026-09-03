@@ -62,6 +62,28 @@ const contentSecurityPolicy = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  /**
+   * How long the development server keeps a compiled route in memory.
+   *
+   * This is the single biggest cause of the portal feeling slow locally. The
+   * defaults hold five routes for sixty seconds; this application has fourteen
+   * screens under /admin alone, so ordinary use evicts a route within a minute
+   * of leaving it and the next visit pays a full recompile — measured here at
+   * five to eight seconds, against roughly a quarter of a second once a route
+   * is warm.
+   *
+   * Holding thirty routes for an hour means each screen compiles once per
+   * `next dev` session instead of repeatedly. The cost is memory in the dev
+   * server, which is the right thing to spend on a development machine.
+   *
+   * Development only — the setting has no effect on `next build` or `next
+   * start`, where every route is compiled ahead of time.
+   */
+  onDemandEntries: {
+    maxInactiveAge: 60 * 60 * 1000,
+    pagesBufferLength: 30,
+  },
+
   // Development-only overlay. Its default bottom-left position sits directly on
   // top of the portal sidebar's user profile, so move it out of the way.
   devIndicators: {
