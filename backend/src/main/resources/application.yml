@@ -34,11 +34,14 @@ spring:
 
   servlet:
     multipart:
-      # Profile pictures only. The service rejects anything over 512KB itself,
-      # so this is the outer bound that stops a large upload being buffered at
-      # all rather than being read and then refused.
-      max-file-size: 1MB
-      max-request-size: 2MB
+      # Profile pictures (512KB) and product photographs (1MB). The service
+      # checks both limits itself; these are the outer bound that stops an
+      # oversized upload being buffered at all rather than being read in full
+      # and then refused. Kept above the largest allowed file so a legitimate
+      # 1MB photograph is not rejected by the container's own limit once
+      # multipart framing is added to it.
+      max-file-size: 2MB
+      max-request-size: 4MB
 
   # Outgoing mail, for password-reset links.
   #

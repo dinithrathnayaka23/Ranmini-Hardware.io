@@ -193,6 +193,11 @@ public class SalesReportPdfService {
     }
 
     document.add(table);
+    document.add(
+        PdfReport.note(
+            ("Share is of the %d categories listed. A shop with a long tail of small"
+                    + " categories will not see all of them here.")
+                .formatted(categories.size())));
   }
 
   private void writeTopProducts(
