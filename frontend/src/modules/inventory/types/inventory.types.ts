@@ -22,13 +22,38 @@ export interface Product {
   id: string;
   sku: string;
   name: string;
+  /** Manufacturer, or null when none was recorded. */
+  brand: string | null;
+  /** The category's id, for the edit form's select. */
+  categoryId: string;
+  /** The category's name, denormalised by the backend for display. */
   category: string;
+  /** Unit of issue — bags, pcs, kg. */
+  unit: string;
   /** Cost price, in the store's base currency. */
   buyingPrice: number;
   /** Retail price, in the store's base currency. */
   sellingPrice: number;
   stock: number;
+  /** The level at or below which this line counts as low. */
+  reorderLevel: number;
   status: StockStatus;
+  /** A photograph bundled with the build, or null. */
+  imageUrl: string | null;
+  /**
+   * When an uploaded photograph last changed, or null when there is none.
+   *
+   * <p>An upload takes precedence over {@link imageUrl}; see
+   * `productImageUrl()`, which is the one place that decides between them.
+   */
+  imageVersion: string | null;
+  /**
+   * Whether the product is on sale.
+   *
+   * <p>Products are withdrawn, never deleted — old receipts reference them — so
+   * the table has to be able to show a withdrawn line and offer to restore it.
+   */
+  active: boolean;
 }
 
 /** Server-side paging state; the table renders it but does not own it. */

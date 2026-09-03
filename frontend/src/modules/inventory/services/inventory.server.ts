@@ -36,6 +36,7 @@ interface ProductResponse {
   reorderLevel: number;
   status: Product["status"];
   imageUrl: string | null;
+  imageVersion: string | null;
   active: boolean;
 }
 
@@ -59,13 +60,25 @@ export interface InventoryPage {
  * @param query free text matched against name, SKU and brand by the backend's
  *   text index — deliberately not filtered here, since sending the whole
  *   catalogue to the server to filter it in Node would defeat the index
+ * @param status restrict to one stock state, also server-side. Filtering the
+ *   loaded page instead would mean "Out of Stock" showed only the out-of-stock
+ *   products that happened to be on page one.
  */
 export async function fetchInventoryPage(
   page: number,
   query?: string,
+  status?: string,
 ): Promise<InventoryPage> {
-  const params = new URLSearchParams({ page: String(page), size: "10" });
+  const params = new URLSearchParams({
+    page: String(page),
+    size: "10",
+    // Withdrawn products are listed too. They are excluded from the till by the
+    // backend, but hiding them here would leave somebody who withdrew a line by
+    // mistake with no way to find it and bring it back.
+    activeOnly: "false",
+  });
   if (query) params.set("q", query);
+  if (status) params.set("status", status);
 
   const response = await apiFetch<PageResponse<ProductResponse>>(
     `/api/v1/inventory/products?${params}`,
@@ -80,6 +93,20 @@ export async function fetchInventoryPage(
       totalPages: response.totalPages,
     },
   };
+}
+
+/**
+ * One product, for the edit screen.
+ *
+ * <p>Read fresh on every request rather than from the listing's cache: an edit
+ * form opened on stale figures would save them back, quietly undoing whatever
+ * changed in between.
+ */
+export async function fetchProduct(id: string): Promise<Product> {
+  const response = await apiFetch<ProductResponse>(
+    `/api/v1/inventory/products/${encodeURIComponent(id)}`,
+  );
+  return toProduct(response);
 }
 
 /**
@@ -148,10 +175,17 @@ function toProduct(response: ProductResponse): Product {
     id: response.id,
     sku: response.sku,
     name: response.name,
+    brand: response.brand,
+    categoryId: response.categoryId,
     category: response.category,
+    unit: response.unit,
     buyingPrice: response.buyingPrice,
     sellingPrice: response.sellingPrice,
     stock: response.stock,
+    reorderLevel: response.reorderLevel,
     status: response.status,
+    imageUrl: response.imageUrl,
+    imageVersion: response.imageVersion,
+    active: response.active,
   };
 }

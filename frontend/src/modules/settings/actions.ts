@@ -38,10 +38,21 @@ async function save(
   try {
     await apiFetch(`/api/v1/settings/${section}`, { method: "PATCH", body });
 
-    // The tax rate and the currency symbol are read by the till and the reports
-    // as well as by this form, so the cached copy has to go.
+    // Two tags, because two different reads cache this document. "settings" is
+    // the admin form's own copy; "shop-settings" is the public subset every
+    // screen reads for the currency symbol and the receipt footer, on a
+    // one-minute window. Without the second one, changing the currency would
+    // leave the till and the reports printing the old symbol until that window
+    // happened to expire.
     revalidateTag("settings");
+    revalidateTag("shop-settings");
     revalidatePath(routes.adminSettings);
+    // The chrome on every portal screen and the till both render from the
+    // public settings, so a change has to sweep further than this form's page.
+    revalidatePath(routes.adminDashboard);
+    revalidatePath(routes.adminInventory);
+    revalidatePath(routes.adminReports);
+    revalidatePath(routes.cashierPos);
 
     return { success: true, message: successMessage };
   } catch (error) {

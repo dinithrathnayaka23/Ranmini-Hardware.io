@@ -34,12 +34,19 @@ export interface PosProduct {
   stock: number;
   status: PosStockStatus;
   /**
-   * Path to a product photo under `public/`, or null.
+   * Path to a photograph bundled with the build, or null.
    *
    * Optional because a real catalogue is never fully photographed — the card
    * falls back to a neutral tile rather than a broken image.
    */
   imageUrl?: string | null;
+  /**
+   * When an uploaded photograph last changed, or null when there is none.
+   *
+   * An upload takes precedence over {@link imageUrl}; `productImageUrl()` is
+   * the one place that decides between them.
+   */
+  imageVersion?: string | null;
 }
 
 /** A filter chip above the product grid. */

@@ -32,6 +32,7 @@ interface PosProductResponse {
   stock: number;
   status: PosProduct["status"];
   imageUrl: string | null;
+  imageVersion: string | null;
 }
 
 /**
@@ -81,5 +82,6 @@ export async function fetchProducts(): Promise<PosProduct[]> {
     stock: product.stock,
     status: product.status,
     imageUrl: product.imageUrl,
+    imageVersion: product.imageVersion,
   }));
 }

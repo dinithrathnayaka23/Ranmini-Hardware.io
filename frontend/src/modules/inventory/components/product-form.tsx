@@ -1,8 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Boxes, PackagePlus, Tags, Wallet } from "lucide-react";
+import { Boxes, Camera, PackagePlus, Save, Tags, Wallet } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useForm, useWatch, type DefaultValues } from "react-hook-form";
 
@@ -16,12 +17,17 @@ import {
 } from "@/shared/components/ui/card";
 import { SelectField, type SelectOption } from "@/shared/components/ui/select-field";
 import { TextField } from "@/shared/components/ui/text-field";
-import { appConfig, routes } from "@/shared/config/app.config";
+import { useCurrency } from "@/shared/components/shop-provider";
+import { routes } from "@/shared/config/app.config";
 import { cn } from "@/shared/lib/cn";
 import { formatCurrency, formatPercent } from "@/shared/lib/format";
+import { productImageUrl } from "@/shared/lib/product-image-url";
 
-import { createProduct } from "../actions";
+import { createProduct, updateProduct, uploadProductImage } from "../actions";
 import { productSchema, type ProductFormValues } from "../schemas/product.schema";
+import type { Product } from "../types/inventory.types";
+
+import { ProductImageField } from "./product-image-field";
 
 /**
  * Units a hardware shop actually sells by.
@@ -62,29 +68,54 @@ const BLANK: DefaultValues<ProductFormValues> = {
   sellingPrice: undefined,
   openingStock: 0,
   reorderLevel: 0,
-  imageUrl: "",
 };
 
 /**
- * Creates a catalogue entry.
+ * Creates or edits a catalogue entry.
  *
- * <p>Grouped into three panels — what the thing is, what it costs, and how much
- * of it there is — because that is the order the information arrives in when
- * somebody is unpacking a delivery with the invoice in their other hand.
+ * <p>One form for both, because they are the same fields and a second copy is a
+ * second place for a validation rule to drift. What differs is stated in one
+ * place — {@link isEditing} — and amounts to three things: the button says Save
+ * rather than Add, the form does not clear itself after a successful save, and
+ * the stock field is read-only.
  *
- * <p>Stock is asked for once here and never edited from a form again: after
- * this, every movement is a recorded adjustment with a reason, so a correction
- * cannot silently overwrite a sale that landed a moment earlier.
+ * <p><b>Stock is read-only when editing</b> because after the opening count,
+ * every movement is a recorded adjustment with a reason. A plain edit that set
+ * the figure would silently overwrite a sale that landed a moment earlier, and
+ * would leave the stock ledger unable to account for the difference.
+ *
+ * <p>Grouped into panels — what the thing is, what it looks like, what it costs,
+ * and how much of it there is — because that is the order the information
+ * arrives in when somebody is unpacking a delivery with the invoice in their
+ * other hand.
  */
 export function ProductForm({
   categories,
+  product,
 }: {
   categories: { id: string; name: string }[];
+  /** The product being edited, or undefined when adding a new one. */
+  product?: Product;
 }) {
+  const isEditing = product !== undefined;
+  const currency = useCurrency();
+  const router = useRouter();
+
   const [notice, setNotice] = React.useState<{
     tone: AlertTone;
     message: string;
   } | null>(null);
+
+  /**
+   * The photograph chosen before the product exists.
+   *
+   * <p>Only used when adding: there is no id to upload against until the
+   * product has been created, so the file waits here and is sent immediately
+   * afterwards. In a ref rather than state because nothing renders from it —
+   * the picker owns its own preview — and re-rendering the whole form on every
+   * file choice would be work for nothing.
+   */
+  const pendingImage = React.useRef<File | null>(null);
 
   const categoryOptions: SelectOption[] = React.useMemo(
     () => [
@@ -97,6 +128,25 @@ export function ProductForm({
     [categories],
   );
 
+  const defaults: DefaultValues<ProductFormValues> = React.useMemo(() => {
+    if (!product) return BLANK;
+
+    return {
+      sku: product.sku,
+      name: product.name,
+      brand: product.brand ?? "",
+      categoryId: product.categoryId,
+      unit: product.unit,
+      buyingPrice: product.buyingPrice,
+      sellingPrice: product.sellingPrice,
+      // Sent back unchanged. The API takes the same shape for a create and an
+      // update and ignores this field on an update, so echoing the current
+      // figure is both honest and inert.
+      openingStock: product.stock,
+      reorderLevel: product.reorderLevel,
+    };
+  }, [product]);
+
   const {
     register,
     handleSubmit,
@@ -106,7 +156,7 @@ export function ProductForm({
     formState: { errors, isSubmitting, isDirty },
   } = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
-    defaultValues: BLANK,
+    defaultValues: defaults,
     mode: "onSubmit",
     reValidateMode: "onChange",
   });
@@ -117,17 +167,47 @@ export function ProductForm({
   const onSubmit = async (values: ProductFormValues) => {
     setNotice(null);
 
-    const result = await createProduct(values);
-    setNotice({ tone: result.success ? "success" : "danger", message: result.message });
+    if (isEditing) {
+      const result = await updateProduct(product.id, values);
+      setNotice({ tone: result.success ? "success" : "danger", message: result.message });
 
-    if (result.success) {
-      // The category and the unit are carried over deliberately. Products
-      // arrive by the box from one supplier, so the next entry is nearly always
-      // the same kind of thing — re-picking the category every time is the sort
-      // of friction that makes people stop using the screen.
-      reset({ ...BLANK, categoryId: values.categoryId, unit: values.unit });
-      setFocus("sku");
+      // The server data this form was seeded from has changed; without this the
+      // page would keep rendering the figures it was opened with.
+      if (result.success) router.refresh();
+      return;
     }
+
+    const result = await createProduct(values);
+
+    if (!result.success) {
+      setNotice({ tone: "danger", message: result.message });
+      return;
+    }
+
+    // The product exists now, so the photograph chosen earlier has something to
+    // attach to. Reported separately on failure: the product was still created,
+    // and saying "could not save" would send somebody back to add it twice.
+    let message = result.message;
+
+    if (pendingImage.current && result.productId) {
+      const data = new FormData();
+      data.append("file", pendingImage.current);
+      const upload = await uploadProductImage(result.productId, data);
+
+      if (!upload.success) {
+        message = `${result.message} The photograph could not be saved — ${upload.message}`;
+      }
+      pendingImage.current = null;
+    }
+
+    setNotice({ tone: "success", message });
+
+    // The category and the unit are carried over deliberately. Products arrive
+    // by the box from one supplier, so the next entry is nearly always the same
+    // kind of thing — re-picking the category every time is the sort of friction
+    // that makes people stop using the screen.
+    reset({ ...BLANK, categoryId: values.categoryId, unit: values.unit });
+    setFocus("sku");
   };
 
   return (
@@ -140,7 +220,7 @@ export function ProductForm({
       {notice ? (
         <div className="space-y-2">
           <Alert tone={notice.tone} message={notice.message} />
-          {notice.tone === "success" ? (
+          {notice.tone === "success" && !isEditing ? (
             <p className="text-sm text-muted">
               The form is ready for the next one, or{" "}
               <Link
@@ -216,17 +296,6 @@ export function ProductForm({
               error={errors.unit?.message}
               {...register("unit")}
             />
-
-            <TextField
-              label="Image Path (optional)"
-              placeholder="/images/products/cement.jpg"
-              autoComplete="off"
-              autoCapitalize="none"
-              spellCheck={false}
-              maxLength={512}
-              error={errors.imageUrl?.message}
-              {...register("imageUrl")}
-            />
           </div>
 
           {/* Suggestions only — the field stays free text. */}
@@ -235,15 +304,26 @@ export function ProductForm({
               <option key={unit} value={unit} />
             ))}
           </datalist>
+        </CardBody>
+      </Card>
 
-          <p className="text-xs leading-relaxed text-muted">
-            Product photographs live in{" "}
-            <code className="rounded bg-canvas-subtle px-1 py-0.5">
-              public/images/products/
-            </code>{" "}
-            and are referenced by path. Leave it blank and the till shows a plain
-            tile, which is better than a broken picture at the counter.
-          </p>
+      {/* --------------------------- Photograph ----------------------------- */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <Camera aria-hidden className="size-[18px] text-brand-600" />
+            Photograph
+          </CardTitle>
+        </CardHeader>
+
+        <CardBody>
+          <ProductImageField
+            productId={product?.id ?? null}
+            storedUrl={product ? productImageUrl(product) : null}
+            onFileChange={(file) => {
+              pendingImage.current = file;
+            }}
+          />
         </CardBody>
       </Card>
 
@@ -259,7 +339,7 @@ export function ProductForm({
         <CardBody className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField
-              label={`Buying Price (${appConfig.currencySymbol})`}
+              label={`Buying Price (${currency})`}
               type="number"
               inputMode="decimal"
               step="0.01"
@@ -270,7 +350,7 @@ export function ProductForm({
             />
 
             <TextField
-              label={`Selling Price (${appConfig.currencySymbol})`}
+              label={`Selling Price (${currency})`}
               type="number"
               inputMode="decimal"
               step="0.01"
@@ -281,7 +361,11 @@ export function ProductForm({
             />
           </div>
 
-          <MarginHint buyingPrice={buyingPrice} sellingPrice={sellingPrice} />
+          <MarginHint
+            buyingPrice={buyingPrice}
+            sellingPrice={sellingPrice}
+            currency={currency}
+          />
         </CardBody>
       </Card>
 
@@ -290,7 +374,7 @@ export function ProductForm({
         <CardHeader>
           <CardTitle>
             <Boxes aria-hidden className="size-[18px] text-brand-600" />
-            Opening Stock
+            {isEditing ? "Stock" : "Opening Stock"}
           </CardTitle>
         </CardHeader>
 
@@ -302,6 +386,10 @@ export function ProductForm({
               inputMode="numeric"
               step="1"
               min="0"
+              // Read-only rather than hidden while editing: the figure is worth
+              // seeing beside the reorder level, it just must not be typed over.
+              readOnly={isEditing}
+              className={isEditing ? "bg-canvas-subtle text-muted" : undefined}
               error={errors.openingStock?.message}
               {...register("openingStock", { valueAsNumber: true })}
             />
@@ -318,35 +406,78 @@ export function ProductForm({
           </div>
 
           <p className="text-xs leading-relaxed text-muted">
-            The reorder level is the point at which this product starts showing
-            as low stock on the dashboard. After today, quantity changes are
-            recorded as stock adjustments with a reason rather than edited here,
-            so a correction can never quietly overwrite a sale.
+            {isEditing ? (
+              <>
+                Stock is not edited here. Every movement after the opening count
+                is a recorded adjustment with a reason — a delivery, a stocktake,
+                breakage — so a correction can never quietly overwrite a sale.
+                Use <strong className="font-semibold">Adjust stock</strong> on the
+                catalogue row.
+              </>
+            ) : (
+              <>
+                The reorder level is the point at which this product starts
+                showing as low stock on the dashboard. After today, quantity
+                changes are recorded as stock adjustments with a reason rather
+                than edited here, so a correction can never quietly overwrite a
+                sale.
+              </>
+            )}
           </p>
         </CardBody>
       </Card>
 
       {/* ----------------------------- Actions ------------------------------ */}
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" size="md" isLoading={isSubmitting} loadingText="Saving…">
-          <PackagePlus aria-hidden className="size-4" />
-          Add Product
+        <Button
+          type="submit"
+          size="md"
+          isLoading={isSubmitting}
+          loadingText="Saving…"
+        >
+          {isEditing ? (
+            <>
+              <Save aria-hidden className="size-4" />
+              Save Changes
+            </>
+          ) : (
+            <>
+              <PackagePlus aria-hidden className="size-4" />
+              Add Product
+            </>
+          )}
         </Button>
 
-        <Button
-          type="button"
-          variant="secondary"
-          size="md"
-          // Nothing to clear until something has been typed, and a live Clear
-          // button on an untouched form is just noise.
-          disabled={!isDirty || isSubmitting}
-          onClick={() => {
-            reset(BLANK);
-            setNotice(null);
-          }}
-        >
-          Clear
-        </Button>
+        {isEditing ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            disabled={isSubmitting}
+            onClick={() => {
+              reset(defaults);
+              setNotice(null);
+            }}
+          >
+            Discard changes
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            // Nothing to clear until something has been typed, and a live Clear
+            // button on an untouched form is just noise.
+            disabled={!isDirty || isSubmitting}
+            onClick={() => {
+              reset(BLANK);
+              pendingImage.current = null;
+              setNotice(null);
+            }}
+          >
+            Clear
+          </Button>
+        )}
       </div>
     </form>
   );
@@ -363,9 +494,11 @@ export function ProductForm({
 function MarginHint({
   buyingPrice,
   sellingPrice,
+  currency,
 }: {
   buyingPrice: number | undefined;
   sellingPrice: number | undefined;
+  currency: string;
 }) {
   // An untouched field is undefined and an emptied one reads back as NaN;
   // neither is worth reporting a margin on, and nor is a giveaway.
@@ -388,14 +521,14 @@ function MarginHint({
       {isLoss ? (
         <>
           This sells <strong className="font-semibold">below cost</strong> — a
-          loss of {formatCurrency(Math.abs(profit), appConfig.currencySymbol)} per{" "}
-          unit. Fine for clearance; check the decimal point otherwise.
+          loss of {formatCurrency(Math.abs(profit), currency)} per unit. Fine for
+          clearance; check the decimal point otherwise.
         </>
       ) : (
         <>
           Margin{" "}
           <strong className="font-semibold text-ink">
-            {formatCurrency(profit, appConfig.currencySymbol)}
+            {formatCurrency(profit, currency)}
           </strong>{" "}
           per unit, {formatPercent(profit / sellingPrice)} of the selling price.
         </>

@@ -6,6 +6,7 @@ import * as React from "react";
 
 import { cn } from "@/shared/lib/cn";
 import { formatCurrency } from "@/shared/lib/format";
+import { productImageUrl } from "@/shared/lib/product-image-url";
 
 import type { PosProduct } from "../types/pos.types";
 import { useCurrency } from "@/shared/components/shop-provider";
@@ -108,7 +109,10 @@ function StockBadge({ label }: { label: string }) {
 function ProductImage({ product }: { product: PosProduct }) {
   const [hasFailed, setHasFailed] = React.useState(false);
 
-  if (!product.imageUrl || hasFailed) {
+  // An uploaded photograph if there is one, the bundled path otherwise.
+  const url = productImageUrl(product);
+
+  if (!url || hasFailed) {
     return (
       <span className="flex size-full items-center justify-center text-placeholder">
         <Package aria-hidden className="size-8" />
@@ -118,7 +122,7 @@ function ProductImage({ product }: { product: PosProduct }) {
 
   return (
     <Image
-      src={product.imageUrl}
+      src={url}
       alt=""
       fill
       // Cards are roughly a quarter of the catalogue column, itself ~60% of the

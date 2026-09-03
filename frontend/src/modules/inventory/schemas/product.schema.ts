@@ -78,26 +78,6 @@ export const productSchema = z.object({
 
   openingStock: quantity("the opening stock", 10_000_000),
   reorderLevel: quantity("the reorder level", 1_000_000),
-
-  /**
-   * A path to a photograph already served by this app.
-   *
-   * <p>Not a URL, deliberately. The Content-Security-Policy in `next.config.ts`
-   * allows images from this origin only, and `next/image` refuses a remote host
-   * that is not listed in its config — so an external address would fail twice
-   * over and leave a broken tile on the till. Pictures go in
-   * `public/images/products/` and are referenced from there.
-   *
-   * <p>A protocol-relative address is rejected as well: `//example.com/x.jpg`
-   * begins with a slash but is not this origin at all.
-   */
-  imageUrl: z
-    .string()
-    .trim()
-    .max(512, { message: "That path is too long." })
-    .refine((value) => value === "" || (value.startsWith("/") && !value.startsWith("//")), {
-      message: "Use a path on this site, e.g. /images/products/cement.jpg",
-    }),
 });
 
 export type ProductFormValues = z.infer<typeof productSchema>;
@@ -106,3 +86,32 @@ function capitalise(text: string): string {
   const trimmed = text.replace(/^the /, "");
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 }
+
+/**
+ * A deliberate stock movement.
+ *
+ * <p>A signed delta rather than a new total, mirroring the API. "Forty more
+ * bags arrived" is what happened, and a delta cannot silently overwrite a sale
+ * that landed while the form was open.
+ *
+ * <p>Zero is rejected rather than treated as a harmless no-op: somebody typing
+ * a quantity means to change something, and a form that accepted zero and did
+ * nothing would look like it had worked.
+ */
+export const stockAdjustmentSchema = z.object({
+  delta: z
+    .number({ message: "Enter a quantity." })
+    .int({ message: "Use a whole number of units." })
+    .refine((value) => value !== 0, { message: "Enter a quantity other than zero." })
+    .refine((value) => Math.abs(value) <= 1_000_000, {
+      message: "That adjustment is not plausible.",
+    }),
+
+  reason: z
+    .string()
+    .trim()
+    .min(1, { message: "Say why the stock is changing." })
+    .max(120, { message: "Keep the reason under 120 characters." }),
+});
+
+export type StockAdjustmentValues = z.infer<typeof stockAdjustmentSchema>;

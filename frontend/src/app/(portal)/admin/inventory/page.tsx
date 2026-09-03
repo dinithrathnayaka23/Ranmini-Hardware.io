@@ -11,6 +11,8 @@ import { ButtonLink } from "@/shared/components/ui/button";
 import { StatCardGrid } from "@/shared/components/ui/stat-card";
 import { routes } from "@/shared/config/app.config";
 
+import type { StockStatus } from "@/modules/inventory/types/inventory.types";
+
 export const metadata: Metadata = {
   title: "Inventory",
 };
@@ -26,23 +28,29 @@ export const metadata: Metadata = {
 export default async function AdminInventoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string }>;
+  searchParams: Promise<{ page?: string; q?: string; status?: string }>;
 }) {
   const params = await searchParams;
   const requestedPage = Number.parseInt(params.page ?? "1", 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
+  // Narrowed against a closed set before it reaches the API. The value comes
+  // from the URL, which anybody can type, and an unknown status should show the
+  // whole catalogue rather than produce a rejected request.
+  const status = isStockStatus(params.status) ? params.status : "ALL";
+  const query = params.q?.trim() ?? "";
+
   // Independent reads, so they run together rather than adding a round trip.
   const [stats, inventory] = await Promise.all([
     fetchInventoryStats(),
-    fetchInventoryPage(page, params.q),
+    fetchInventoryPage(page, query, status === "ALL" ? undefined : status),
   ]);
 
   return (
     <div className="mx-auto w-full max-w-[90rem] p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Inventory Management"
-        description="Manage products, monitor stock levels, and update pricing."
+        description="Search the catalogue, record stock movements, and update pricing."
         actions={
           <>
             <ButtonLink
@@ -66,8 +74,18 @@ export default async function AdminInventoryPage({
       </div>
 
       <div className="mt-5">
-        <InventoryTable products={inventory.products} meta={inventory.meta} />
+        <InventoryTable
+          products={inventory.products}
+          meta={inventory.meta}
+          query={query}
+          status={status}
+        />
       </div>
     </div>
   );
+}
+
+/** Whether a URL parameter names a stock state the API knows. */
+function isStockStatus(value: string | undefined): value is StockStatus {
+  return value === "IN_STOCK" || value === "LOW_STOCK" || value === "OUT_OF_STOCK";
 }

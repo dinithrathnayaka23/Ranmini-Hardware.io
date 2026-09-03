@@ -30,6 +30,7 @@ import { useCurrency } from "@/shared/components/shop-provider";
  * prop. Only the plain numbers make the trip.
  */
 export function ReportsView({ data }: { data: ReportsData }) {
+  const currency = useCurrency();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = React.useTransition();
@@ -48,7 +49,10 @@ export function ReportsView({ data }: { data: ReportsData }) {
     startTransition(() => router.push(`?${params}`));
   };
 
-  const stats = buildStats(data);
+  // The symbol is read here rather than inside buildStats: a hook belongs in a
+  // component, and a plain helper that called one would only work by accident
+  // of where it happened to be invoked.
+  const stats = buildStats(data, currency);
 
   return (
     <>
@@ -104,9 +108,7 @@ export function ReportsView({ data }: { data: ReportsData }) {
  * API reports one window at a time, so a "+12% on last month" here would be a
  * figure nobody computed.
  */
-function buildStats(data: ReportsData): StatCardModel[] {
-  const symbol = useCurrency();
-
+function buildStats(data: ReportsData, symbol: string): StatCardModel[] {
   return [
     {
       id: "revenue",

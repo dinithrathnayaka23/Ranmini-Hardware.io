@@ -46,6 +46,13 @@ export const routes = {
   adminDashboard: "/admin/dashboard",
   adminInventory: "/admin/inventory",
   adminInventoryNew: "/admin/inventory/new",
+  /**
+   * A product's edit screen.
+   *
+   * A function rather than a template written at each call site, so the one
+   * place that knows this path is still this table — the whole point of it.
+   */
+  adminInventoryEdit: (id: string) => `/admin/inventory/${encodeURIComponent(id)}/edit`,
   adminInventoryCategories: "/admin/inventory/categories",
   adminReports: "/admin/reports",
   adminReportsGenerate: "/admin/reports/generate",
