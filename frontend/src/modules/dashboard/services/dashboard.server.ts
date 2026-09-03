@@ -50,7 +50,20 @@ export interface DashboardView {
 }
 
 export async function fetchDashboard(): Promise<DashboardView> {
-  const data = await apiFetch<DashboardResponse>("/api/v1/dashboard");
+  const data = await apiFetch<DashboardResponse>("/api/v1/dashboard", {
+    // The endpoint composes four aggregations — an inventory summary, today's
+    // and this month's totals, and the low-stock list — and declares
+    // `Cache-Control: private, max-age=30` because those figures move slowly
+    // relative to what they cost. Reading with `no-store` re-ran all four on
+    // every visit and threw the API's own judgement away.
+    //
+    // The trade is that a sale rung up at the till can take up to half a minute
+    // to show in today's revenue: the till is a different session and cannot
+    // drop this tag. That is the window the backend already chose, and an admin
+    // write here clears the tag immediately.
+    revalidate: 30,
+    tags: ["dashboard"],
+  });
   const symbol = appConfig.currencySymbol;
 
   return {
