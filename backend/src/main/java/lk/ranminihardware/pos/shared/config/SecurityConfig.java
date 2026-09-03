@@ -109,6 +109,14 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/api/v1/sales/by-invoice/**")
                     .hasAnyRole("CASHIER", "ADMIN")
 
+                    // The shop's name, currency and receipt footer. The till
+                    // prices a basket and prints a receipt with these, and every
+                    // one of them ends up on the customer's copy anyway. The
+                    // full settings document — session policy, lockout
+                    // threshold — stays administrator-only below.
+                    .requestMatchers(HttpMethod.GET, "/api/v1/settings/public")
+                    .hasAnyRole("CASHIER", "ADMIN")
+
                     // Everything else in the management portal. Notifications
                     // are listed explicitly rather than left to the
                     // deny-by-default rule: that rule only requires a signed-in

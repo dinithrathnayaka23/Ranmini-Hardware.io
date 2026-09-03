@@ -86,6 +86,18 @@ public class SettingsService {
     return rate == null ? BigDecimal.ZERO : rate;
   }
 
+  /**
+   * The shop's currency symbol.
+   *
+   * <p>Defaulted here rather than at each call site, so a settings document
+   * written before this field existed cannot leave a screen printing prices with
+   * no symbol at all.
+   */
+  public String currencySymbol() {
+    String symbol = get().getBusinessLogic().getCurrencySymbol();
+    return symbol == null || symbol.isBlank() ? "Rs." : symbol;
+  }
+
   /** Leading part of every invoice number. */
   public String receiptPrefix() {
     String prefix = get().getReceipts().getReceiptPrefix();

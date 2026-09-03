@@ -13,6 +13,7 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import lk.ranminihardware.pos.settings.domain.ShopSettings;
 import lk.ranminihardware.pos.settings.service.SettingsService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -40,6 +41,44 @@ public class SettingsController {
   @GetMapping
   public ShopSettings get() {
     return settings.get();
+  }
+
+  /**
+   * What any signed-in screen may know about the shop.
+   *
+   * <p>The full settings document is administrator-only, and rightly so — it
+   * carries the lockout threshold and the session policy. But the till needs the
+   * currency symbol to price a basket and the shop's name and footer to print a
+   * receipt, and a cashier is refused the admin endpoint.
+   *
+   * <p>Everything here is printed on a receipt that gets handed to a customer,
+   * so none of it is a disclosure. What is deliberately absent is the whole
+   * security section, the registration number and the contact email — none of
+   * which a till has any use for.
+   */
+  @GetMapping("/public")
+  public ResponseEntity<PublicSettings> getPublic() {
+    ShopSettings shop = settings.get();
+
+    PublicSettings body =
+        new PublicSettings(
+            shop.getProfile().getCompanyName(),
+            shop.getProfile().getPrimaryAddress(),
+            shop.getProfile().getContactPhone(),
+            settings.currencySymbol(),
+            settings.taxRate(),
+            shop.getReceipts().getReceiptPrefix(),
+            shop.getReceipts().getFooterMessage(),
+            shop.getReceipts().getPaperSize(),
+            shop.getReceipts().isShowLogo());
+
+    return ResponseEntity.ok()
+        // Read on nearly every page render and changed perhaps twice a year, so
+        // a short shared window costs nothing and saves a round trip per screen.
+        // Short rather than long because a currency change must not need a
+        // sign-out to take effect.
+        .header("Cache-Control", "private, max-age=60")
+        .body(body);
   }
 
   @PatchMapping("/profile")
@@ -120,6 +159,24 @@ public class SettingsController {
               regexp = "^(FIFO|WEIGHTED_AVERAGE)$",
               message = "Select a valuation method.")
           String stockValuation) {}
+
+  /**
+   * The shop as every screen needs to render it.
+   *
+   * @param taxRate a percentage, e.g. 15 for 15%. Sent so the till can show a
+   *     tax line while it builds an order — the figure that is actually charged
+   *     is still computed by the server at checkout.
+   */
+  public record PublicSettings(
+      String companyName,
+      String primaryAddress,
+      String contactPhone,
+      String currencySymbol,
+      BigDecimal taxRate,
+      String receiptPrefix,
+      String footerMessage,
+      String paperSize,
+      boolean showLogo) {}
 
   public record ReceiptsRequest(
       @NotBlank(message = "Enter a prefix.")
