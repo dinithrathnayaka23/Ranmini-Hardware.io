@@ -1,5 +1,12 @@
 import "server-only";
 
+import {
+  CircleAlert,
+  ClipboardCheck,
+  TriangleAlert,
+  WalletCards,
+} from "lucide-react";
+
 import { apiFetch, type PageResponse } from "@/shared/lib/api.server";
 import { appConfig } from "@/shared/config/app.config";
 import { formatCompactCurrency, formatCount } from "@/shared/lib/format";
@@ -85,9 +92,6 @@ export async function fetchInventoryPage(
  */
 export async function fetchInventoryStats(): Promise<StatCardModel[]> {
   const summary = await apiFetch<SummaryResponse>("/api/v1/inventory/summary");
-  const { ClipboardCheck, CircleAlert, TriangleAlert, WalletCards } = await import(
-    "lucide-react"
-  );
 
   return [
     {
