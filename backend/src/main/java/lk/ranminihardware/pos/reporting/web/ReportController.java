@@ -3,9 +3,15 @@ package lk.ranminihardware.pos.reporting.web;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
+import lk.ranminihardware.pos.auth.service.JwtService.AuthenticatedUser;
 import lk.ranminihardware.pos.reporting.service.ReportingService;
+import lk.ranminihardware.pos.reporting.service.SalesReportPdfService;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -23,10 +29,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReportController {
 
   private final ReportingService reporting;
+  private final SalesReportPdfService reportPdf;
   private final Clock clock;
 
-  public ReportController(ReportingService reporting, Clock clock) {
+  public ReportController(
+      ReportingService reporting, SalesReportPdfService reportPdf, Clock clock) {
     this.reporting = reporting;
+    this.reportPdf = reportPdf;
     this.clock = clock;
   }
 
@@ -61,6 +70,50 @@ public class ReportController {
         // the aggregations every few seconds.
         .header("Cache-Control", "private, max-age=60")
         .body(bundle);
+  }
+
+  /**
+   * The whole reports screen as a PDF.
+   *
+   * <p>Defaults to the same period the screen does, so "export" means "what I am
+   * looking at, on paper" and needs no second set of controls. This replaced a
+   * report-builder screen that was never designed: the owner has already chosen
+   * a period by the time they want a printout, and asking them to choose it
+   * again in a different form was the whole reason that screen never got built.
+   */
+  @GetMapping(value = "/export", produces = MediaType.APPLICATION_PDF_VALUE)
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+      Authentication authentication) {
+
+    LocalDate end = to == null ? LocalDate.now(clock) : to;
+    LocalDate start = from == null ? end.withDayOfMonth(1) : from;
+
+    byte[] pdf = reportPdf.render(start, end, displayName(authentication));
+    String filename = "sales-report-%s-to-%s.pdf".formatted(start, end);
+
+    return ResponseEntity.ok()
+        .contentType(MediaType.APPLICATION_PDF)
+        .header(
+            HttpHeaders.CONTENT_DISPOSITION,
+            ContentDisposition.attachment().filename(filename).build().toString())
+        .header(HttpHeaders.CACHE_CONTROL, "no-store")
+        .body(pdf);
+  }
+
+  /**
+   * Who to print on the letterhead.
+   *
+   * <p>From the verified token, never a parameter: a report that named whoever
+   * asked it to would be worthless as a record of who ran it.
+   */
+  private static String displayName(Authentication authentication) {
+    if (authentication != null
+        && authentication.getPrincipal() instanceof AuthenticatedUser user) {
+      return user.fullName();
+    }
+    return authentication == null ? "" : authentication.getName();
   }
 
   @GetMapping("/daily")
