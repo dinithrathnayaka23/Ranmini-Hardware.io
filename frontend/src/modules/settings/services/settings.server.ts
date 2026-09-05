@@ -58,8 +58,11 @@ export async function fetchSettings(): Promise<SettingsView> {
       // which would silently look like the first option was chosen.
       currencySymbol:
         settings.businessLogic.currencySymbol === "$" ? "$" : "Rs.",
-      stockValuation:
-        settings.businessLogic.stockValuation === "FIFO" ? "FIFO" : "WEIGHTED_AVERAGE",
+      // Always weighted average, whatever is stored. A document written while
+      // the form still offered FIFO would otherwise seed a value the schema no
+      // longer accepts, and the section would refuse to save until somebody
+      // worked out why.
+      stockValuation: "WEIGHTED_AVERAGE",
     },
     receipts: settings.receipts,
     security: {

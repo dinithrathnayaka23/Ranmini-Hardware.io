@@ -60,9 +60,15 @@ export const businessLogicSchema = z.object({
 
   currencySymbol: z.enum(["Rs.", "$"], { message: "Select a currency." }),
 
-  stockValuation: z.enum(["FIFO", "WEIGHTED_AVERAGE"], {
-    message: "Select a valuation method.",
-  }),
+  /**
+   * Weighted average only.
+   *
+   * FIFO used to be offered and was implemented nowhere — see the note on the
+   * backend request. A settings document written before that was corrected may
+   * still hold "FIFO", so the form coerces the stored value rather than failing
+   * to load; this schema is what the form submits, not what it can read.
+   */
+  stockValuation: z.literal("WEIGHTED_AVERAGE"),
 });
 
 export const receiptsSchema = z.object({

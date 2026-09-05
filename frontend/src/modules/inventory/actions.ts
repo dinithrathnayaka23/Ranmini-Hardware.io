@@ -153,6 +153,9 @@ export async function reactivateProduct(id: string): Promise<InventoryActionResu
  * more bags" is what actually happened, and a delta cannot overwrite a sale that
  * landed between the shopkeeper reading the screen and pressing save. The API
  * applies it through the same atomic update the till uses.
+ *
+ * <p>A delivery may also carry what it cost, which is what moves the product's
+ * buying price to the weighted average of the stock now on the shelf.
  */
 export async function adjustStock(
   id: string,
@@ -164,12 +167,17 @@ export async function adjustStock(
     return { success: false, message: parsed.error.issues[0].message };
   }
 
-  const { delta, reason } = parsed.data;
+  const { delta, reason, unitCost } = parsed.data;
 
   try {
     const product = await apiFetch<ProductWriteResponse & { stock: number }>(
       `/api/v1/inventory/products/${encodeURIComponent(id)}/stock`,
-      { method: "POST", body: { delta, reason } },
+      {
+        method: "POST",
+        // Null rather than undefined: the API takes an explicit absence to mean
+        // "this movement was not a purchase, leave the cost alone".
+        body: { delta, reason, unitCost: unitCost ?? null },
+      },
     );
 
     await refreshCatalogue(id);

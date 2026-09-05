@@ -21,15 +21,19 @@ const CURRENCY_OPTIONS = [
   { value: "$", label: "US Dollar ($)" },
 ] as const;
 
-const VALUATION_OPTIONS = [
-  { value: "WEIGHTED_AVERAGE", label: "Weighted average cost" },
-  { value: "FIFO", label: "First in, first out (FIFO)" },
-] as const;
-
 /**
  * Tax rates, low stock thresholds and operational defaults.
  *
- * NOT YET PERSISTED — see the note on the shop profile form.
+ * <p>Every field here is now read by something: the tax rate is charged at
+ * checkout and previewed on the till, the currency is printed everywhere an
+ * amount appears, and the low stock threshold seeds the reorder level on a new
+ * product.
+ *
+ * <p>Stock valuation is the exception, and is shown rather than chosen. It
+ * offered weighted average and FIFO and neither was implemented; weighted
+ * average now is, and FIFO is not offered because it would need a cost layer
+ * stored per delivery and consumed in order on every sale. A dropdown whose
+ * second option does nothing is worse than a sentence saying what happens.
  */
 export function BusinessLogicForm({
   defaults,
@@ -98,12 +102,24 @@ export function BusinessLogicForm({
             {...register("currencySymbol")}
           />
 
-          <SelectField
-            label="Stock Valuation Method"
-            options={VALUATION_OPTIONS}
-            error={errors.stockValuation?.message}
-            {...register("stockValuation")}
-          />
+          {/*
+            Registered but not rendered as a control: the form still submits the
+            field, because the endpoint requires it, but there is nothing to
+            choose. `type="hidden"` rather than a disabled select, so nothing
+            looks interactive that is not.
+          */}
+          <input type="hidden" {...register("stockValuation")} />
+
+          <div className="sm:col-span-2">
+            <p className="text-sm font-medium text-ink">Stock Valuation Method</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">
+              Weighted average cost. When a delivery is recorded with a price,
+              the product&rsquo;s cost becomes the average of what is now on the
+              shelf — the stock already held at its old cost, plus what arrived
+              at the new one. Margins and profit then follow what the shop
+              actually paid.
+            </p>
+          </div>
         </div>
       </form>
     </SettingsPanel>

@@ -11,6 +11,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import lk.ranminihardware.pos.audit.domain.AuditAction;
+import lk.ranminihardware.pos.audit.service.AuditService;
 import lk.ranminihardware.pos.settings.domain.ShopSettings;
 import lk.ranminihardware.pos.settings.service.SettingsService;
 import org.springframework.http.ResponseEntity;
@@ -33,9 +35,38 @@ import org.springframework.web.bind.annotation.RestController;
 public class SettingsController {
 
   private final SettingsService settings;
+  private final AuditService audit;
 
-  public SettingsController(SettingsService settings) {
+  /**
+   * <p>The audit entry is written here rather than inside {@link SettingsService},
+   * deliberately: the audit service asks the settings whether logging is even
+   * switched on, so a settings service that called it back would be a cycle.
+   */
+  public SettingsController(SettingsService settings, AuditService audit) {
     this.settings = settings;
+    this.audit = audit;
+  }
+
+  /**
+   * Records that a section was saved.
+   *
+   * <p>Called after the save returns, never before: an entry written first
+   * would claim a change that a failed validation or a lost connection never
+   * actually made.
+   *
+   * <p>The section, not the values. Two of these documents carry the shop's
+   * security policy, and copying a lockout threshold or a session length into a
+   * second collection — one with a two-year retention — gives an attacker who
+   * reaches the log a map of the shop's defences. Knowing who changed the
+   * security settings and when is the fact worth keeping; what they changed
+   * them to is readable from the settings themselves.
+   */
+  private void recordChange(String section) {
+    audit.record(
+        AuditAction.SETTINGS_CHANGED,
+        "SETTINGS",
+        section,
+        "Saved the %s settings.".formatted(section));
   }
 
   @GetMapping
@@ -84,47 +115,72 @@ public class SettingsController {
 
   @PatchMapping("/profile")
   public ShopSettings updateProfile(@Valid @RequestBody ProfileRequest request) {
-    return settings.updateProfile(
-        ShopSettings.ShopProfile.builder()
-            .companyName(request.companyName())
-            .registrationNumber(request.registrationNumber())
-            .primaryAddress(request.primaryAddress())
-            .contactEmail(request.contactEmail())
-            .contactPhone(request.contactPhone())
-            .build());
+    ShopSettings saved =
+        settings.updateProfile(
+            ShopSettings.ShopProfile.builder()
+                .companyName(request.companyName())
+                .registrationNumber(request.registrationNumber())
+                .primaryAddress(request.primaryAddress())
+                .contactEmail(request.contactEmail())
+                .contactPhone(request.contactPhone())
+                .build());
+
+    recordChange("profile");
+    return saved;
   }
 
   @PatchMapping("/business-logic")
   public ShopSettings updateBusinessLogic(@Valid @RequestBody BusinessLogicRequest request) {
-    return settings.updateBusinessLogic(
-        ShopSettings.BusinessLogic.builder()
-            .taxRate(request.taxRate())
-            .lowStockThreshold(request.lowStockThreshold())
-            .currencySymbol(request.currencySymbol())
-            .stockValuation(request.stockValuation())
-            .build());
+    ShopSettings saved =
+        settings.updateBusinessLogic(
+            ShopSettings.BusinessLogic.builder()
+                .taxRate(request.taxRate())
+                .lowStockThreshold(request.lowStockThreshold())
+                .currencySymbol(request.currencySymbol())
+                .stockValuation(request.stockValuation())
+                .build());
+
+    recordChange("business logic");
+    return saved;
   }
 
   @PatchMapping("/receipts")
   public ShopSettings updateReceipts(@Valid @RequestBody ReceiptsRequest request) {
-    return settings.updateReceipts(
-        ShopSettings.Receipts.builder()
-            .receiptPrefix(request.receiptPrefix())
-            .footerMessage(request.footerMessage())
-            .paperSize(request.paperSize())
-            .showLogo(request.showLogo())
-            .build());
+    ShopSettings saved =
+        settings.updateReceipts(
+            ShopSettings.Receipts.builder()
+                .receiptPrefix(request.receiptPrefix())
+                .footerMessage(request.footerMessage())
+                .paperSize(request.paperSize())
+                .showLogo(request.showLogo())
+                .build());
+
+    recordChange("receipt");
+    return saved;
   }
 
   @PatchMapping("/security")
   public ShopSettings updateSecurity(@Valid @RequestBody SecurityRequest request) {
-    return settings.updateSecurity(
-        ShopSettings.Security.builder()
-            .sessionTimeoutMinutes(request.sessionTimeoutMinutes())
-            .minPasswordLength(request.minPasswordLength())
-            .lockoutThreshold(request.lockoutThreshold())
-            .auditLogEnabled(request.auditLogEnabled())
-            .build());
+    boolean wasEnabled = settings.isAuditLogEnabled();
+
+    ShopSettings saved =
+        settings.updateSecurity(
+            ShopSettings.Security.builder()
+                .sessionTimeoutMinutes(request.sessionTimeoutMinutes())
+                .minPasswordLength(request.minPasswordLength())
+                .lockoutThreshold(request.lockoutThreshold())
+                .auditLogEnabled(request.auditLogEnabled())
+                .build());
+
+    // Switching the log off is the one change that has to be recorded after it
+    // has already taken effect, or the trail simply stops with no explanation.
+    if (wasEnabled && !request.auditLogEnabled()) {
+      audit.recordLoggingDisabled();
+    } else {
+      recordChange("security");
+    }
+
+    return saved;
   }
 
   // The constraints below mirror the frontend's Zod schemas exactly. They are
@@ -155,10 +211,19 @@ public class SettingsController {
           int lowStockThreshold,
       @NotNull @Pattern(regexp = "^(Rs\\.|\\$)$", message = "Select a currency.")
           String currencySymbol,
+      /**
+       * How stock on hand is valued.
+       *
+       * <p>Weighted average only. FIFO was offered here and implemented
+       * nowhere: it needs a cost layer stored per delivery and consumed in
+       * order on every sale, which is a real inventory-accounting feature and a
+       * much larger one than this. Accepting a value the service does not honour
+       * is how a setting becomes a lie, so the endpoint now refuses it.
+       */
       @NotNull
           @Pattern(
-              regexp = "^(FIFO|WEIGHTED_AVERAGE)$",
-              message = "Select a valuation method.")
+              regexp = "^WEIGHTED_AVERAGE$",
+              message = "Stock is valued at weighted average cost.")
           String stockValuation) {}
 
   /**

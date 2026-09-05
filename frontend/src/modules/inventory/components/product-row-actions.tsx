@@ -8,6 +8,8 @@ import { Alert, type AlertTone } from "@/shared/components/ui/alert";
 import { Button } from "@/shared/components/ui/button";
 import { TextField } from "@/shared/components/ui/text-field";
 
+import { useCurrency } from "@/shared/components/shop-provider";
+
 import { adjustStock, deactivateProduct, reactivateProduct } from "../actions";
 import type { Product } from "../types/inventory.types";
 
@@ -39,8 +41,17 @@ export function ProductRowActions({
 }) {
   const router = useRouter();
 
+  const currency = useCurrency();
   const [delta, setDelta] = React.useState("");
   const [reason, setReason] = React.useState("");
+  /**
+   * What the shop paid per unit on this delivery, as typed.
+   *
+   * <p>Kept as a string so an empty box stays empty rather than becoming zero —
+   * "this delivery cost nothing" and "I am not recording a cost" are different
+   * statements, and only the second should leave the product's cost alone.
+   */
+  const [unitCost, setUnitCost] = React.useState("");
   const [isPending, setIsPending] = React.useState(false);
   const [notice, setNotice] = React.useState<{ tone: AlertTone; message: string } | null>(
     null,
@@ -54,9 +65,38 @@ export function ProductRowActions({
   // deltas, and this is what turns "-3" back into an answer they can check.
   const resulting = hasDelta ? product.stock + parsedDelta : product.stock;
 
+  const isDelivery = hasDelta && parsedDelta > 0;
+
+  /**
+   * What the product's cost becomes if this delivery is recorded at this price.
+   *
+   * <p>Shown before saving, because a weighted average is not a figure anybody
+   * computes in their head, and a cost that silently moved would be discovered
+   * later as a margin that looks wrong. Null whenever there is nothing to say —
+   * no delivery, or no price typed.
+   *
+   * <p>The backend computes the stored value; this mirrors its rule for the
+   * preview only, the same way the till previews a total the server recomputes.
+   */
+  const parsedCost = Number.parseFloat(unitCost);
+  const newAverage =
+    isDelivery && Number.isFinite(parsedCost) && parsedCost >= 0
+      ? Math.round(
+          ((product.stock * product.buyingPrice + parsedDelta * parsedCost) /
+            (product.stock + parsedDelta)) *
+            100,
+        ) / 100
+      : null;
+
   const handleAdjust = async () => {
     setIsPending(true);
-    const result = await adjustStock(product.id, { delta: parsedDelta, reason });
+    const result = await adjustStock(product.id, {
+      delta: parsedDelta,
+      reason,
+      // Undefined rather than zero when the box is empty: a correction is not a
+      // purchase and must not reprice the shelf.
+      unitCost: unitCost.trim() === "" ? undefined : Number(unitCost),
+    });
     setIsPending(false);
 
     setNotice({ tone: result.success ? "success" : "danger", message: result.message });
@@ -64,6 +104,7 @@ export function ProductRowActions({
     if (result.success) {
       setDelta("");
       setReason("");
+      setUnitCost("");
       // The row above still shows the old count until the server data is
       // re-read; the action revalidated the path, this applies it.
       router.refresh();
@@ -112,6 +153,51 @@ export function ProductRowActions({
               onChange={(event) => setReason(event.target.value)}
             />
           </div>
+
+          {/*
+            Only for a delivery. A negative movement removes units at whatever
+            they cost and does not change the price of what is left, so showing
+            a cost box beside "-3 broken" would invite an entry that the backend
+            correctly ignores.
+          */}
+          {isDelivery ? (
+            <div className="grid gap-3 sm:grid-cols-[14rem_1fr] sm:items-start">
+              <TextField
+                label={`Cost per ${product.unit} (${currency})`}
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                placeholder={String(product.buyingPrice.toFixed(2))}
+                value={unitCost}
+                onChange={(event) => setUnitCost(event.target.value)}
+              />
+
+              <p className="text-xs leading-relaxed text-muted sm:pt-7">
+                {newAverage === null ? (
+                  <>
+                    Optional. Fill it in when this is a delivery and the price
+                    has changed — the product&rsquo;s cost becomes the weighted
+                    average of what is then on the shelf. Leave it blank for a
+                    stocktake correction.
+                  </>
+                ) : (
+                  <>
+                    Cost moves from{" "}
+                    <strong className="text-ink">
+                      {currency} {product.buyingPrice.toFixed(2)}
+                    </strong>{" "}
+                    to{" "}
+                    <strong className="text-ink">
+                      {currency} {newAverage.toFixed(2)}
+                    </strong>{" "}
+                    — the {product.stock} {product.unit} already held at the old
+                    cost, plus {parsedDelta} at the new one.
+                  </>
+                )}
+              </p>
+            </div>
+          ) : null}
 
           <p className="text-xs leading-relaxed text-muted">
             A signed change, not a new total: <strong>40</strong> for a delivery,{" "}

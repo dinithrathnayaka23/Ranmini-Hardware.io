@@ -112,6 +112,16 @@ export const stockAdjustmentSchema = z.object({
     .trim()
     .min(1, { message: "Say why the stock is changing." })
     .max(120, { message: "Keep the reason under 120 characters." }),
+
+  /**
+   * What the shop paid per unit on this delivery.
+   *
+   * <p>Optional, because most adjustments are not purchases: breakage and
+   * stocktake corrections have no price. When it is given on a positive
+   * movement the backend moves the product's cost to the weighted average of
+   * what is now on the shelf, which is what Settings → Business Logic promises.
+   */
+  unitCost: money("delivery cost").optional(),
 });
 
 export type StockAdjustmentValues = z.infer<typeof stockAdjustmentSchema>;

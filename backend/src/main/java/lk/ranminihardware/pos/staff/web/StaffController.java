@@ -14,6 +14,8 @@ import lk.ranminihardware.pos.shared.web.PageResponse;
 import lk.ranminihardware.pos.staff.domain.StaffMember;
 import lk.ranminihardware.pos.staff.domain.StaffRole;
 import lk.ranminihardware.pos.staff.domain.StaffStatus;
+import lk.ranminihardware.pos.audit.domain.AuditAction;
+import lk.ranminihardware.pos.audit.service.AuditService;
 import lk.ranminihardware.pos.staff.service.ProfileService;
 import lk.ranminihardware.pos.staff.service.StaffService;
 import org.springframework.data.domain.Pageable;
@@ -41,11 +43,17 @@ public class StaffController {
 
   private final StaffService staff;
   private final ProfileService profiles;
+  private final AuditService audit;
   private final PageQuery pageQuery;
 
-  public StaffController(StaffService staff, ProfileService profiles, PageQuery pageQuery) {
+  public StaffController(
+      StaffService staff,
+      ProfileService profiles,
+      AuditService audit,
+      PageQuery pageQuery) {
     this.staff = staff;
     this.profiles = profiles;
+    this.audit = audit;
     this.pageQuery = pageQuery;
   }
 
@@ -68,23 +76,68 @@ public class StaffController {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public Response create(@Valid @RequestBody CreateRequest request) {
-    return Response.from(staff.create(request.toWrite(), request.password()));
+    StaffMember created = staff.create(request.toWrite(), request.password());
+
+    audit.record(
+        AuditAction.STAFF_CREATED,
+        "STAFF",
+        created.getId(),
+        "Created the %s account \"%s\" for %s."
+            .formatted(created.getRole(), created.getUsername(), created.getFullName()));
+
+    return Response.from(created);
   }
 
   @PutMapping("/{id}")
   public Response update(@PathVariable String id, @Valid @RequestBody UpdateRequest request) {
-    return Response.from(staff.update(id, request.toWrite()));
+    // Read first, so the entry can say what the role changed from. Only the
+    // role is audited: a corrected phone number is not a security event, and
+    // logging every profile edit would bury the one that is.
+    StaffRole before = staff.get(id).getRole();
+    StaffMember updated = staff.update(id, request.toWrite());
+
+    if (before != updated.getRole()) {
+      audit.record(
+          AuditAction.STAFF_ROLE_CHANGED,
+          "STAFF",
+          updated.getId(),
+          "Changed %s from %s to %s."
+              .formatted(updated.getFullName(), before, updated.getRole()));
+    }
+
+    return Response.from(updated);
   }
 
   @PostMapping("/{id}/password")
   public Response changePassword(
       @PathVariable String id, @Valid @RequestBody PasswordRequest request) {
-    return Response.from(staff.changePassword(id, request.password()));
+
+    StaffMember member = staff.changePassword(id, request.password());
+
+    // The password itself is never recorded, obviously. That somebody else set
+    // it is the fact worth keeping: it is the one way an administrator can take
+    // over another person's account.
+    audit.record(
+        AuditAction.STAFF_PASSWORD_RESET,
+        "STAFF",
+        member.getId(),
+        "Set a new password for %s (%s).".formatted(member.getFullName(), member.getUsername()));
+
+    return Response.from(member);
   }
 
   @DeleteMapping("/{id}")
   public Response deactivate(@PathVariable String id) {
-    return Response.from(staff.deactivate(id));
+    StaffMember member = staff.deactivate(id);
+
+    audit.record(
+        AuditAction.STAFF_DEACTIVATED,
+        "STAFF",
+        member.getId(),
+        "Deactivated %s (%s). They can no longer sign in."
+            .formatted(member.getFullName(), member.getUsername()));
+
+    return Response.from(member);
   }
 
   /**
@@ -100,7 +153,15 @@ public class StaffController {
 
   @PostMapping("/{id}/reactivate")
   public Response reactivate(@PathVariable String id) {
-    return Response.from(staff.reactivate(id));
+    StaffMember member = staff.reactivate(id);
+
+    audit.record(
+        AuditAction.STAFF_REACTIVATED,
+        "STAFF",
+        member.getId(),
+        "Reactivated %s (%s).".formatted(member.getFullName(), member.getUsername()));
+
+    return Response.from(member);
   }
 
   /**

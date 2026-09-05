@@ -4,6 +4,8 @@ import jakarta.validation.Valid;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Set;
+import lk.ranminihardware.pos.audit.domain.AuditAction;
+import lk.ranminihardware.pos.audit.service.AuditService;
 import lk.ranminihardware.pos.auth.service.JwtService.AuthenticatedUser;
 import lk.ranminihardware.pos.sales.domain.Sale;
 import lk.ranminihardware.pos.sales.service.CheckoutService;
@@ -50,13 +52,19 @@ public class SaleController {
 
   private final CheckoutService checkout;
   private final SaleService sales;
+  private final AuditService audit;
   private final PageQuery pageQuery;
   private final Clock clock;
 
   public SaleController(
-      CheckoutService checkout, SaleService sales, PageQuery pageQuery, Clock clock) {
+      CheckoutService checkout,
+      SaleService sales,
+      AuditService audit,
+      PageQuery pageQuery,
+      Clock clock) {
     this.checkout = checkout;
     this.sales = sales;
+    this.audit = audit;
     this.pageQuery = pageQuery;
     this.clock = clock;
   }
@@ -130,6 +138,23 @@ public class SaleController {
   @PostMapping("/api/v1/sales/{id}/void")
   public SaleDtos.Response voidSale(
       @PathVariable String id, @Valid @RequestBody SaleDtos.VoidRequest request) {
-    return SaleDtos.Response.from(sales.voidSale(id, request.reason()));
+
+    Sale sale = sales.voidSale(id, request.reason());
+
+    // The audit entry the owner is most likely to come looking for. The reason
+    // is already on the receipt; this records who cancelled it and when, which
+    // the receipt cannot say.
+    audit.record(
+        AuditAction.SALE_VOIDED,
+        "SALE",
+        sale.getId(),
+        "Voided %s, originally %s rung up by %s. Reason: %s"
+            .formatted(
+                sale.getInvoiceNumber(),
+                sale.getTotal(),
+                sale.getCashierName() == null ? "an unknown cashier" : sale.getCashierName(),
+                request.reason()));
+
+    return SaleDtos.Response.from(sale);
   }
 }
