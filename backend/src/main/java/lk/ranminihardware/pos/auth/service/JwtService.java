@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.Optional;
 import javax.crypto.SecretKey;
+import lk.ranminihardware.pos.settings.service.SettingsService;
 import lk.ranminihardware.pos.staff.api.StaffAccount;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,14 +56,28 @@ public class JwtService {
   private static final int MIN_SECRET_BYTES = 32;
 
   private final SecretKey key;
-  private final Duration accessTokenTtl;
+
+  /**
+   * Access-token lifetime from the environment.
+   *
+   * <p>No longer the value normally used: Settings → Security owns the session
+   * length, because the person who knows whether the till sits unattended in a
+   * shop is the shopkeeper, not whoever deployed the service. This is the
+   * fallback for a fresh database, and for the moment when the settings cannot
+   * be read at all — a sign-in must not fail because a preference is
+   * unavailable.
+   */
+  private final Duration configuredAccessTtl;
+
   private final Duration refreshTokenTtl;
+  private final SettingsService settings;
   private final Clock clock;
 
   public JwtService(
       @Value("${ranmini.auth.jwt-secret:}") String secret,
       @Value("${ranmini.auth.access-token-minutes:30}") long accessMinutes,
       @Value("${ranmini.auth.refresh-token-days:7}") long refreshDays,
+      SettingsService settings,
       Clock clock) {
 
     if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < MIN_SECRET_BYTES) {
@@ -76,22 +91,53 @@ public class JwtService {
     }
 
     this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-    this.accessTokenTtl = Duration.ofMinutes(accessMinutes);
+    this.configuredAccessTtl = Duration.ofMinutes(accessMinutes);
     this.refreshTokenTtl = Duration.ofDays(refreshDays);
+    this.settings = settings;
     this.clock = clock;
   }
 
   public String issueAccessToken(StaffAccount account) {
-    return issue(account, TYPE_ACCESS, accessTokenTtl);
+    return issue(account, TYPE_ACCESS, accessTokenTtl());
   }
 
   public String issueRefreshToken(StaffAccount account) {
     return issue(account, TYPE_REFRESH, refreshTokenTtl);
   }
 
-  /** Access-token lifetime in seconds, which the frontend uses for its cookie. */
+  /**
+   * Access-token lifetime in seconds, which the frontend uses for its cookie.
+   *
+   * <p>Read through the same method that signs the token, so the cookie the
+   * browser keeps and the expiry inside the token can never disagree — a cookie
+   * outliving its token means a portal that looks signed in and is not.
+   */
   public long accessTokenSeconds() {
-    return accessTokenTtl.toSeconds();
+    return accessTokenTtl().toSeconds();
+  }
+
+  /**
+   * How long a new access token should last.
+   *
+   * <p>The shop's own setting, bounded by {@code SettingsService} to something
+   * between five minutes and a day. A shorter session is a real thing a shop
+   * may want — a till on an open counter — and it is the shopkeeper who knows,
+   * so the preference wins over the deployment's default.
+   *
+   * <p>Changing it does not shorten sessions already issued: a signed token
+   * carries its own expiry and cannot be recalled. The new length applies from
+   * the next sign-in or refresh, which for a thirty-minute session means within
+   * the half hour.
+   */
+  private Duration accessTokenTtl() {
+    try {
+      return Duration.ofMinutes(settings.sessionTimeoutMinutes());
+    } catch (RuntimeException ex) {
+      // Settings unreadable — Mongo down, most likely. Signing in with the
+      // deployment's default beats refusing to sign anybody in at all.
+      log.warn("Could not read the session timeout setting; using the configured default", ex);
+      return configuredAccessTtl;
+    }
   }
 
   private String issue(StaffAccount account, String type, Duration ttl) {
