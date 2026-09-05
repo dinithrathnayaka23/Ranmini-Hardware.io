@@ -37,7 +37,7 @@ public class Product {
 
   @Id private String id;
 
-  /** Shop-facing code, also what the barcode scanner sends. Unique. */
+  /** Shop-facing code, as printed on the shelf label. Unique. */
   @Field("sku")
   private String sku;
 

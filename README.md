@@ -332,16 +332,33 @@ remains the sole authority.
 
 ## Point of sale
 
-`/cashier/pos` is the till, and the only screen a cashier has. It is built for a
-barcode scanner first and fingers second.
+`/cashier/pos` is the till, and the only screen a cashier has. Products are
+found by typing or by tapping a card. **There is no barcode scanner** — the shop
+does not have one, so nothing in the till assumes a code can be read off a
+label faster than it can be typed.
 
-**Keyboard.** A scanner behaves like a keyboard that types a SKU and presses
-Enter, so the search field is autofocused on load, refocused by **F2** from
-anywhere, and submits on Enter. An exact SKU match is added straight away;
-failing that, a search narrowed to exactly one product is added too, because it
-is unambiguous. Anything broader is left alone rather than guessing. **F9**
-selects cash, and Escape clears a mistyped scan. Tapping a card also returns
-focus to the search box, so the next scan always lands somewhere useful.
+**Keyboard.** A full sale can be rung up without leaving the keyboard. The
+search field is autofocused on load and refocused by **F2** from anywhere. Enter
+adds an exact shelf-code match straight away; failing that, a search narrowed to
+exactly one product is added too, because it is unambiguous. Anything broader is
+left showing in the grid rather than guessed at. **F9** selects cash, **F10**
+takes the payment, and Escape clears a mistyped search. Focus returns to the
+search box after a card is tapped and after a sale completes, so typing always
+works.
+
+**Every lookup answers.** A status row under the search box says what happened —
+added, out of stock, all of them already on the order, or nothing matched.
+Text that matched nothing is left in the box to be corrected; anything else
+clears it for the next product. The row is always present rather than appearing
+and vanishing, because the cashier taps cards directly below it and a grid that
+jumps is a mis-tap.
+
+**Cash and change.** For a cash sale the summary offers the exact amount plus
+the three round figures a customer is most likely to hand over for that
+particular bill, a box to type anything else, and the change in the largest type
+in the panel. Leaving it blank means the customer paid exactly, which is what
+the backend records. The amount tendered is sent to the server, which computes
+the change that is stored and printed — the till only previews it.
 
 **Stock is a hard limit.** The till will not add a sold-out product and will not
 step a line past the units on hand — the `+` button disables itself and the row
@@ -426,7 +443,8 @@ the whole range; before this they swung from 142px to 343px.
 
 The till is assumed to be a touch screen. Every control carries
 `touch-manipulation`, which drops the browser's double-tap-to-zoom wait — on a
-counter that delay reads as a dropped scan and the cashier taps again. Presses
+counter that delay reads as a tap that did not land, and the cashier taps
+again. Presses
 give physical feedback (cards and buttons scale slightly), scroll regions use
 `overscroll-contain` so a flick at the end of the grid does not drag the page,
 and the bottom bar respects `env(safe-area-inset-bottom)` for the home indicator

@@ -21,7 +21,7 @@ public interface ProductRepositoryCustom {
    *
    * <p>This is the single most important operation in the service. The obvious
    * implementation — read the product, check the stock, write it back — has a
-   * race between the read and the write, and two tills scanning the last bag of
+   * race between the read and the write, and two tills selling the last bag of
    * cement at the same moment both pass the check and both sell it. Here the
    * check and the decrement are one conditional update evaluated by the
    * database, so exactly one of them wins and the other is told there is no

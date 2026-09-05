@@ -25,7 +25,7 @@ public interface CatalogApi {
    * Prices a basket in one round trip.
    *
    * <p>Deliberately batch. A lookup per line is a network round trip per item
-   * scanned, which is what makes a till feel slow on a large order.
+   * rung up, which is what makes a till feel slow on a large order.
    */
   List<ProductSnapshot> findSellable(Collection<String> productIds);
 

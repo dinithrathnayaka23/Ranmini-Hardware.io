@@ -10,7 +10,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -64,16 +63,5 @@ public class PosCatalogController {
         products.search(ProductSearchCriteria.sellable(q, categoryId), pageable);
 
     return PageResponse.from(results, ProductDtos.PosProduct::from);
-  }
-
-  /**
-   * Barcode lookup.
-   *
-   * <p>The scanner path, and the reason the SKU index is unique: this runs on
-   * every item a cashier scans and has to be the fastest query in the system.
-   */
-  @GetMapping("/products/by-sku/{sku}")
-  public ProductDtos.PosProduct bySku(@PathVariable String sku) {
-    return ProductDtos.PosProduct.from(products.getBySku(sku));
   }
 }

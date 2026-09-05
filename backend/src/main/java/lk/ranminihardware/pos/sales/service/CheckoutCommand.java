@@ -7,7 +7,7 @@ import lk.ranminihardware.pos.sales.domain.TenderMethod;
 /**
  * A request to complete a sale.
  *
- * <p><b>The client sends what was scanned, not what it costs.</b> There is no
+ * <p><b>The client sends what was rung up, not what it costs.</b> There is no
  * total on this command, and no unit price on a line — only a product id and a
  * quantity. Everything monetary is recomputed here from the catalogue and the
  * shop's tax settings.
@@ -57,6 +57,6 @@ public record CheckoutCommand(
         lines, discountPercent, tender, amountTendered, id, name, terminalName, idempotencyKey);
   }
 
-  /** One scanned product and how many of it. */
+  /** One product on the order and how many of it. */
   public record Line(String productId, int quantity) {}
 }

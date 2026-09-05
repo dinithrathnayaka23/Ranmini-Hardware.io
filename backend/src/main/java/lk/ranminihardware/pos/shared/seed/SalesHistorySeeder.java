@@ -246,7 +246,7 @@ public class SalesHistorySeeder {
     for (int i = 0; i < lineCount; i++) {
       Product product = weighted.get(random.nextInt(weighted.size()));
 
-      // A product scanned twice is one line with two units, not two lines.
+      // A product added twice is one line with two units, not two lines.
       if (used.contains(product.getId())) continue;
       used.add(product.getId());
 
@@ -323,7 +323,7 @@ public class SalesHistorySeeder {
   private void voidSale(Sale sale, Random random) {
     String[] reasons = {
       "Customer changed their mind at the counter.",
-      "Wrong item scanned — rung up again correctly.",
+      "Wrong item rung up — entered again correctly.",
       "Duplicate receipt, cancelled by the owner.",
       "Payment failed after the receipt printed."
     };

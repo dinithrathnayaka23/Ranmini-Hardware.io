@@ -63,8 +63,8 @@ public class MongoIndexInitializer {
   private void products() {
     IndexOperations ops = mongo.indexOps("products");
 
-    // The barcode path. A cashier scanning at the counter hits this on every
-    // item, so it is unique and it is the fastest lookup in the system.
+    // Unique so two products can never share a shelf code, which is what makes
+    // a code a usable way to identify one at the counter.
     ops.createIndex(new Index().on("sku", Sort.Direction.ASC).unique().named("uk_product_sku"));
 
     // The till's catalogue: filter by category, order by name. Compound and in

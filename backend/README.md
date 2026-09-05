@@ -105,7 +105,7 @@ a large order.
 ### Stock cannot be oversold
 
 Reading stock, checking it, and writing it back has a race between the read and
-the write: two tills scanning the last bag of cement both pass the check and
+the write: two tills selling the last bag of cement both pass the check and
 both sell it. Instead the check and the decrement are **one conditional update**
 evaluated by the database, so exactly one wins.
 
@@ -241,7 +241,6 @@ Mongo pull the whole result set into memory and fail past 32MB.
 | Method | Path | Purpose |
 | ------ | ---- | ------- |
 | GET | `/api/v1/pos/products` | Till catalogue (paged, searchable, no cost prices) |
-| GET | `/api/v1/pos/products/by-sku/{sku}` | Barcode lookup |
 | POST | `/api/v1/pos/sales` | Complete a sale |
 | GET | `/api/v1/categories` | Filter chips |
 | POST/PATCH/DELETE | `/api/v1/categories/...` | Manage categories |

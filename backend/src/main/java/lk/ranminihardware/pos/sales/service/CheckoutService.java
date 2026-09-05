@@ -146,9 +146,9 @@ public class CheckoutService {
   }
 
   /**
-   * Collapses a product scanned twice into one line.
+   * Collapses a product added twice into one line.
    *
-   * <p>A cashier scanning the same item twice means two units, not two lines —
+   * <p>A cashier adding the same item twice means two units, not two lines —
    * and more importantly, two separate decrements of one unit each could
    * interleave with another till in a way a single decrement of two cannot.
    */

@@ -18,7 +18,7 @@ import org.springframework.data.mongodb.repository.Query;
  */
 public interface ProductRepository extends MongoRepository<Product, String>, ProductRepositoryCustom {
 
-  /** The barcode path — served by the unique index on sku. */
+  /** Shelf-code lookup — served by the unique index on sku. */
   Optional<Product> findBySkuIgnoreCase(String sku);
 
   boolean existsBySkuIgnoreCase(String sku);
@@ -27,7 +27,7 @@ public interface ProductRepository extends MongoRepository<Product, String>, Pro
    * Loads several products by id in one round trip.
    *
    * Used by checkout to price a basket. The alternative — a findById per line —
-   * is a network round trip per item scanned, which is what makes a till feel
+   * is a network round trip per item rung up, which is what makes a till feel
    * slow on a large order.
    */
   List<Product> findByIdInAndActiveIsTrue(Collection<String> ids);

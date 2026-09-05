@@ -117,7 +117,7 @@ public class ProductController {
     return ProductDtos.Response.from(products.get(id));
   }
 
-  /** Barcode lookup, for the scanner path and for shelf-label checks. */
+  /** Shelf-code lookup, for checking a label against the catalogue. */
   @GetMapping("/products/by-sku/{sku}")
   public ProductDtos.Response getBySku(@PathVariable String sku) {
     return ProductDtos.Response.from(products.getBySku(sku));
