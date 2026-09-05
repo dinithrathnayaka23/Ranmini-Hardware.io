@@ -6,8 +6,11 @@ import * as React from "react";
 import { cn } from "@/shared/lib/cn";
 import { formatCurrency } from "@/shared/lib/format";
 
+import { parseTendered } from "../lib/cash";
 import type { OrderTotals, TenderMethod } from "../types/pos.types";
 import { useCurrency } from "@/shared/components/shop-provider";
+
+import { CashTender } from "./cash-tender";
 
 /**
  * Money, tender and the commit action.
@@ -29,6 +32,8 @@ export function OrderSummary({
   onPay,
   isPaying,
   isPayable,
+  cashTendered,
+  onCashTenderedChange,
 }: {
   totals: OrderTotals;
   discountPercent: number;
@@ -38,8 +43,17 @@ export function OrderSummary({
   onPay: () => void;
   isPaying: boolean;
   isPayable: boolean;
+  /** Cash handed over, as typed. Empty means the customer paid the exact amount. */
+  cashTendered: string;
+  onCashTenderedChange: (value: string) => void;
 }) {
   const symbol = useCurrency();
+
+  // Pressing pay with less than the bill in the box would be refused by the
+  // backend anyway; stopping it here turns a rejected sale with a customer
+  // waiting into a button that plainly is not ready yet.
+  const tendered = tender === "CASH" ? parseTendered(cashTendered) : null;
+  const isShortOfTotal = tendered !== null && tendered < totals.total;
 
   return (
     <div className="shrink-0 border-t border-line bg-canvas-subtle px-4 py-4 @min-[28rem]:px-5">
@@ -142,13 +156,21 @@ export function OrderSummary({
         />
       </div>
 
+      {tender === "CASH" ? (
+        <CashTender
+          total={totals.total}
+          value={cashTendered}
+          onValueChange={onCashTenderedChange}
+        />
+      ) : null}
+
       <button
         type="button"
         onClick={onPay}
         // Disabled while in flight as well as when empty: a double press is how
         // one basket becomes two charges, and a counter is exactly where an
         // impatient second tap happens.
-        disabled={!isPayable || isPaying}
+        disabled={!isPayable || isPaying || isShortOfTotal}
         aria-busy={isPaying}
         className="mt-3 h-13 w-full touch-manipulation rounded-[10px] bg-pay text-base font-semibold text-white shadow-sm select-none
                    transition-[background-color,transform,box-shadow] duration-150 @min-[28rem]:h-14 @min-[28rem]:text-lg

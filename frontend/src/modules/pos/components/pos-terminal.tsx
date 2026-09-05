@@ -12,6 +12,7 @@ import { formatCurrency } from "@/shared/lib/format";
 
 import { completeSale } from "../actions";
 import { ALL_CATEGORIES } from "../constants/pos-data";
+import { parseTendered } from "../lib/cash";
 import { useCart } from "../lib/use-cart";
 import type {
   CompletedSale,
@@ -82,6 +83,14 @@ export function PosTerminal({
   const [query, setQuery] = React.useState("");
   const [categoryId, setCategoryId] = React.useState(ALL_CATEGORIES);
   const [tender, setTender] = React.useState<TenderMethod>("CASH");
+  /**
+   * Cash the customer handed over, as typed.
+   *
+   * Text rather than a number so an empty box stays empty — that is a real
+   * answer here, meaning the customer paid the exact amount, and a zero would
+   * instead claim they paid nothing.
+   */
+  const [cashTendered, setCashTendered] = React.useState("");
   const [isOrderOpen, setIsOrderOpen] = React.useState(false);
   const [isPaying, setIsPaying] = React.useState(false);
   const [completed, setCompleted] = React.useState<CompletedSale | null>(null);
@@ -181,6 +190,18 @@ export function PosTerminal({
     wasOrderOpen.current = isOrderOpen;
   }, [isOrderOpen]);
 
+  /**
+   * Switching between cash and card.
+   *
+   * Moving to card discards whatever was typed into the cash box: a card is
+   * charged the exact amount, and carrying "5,000 received" across would print
+   * a receipt claiming change was given on a card payment.
+   */
+  const handleTenderChange = React.useCallback((next: TenderMethod) => {
+    setTender(next);
+    if (next !== "CASH") setCashTendered("");
+  }, []);
+
   const handlePay = async () => {
     if (cart.isEmpty || isPaying) return;
 
@@ -198,6 +219,10 @@ export function PosTerminal({
       })),
       discountPercent: cart.discountPercent,
       tender,
+      // Omitted when the box is empty, which the backend reads as the customer
+      // paying the exact amount rather than as a tender of nothing.
+      amountTendered:
+        tender === "CASH" ? (parseTendered(cashTendered) ?? undefined) : undefined,
       terminalName,
       idempotencyKey: idempotencyKey.current,
     });
@@ -215,6 +240,7 @@ export function PosTerminal({
     // what the control does — and the cashier would notice one customer later.
     setIsPrinting(true);
     cart.clear();
+    setCashTendered("");
     idempotencyKey.current = null;
     setIsOrderOpen(false);
 
@@ -293,9 +319,11 @@ export function PosTerminal({
           <OrderPanel
             cart={cart}
             tender={tender}
-            onTenderChange={setTender}
+            onTenderChange={handleTenderChange}
             onPay={handlePay}
             isPaying={isPaying}
+            cashTendered={cashTendered}
+            onCashTenderedChange={setCashTendered}
             onClose={() => setIsOrderOpen(false)}
             closeRef={closeOrderRef}
           />

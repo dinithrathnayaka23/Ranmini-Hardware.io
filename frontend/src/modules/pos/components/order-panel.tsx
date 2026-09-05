@@ -30,6 +30,8 @@ export function OrderPanel({
   onTenderChange,
   onPay,
   isPaying,
+  cashTendered,
+  onCashTenderedChange,
   onClose,
   closeRef,
 }: {
@@ -39,6 +41,9 @@ export function OrderPanel({
   onPay: () => void;
   /** True while a sale is in flight, so the button cannot be pressed twice. */
   isPaying: boolean;
+  /** Cash handed over, as typed. Empty means the customer paid the exact amount. */
+  cashTendered: string;
+  onCashTenderedChange: (value: string) => void;
   /** Only meaningful below `md`, where the panel is a sheet over the grid. */
   onClose?: () => void;
   closeRef?: React.RefObject<HTMLButtonElement | null>;
@@ -134,6 +139,8 @@ export function OrderPanel({
         onTenderChange={onTenderChange}
         onPay={onPay}
         isPaying={isPaying}
+        cashTendered={cashTendered}
+        onCashTenderedChange={onCashTenderedChange}
         // Nothing to charge for is the one state where the commit action would
         // be meaningless, so it is disabled rather than merely ignored.
         isPayable={!cart.isEmpty}
