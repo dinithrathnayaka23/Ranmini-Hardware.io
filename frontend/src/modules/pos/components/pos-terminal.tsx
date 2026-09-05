@@ -332,6 +332,21 @@ export function PosTerminal({
     idempotencyKey.current = null;
     setIsOrderOpen(false);
 
+    /*
+     * Back to the search box, ready for the next customer.
+     *
+     * Focus was on the pay button, which the empty basket has just disabled —
+     * so a barcode scanned straight after a sale went nowhere at all, and the
+     * cashier had to tap the field before the till would take anything. The
+     * whole point of the search box being autofocused on load is that a scanner
+     * is a keyboard, and that has to hold for the second sale as much as the
+     * first.
+     *
+     * Done here as well as after printing, because the receipt may not print —
+     * a cancelled dialog, no printer — and the till must be ready regardless.
+     */
+    searchRef.current?.focus();
+
     // The catalogue on screen still shows the stock this sale just took.
     router.refresh();
   };
@@ -342,7 +357,12 @@ export function PosTerminal({
     payRef.current = handlePay;
   });
 
-  const handlePrinted = React.useCallback(() => setIsPrinting(false), []);
+  const handlePrinted = React.useCallback(() => {
+    setIsPrinting(false);
+    // The print dialog took focus; hand it back to the search box so the next
+    // customer's first barcode lands somewhere.
+    searchRef.current?.focus();
+  }, []);
 
   // Typing is the cashier moving on, so the previous scan's message goes with
   // them rather than hanging over a search they have already corrected.
