@@ -52,6 +52,40 @@ export function OrderPanel({
   const lineCount = cart.lines.length;
   const previousLineCount = React.useRef(lineCount);
 
+  /**
+   * Whether "Clear All" has been pressed once and is waiting to be confirmed.
+   *
+   * <p>Two taps, because one tap here throws away a basket that took two
+   * minutes to scan and there is no undo — the customer has to unload the
+   * trolley again. It sits next to the close button on the sheet, which is
+   * exactly the sort of neighbour that gets hit by accident.
+   */
+  const [isConfirmingClear, setIsConfirmingClear] = React.useState(false);
+
+  // Disarms itself, so a half-pressed clear from one customer ago cannot be
+  // completed by an unrelated tap during the next sale.
+  React.useEffect(() => {
+    if (!isConfirmingClear) return;
+
+    const timer = window.setTimeout(() => setIsConfirmingClear(false), 4000);
+    return () => window.clearTimeout(timer);
+  }, [isConfirmingClear]);
+
+  // Adding to the order is the cashier saying they did not mean to clear it.
+  React.useEffect(() => {
+    setIsConfirmingClear(false);
+  }, [lineCount]);
+
+  const handleClear = () => {
+    if (!isConfirmingClear) {
+      setIsConfirmingClear(true);
+      return;
+    }
+
+    cart.clear();
+    setIsConfirmingClear(false);
+  };
+
   // A newly scanned product is appended to the end of the list, which on a long
   // order is below the fold. Scrolling to it is the confirmation the cashier
   // needs that the scan landed — quantity changes on an existing line are left
@@ -69,19 +103,33 @@ export function OrderPanel({
   return (
     <div className="@container flex h-full min-h-0 flex-col bg-surface">
       <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line px-4 sm:h-16 @min-[28rem]:px-5">
-        <h2 className="text-base font-semibold tracking-tight text-ink @min-[22rem]:text-lg">
+        <h2 className="flex min-w-0 items-baseline gap-2 text-base font-semibold tracking-tight text-ink @min-[22rem]:text-lg">
           Current Order
+          {/* The unit count, not the line count: "3 items" when one line holds
+              three bags is what the customer is being charged for and what the
+              cashier counts back into the trolley. */}
+          {cart.totals.itemCount > 0 ? (
+            <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700 tabular-nums">
+              {cart.totals.itemCount}
+            </span>
+          ) : null}
         </h2>
 
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={cart.clear}
+            onClick={handleClear}
             disabled={cart.isEmpty}
-            className="inline-flex touch-manipulation items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-danger transition-colors duration-150 hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-40"
+            className={cn(
+              "inline-flex touch-manipulation items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors duration-150",
+              "disabled:cursor-not-allowed disabled:opacity-40",
+              isConfirmingClear
+                ? "bg-danger text-white hover:bg-danger/90"
+                : "text-danger hover:bg-danger-soft",
+            )}
           >
             <Trash2 aria-hidden className="size-4" />
-            Clear All
+            {isConfirmingClear ? "Tap to confirm" : "Clear All"}
           </button>
 
           {onClose ? (
