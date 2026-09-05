@@ -142,17 +142,20 @@ export function OrderSummary({
         aria-label="Payment method"
         className="mt-5 grid grid-cols-2 gap-3"
       >
-        <TenderButton
-          isSelected={tender === "CARD"}
-          onClick={() => onTenderChange("CARD")}
-          icon={CreditCard}
-          label="Card"
-        />
+        {/* Cash first, on the left. It is the default, it is how most of a
+            hardware shop's sales are settled, and a control the cashier reaches
+            for a hundred times a day belongs where the eye lands first. */}
         <TenderButton
           isSelected={tender === "CASH"}
           onClick={() => onTenderChange("CASH")}
           icon={Banknote}
           label="Cash"
+        />
+        <TenderButton
+          isSelected={tender === "CARD"}
+          onClick={() => onTenderChange("CARD")}
+          icon={CreditCard}
+          label="Card"
         />
       </div>
 

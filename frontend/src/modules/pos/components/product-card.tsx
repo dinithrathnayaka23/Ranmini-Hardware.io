@@ -51,7 +51,7 @@ export function ProductCard({
           ? ", out of stock"
           : isLowStock
             ? `, low stock, ${product.stock} left`
-            : ""
+            : `, ${product.stock} in stock`
       }`}
       className={cn(
         "group flex flex-col overflow-hidden rounded-xl border bg-surface text-left",
@@ -59,7 +59,12 @@ export function ProductCard({
         // a tap registers immediately — on a till that delay reads as a
         // dropped scan and the cashier taps again.
         "touch-manipulation select-none transition-[color,background-color,border-color,transform,box-shadow] duration-150",
-        isLowStock ? "border-danger" : "border-line",
+        // Red is reserved for the one card that cannot be sold. Low stock used
+        // to draw a red border too, which made a shelf that merely needs
+        // restocking look like a fault — and in a hardware shop several
+        // products are always low, so the grid read as a wall of errors and
+        // the cashier stopped seeing any of them.
+        isSoldOut ? "border-line" : isLowStock ? "border-warning/60" : "border-line",
         isDisabled
           ? "cursor-not-allowed opacity-60"
           : "hover:border-brand-500 hover:bg-brand-50/30 hover:shadow-sm active:scale-[0.985] active:bg-brand-50/60",
@@ -68,11 +73,23 @@ export function ProductCard({
       <div className="relative aspect-4/3 w-full shrink-0 overflow-hidden bg-canvas-subtle">
         <ProductImage product={product} />
 
-        {isSoldOut ? (
-          <StockBadge label="Out of Stock" />
-        ) : isLowStock ? (
-          <StockBadge label={`Low Stock: ${product.stock}`} />
-        ) : null}
+        {/*
+          Every card carries its count, not just the ones in trouble. "How many
+          have you got?" is the question a hardware cashier is asked most often
+          after the price, and the answer was previously only on screen for
+          products that were nearly gone — so for everything else the cashier
+          had to say they would go and look.
+        */}
+        <StockBadge
+          stock={product.stock}
+          isSoldOut={isSoldOut}
+          isLowStock={isLowStock}
+          // A card that has gone grey because the order already holds the whole
+          // shelf looks identical to one that is sold out, and the cashier taps
+          // it again to find out which. Saying so is the difference between a
+          // dead control and an answer.
+          isAtStockCeiling={isAtStockCeiling && !isSoldOut}
+        />
       </div>
 
       <div className="flex flex-col gap-1 p-3">
@@ -84,17 +101,50 @@ export function ProductCard({
         <p className="text-[1.05rem] font-bold whitespace-nowrap text-ink">
           {formatCurrency(product.unitPrice, currency)}
         </p>
-        <p className="text-xs text-muted">SKU: {product.sku}</p>
+        <p className="truncate text-xs text-muted">SKU: {product.sku}</p>
       </div>
     </button>
   );
 }
 
-/** Red corner flag. The label always carries the meaning, never the colour. */
-function StockBadge({ label }: { label: string }) {
+/**
+ * The count, over the corner of the photograph.
+ *
+ * <p>Three tints, and the label always carries the meaning so the colour is
+ * only ever a second signal. The ordinary case is a neutral dark pill rather
+ * than a coloured one: it has to be legible over a photograph of anything,
+ * and a green badge on every card would spend the grid's only strong colour on
+ * the state that needs no attention at all.
+ */
+function StockBadge({
+  stock,
+  isSoldOut,
+  isLowStock,
+  isAtStockCeiling,
+}: {
+  stock: number;
+  isSoldOut: boolean;
+  isLowStock: boolean;
+  isAtStockCeiling: boolean;
+}) {
   return (
-    <span className="absolute top-0 right-0 rounded-bl-lg bg-danger px-2 py-1 text-[0.7rem] font-semibold text-white">
-      {label}
+    <span
+      className={cn(
+        "absolute top-0 right-0 rounded-bl-lg px-2 py-1 text-[0.7rem] font-semibold text-white",
+        isSoldOut
+          ? "bg-danger"
+          : isAtStockCeiling
+            ? "bg-brand-600"
+            : isLowStock
+              ? "bg-warning"
+              : "bg-ink/65",
+      )}
+    >
+      {isSoldOut
+        ? "Out of stock"
+        : isAtStockCeiling
+          ? `All ${stock} on order`
+          : `${stock} left`}
     </span>
   );
 }
