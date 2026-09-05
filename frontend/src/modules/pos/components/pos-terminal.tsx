@@ -458,18 +458,11 @@ export function PosTerminal({
       </button>
 
       {payError ? (
-        <PaymentBanner tone="danger" message={payError} onDismiss={() => setPayError(null)} />
+        <PaymentFailed message={payError} onDismiss={() => setPayError(null)} />
       ) : null}
 
       {completed ? (
-        <PaymentBanner
-          tone="success"
-          message={buildReceiptMessage(completed, currency)}
-          onDismiss={() => setCompleted(null)}
-          // A second copy, for the receipt that jammed or the customer who
-          // asks for one after saying they did not want it.
-          action={<PrintReceiptButton sale={completed} label="Print again" />}
-        />
+        <SaleComplete sale={completed} onDismiss={() => setCompleted(null)} />
       ) : null}
 
       {completed && isPrinting ? (
@@ -582,60 +575,115 @@ function filterProducts(
 }
 
 /**
- * The outcome of a checkout, over the till.
+ * A refused sale.
  *
- * A refused sale is an ordinary event at a counter — the last bag of cement went
- * to the other till — so it renders as a message the cashier can act on rather
- * than a crashed page with a customer waiting.
- *
- * Both outcomes are dismissed by hand rather than fading out: a cashier reading
- * a change amount off the screen should not have it disappear mid-sentence.
+ * <p>An ordinary event at a counter — the last bag of cement went to the other
+ * till — so it renders as a message the cashier can act on rather than a
+ * crashed page with a customer waiting. Dismissed by hand: the basket is still
+ * on screen and still theirs to fix.
  */
-function PaymentBanner({
-  tone,
+function PaymentFailed({
   message,
   onDismiss,
-  action,
 }: {
-  tone: "success" | "danger";
   message: string;
   onDismiss: () => void;
-  /** An extra control beside Dismiss — reprinting the receipt, in practice. */
-  action?: React.ReactNode;
 }) {
   return (
-    <div
-      className="fixed inset-x-0 bottom-24 z-50 mx-auto w-[min(28rem,calc(100%-2rem))] md:bottom-6"
-      role="status"
-    >
-      <Alert tone={tone} className="shadow-lg" message={message} />
+    <div className="fixed inset-x-0 bottom-24 z-50 mx-auto w-[min(28rem,calc(100%-2rem))] md:bottom-6">
+      <Alert tone="danger" className="shadow-lg" message={message} />
 
-      <div className="mt-2 flex items-center gap-2">
-        {action}
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="flex-1 rounded-lg border border-line bg-surface py-2 text-sm font-medium text-ink-soft shadow-sm transition-colors duration-150 hover:bg-canvas-subtle"
-        >
-          Dismiss
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="mt-2 w-full rounded-lg border border-line bg-surface py-2 text-sm font-medium text-ink-soft shadow-sm transition-colors duration-150 hover:bg-canvas-subtle"
+      >
+        Dismiss
+      </button>
     </div>
   );
 }
 
 /**
- * What the cashier is told after a successful sale.
+ * A completed sale, and the change to hand back.
  *
- * Leads with the invoice number, because that is what a customer quotes if they
- * come back, and includes the change only when there is some to hand over.
+ * <p><b>The change is the largest thing on this card.</b> It used to be the tail
+ * of a sentence — "Sale INV-20260905-0004 completed — Rs 3,247.50, change
+ * Rs 1,752.50." — read while counting notes out of a drawer, which is the worst
+ * possible moment to be parsing a sentence. It is now the one figure the card
+ * is built around, and the invoice number, which matters only if the customer
+ * comes back next week, is the small print above it.
+ *
+ * <p>Dismissed by hand rather than fading out. A cashier reading an amount off
+ * the screen must not have it disappear mid-count — and the till behind it is
+ * already cleared and ready, so nothing is waiting on the tap.
  */
-function buildReceiptMessage(sale: CompletedSale, currency: string): string {
-  const total = formatCurrency(sale.total, currency);
-  const change =
-    sale.changeDue > 0
-      ? `, change ${formatCurrency(sale.changeDue, currency)}`
-      : "";
+function SaleComplete({
+  sale,
+  onDismiss,
+}: {
+  sale: CompletedSale;
+  onDismiss: () => void;
+}) {
+  const currency = useCurrency();
+  const hasChange = sale.changeDue > 0;
 
-  return `Sale ${sale.invoiceNumber} completed — ${total}${change}.`;
+  return (
+    <div
+      role="status"
+      className="fixed inset-x-0 bottom-24 z-50 mx-auto w-[min(28rem,calc(100%-2rem))] overflow-hidden rounded-xl border border-success/25 bg-surface shadow-lg md:bottom-6"
+    >
+      <div className="flex items-center gap-2 border-b border-success/20 bg-success-soft px-4 py-2.5 text-sm font-medium text-success">
+        <CircleCheck aria-hidden className="size-4 shrink-0" />
+        <span className="flex-1">Sale complete</span>
+        <span className="font-mono text-xs tabular-nums">{sale.invoiceNumber}</span>
+      </div>
+
+      <div className="px-4 py-4">
+        {hasChange ? (
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-sm font-medium text-ink-soft">Change due</span>
+            <span className="text-3xl font-bold whitespace-nowrap text-success tabular-nums">
+              {formatCurrency(sale.changeDue, currency)}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-sm text-ink-soft">
+              Paid by {sale.tender === "CASH" ? "cash" : "card"}
+            </span>
+            <span className="text-xl font-bold whitespace-nowrap text-ink tabular-nums">
+              {formatCurrency(sale.total, currency)}
+            </span>
+          </div>
+        )}
+
+        {/* Shown only when there is change, where it is the check a careful
+            cashier makes before opening the drawer. Without change the total is
+            already the headline above. */}
+        {hasChange ? (
+          <p className="mt-1.5 text-xs text-muted tabular-nums">
+            {formatCurrency(sale.total, currency)} of{" "}
+            {formatCurrency(sale.amountTendered ?? sale.total, currency)} received
+          </p>
+        ) : null}
+
+        <div className="mt-4 flex items-center gap-2">
+          {/* A second copy, for the receipt that jammed or the customer who
+              asks for one after saying they did not want it. */}
+          <PrintReceiptButton sale={sale} label="Print again" />
+          <button
+            type="button"
+            onClick={onDismiss}
+            // h-10 and the same radius as the print button beside it: the pair
+            // are read as one row of controls, and a 2px difference in height
+            // is the sort of thing that makes a screen look unfinished.
+            className="h-10 flex-1 rounded-[10px] bg-brand-600 text-sm font-medium text-white transition-colors duration-150 hover:bg-brand-700"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
