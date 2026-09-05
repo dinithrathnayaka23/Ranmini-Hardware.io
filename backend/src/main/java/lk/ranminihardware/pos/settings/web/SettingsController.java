@@ -67,6 +67,7 @@ public class SettingsController {
             shop.getProfile().getContactPhone(),
             settings.currencySymbol(),
             settings.taxRate(),
+            shop.getBusinessLogic().getLowStockThreshold(),
             shop.getReceipts().getReceiptPrefix(),
             shop.getReceipts().getFooterMessage(),
             shop.getReceipts().getPaperSize(),
@@ -166,6 +167,10 @@ public class SettingsController {
    * @param taxRate a percentage, e.g. 15 for 15%. Sent so the till can show a
    *     tax line while it builds an order — the figure that is actually charged
    *     is still computed by the server at checkout.
+   * @param lowStockThreshold the reorder level a new product starts on. A
+   *     starting value for the add-product form, not a rule: each product
+   *     carries its own level, because a shop that reorders cement at twenty
+   *     bags does not reorder washers at twenty washers.
    */
   public record PublicSettings(
       String companyName,
@@ -173,6 +178,7 @@ public class SettingsController {
       String contactPhone,
       String currencySymbol,
       BigDecimal taxRate,
+      int lowStockThreshold,
       String receiptPrefix,
       String footerMessage,
       String paperSize,

@@ -7,6 +7,7 @@ import { PageHeader } from "@/shared/components/layout/page-header";
 import { ButtonLink } from "@/shared/components/ui/button";
 import { Card, CardBody } from "@/shared/components/ui/card";
 import { routes } from "@/shared/config/app.config";
+import { getShopSettings } from "@/shared/lib/shop.server";
 
 export const metadata: Metadata = {
   title: "Add New Product",
@@ -25,7 +26,12 @@ export const metadata: Metadata = {
  * and there is nothing here that benefits from the extra room.
  */
 export default async function AddProductPage() {
-  const categories = await fetchCategories();
+  // In parallel: the dropdown and the reorder default are independent reads,
+  // and awaiting them in sequence would add a round trip for nothing.
+  const [categories, shop] = await Promise.all([
+    fetchCategories(),
+    getShopSettings(),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-[90rem] p-4 sm:p-6 lg:p-8">
@@ -41,7 +47,14 @@ export default async function AddProductPage() {
       />
 
       <div className="mt-6 max-w-4xl">
-        {categories.length === 0 ? <NoCategoriesYet /> : <ProductForm categories={categories} />}
+        {categories.length === 0 ? (
+          <NoCategoriesYet />
+        ) : (
+          <ProductForm
+            categories={categories}
+            defaultReorderLevel={shop.lowStockThreshold}
+          />
+        )}
       </div>
     </div>
   );

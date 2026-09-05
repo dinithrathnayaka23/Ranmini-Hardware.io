@@ -92,10 +92,22 @@ const BLANK: DefaultValues<ProductFormValues> = {
 export function ProductForm({
   categories,
   product,
+  defaultReorderLevel = 0,
 }: {
   categories: { id: string; name: string }[];
   /** The product being edited, or undefined when adding a new one. */
   product?: Product;
+  /**
+   * Where the reorder level starts on a new product, from Settings → Business
+   * Logic.
+   *
+   * <p>A starting value, not a rule — which is why it seeds the field rather
+   * than being applied on the server. Each product keeps its own level, because
+   * a shop that reorders cement at twenty bags does not reorder washers at
+   * twenty washers, and the shopkeeper can see and change it before saving.
+   * Ignored when editing: that product already has a level of its own.
+   */
+  defaultReorderLevel?: number;
 }) {
   const isEditing = product !== undefined;
   const currency = useCurrency();
@@ -128,8 +140,14 @@ export function ProductForm({
     [categories],
   );
 
+  /** The empty form, with the shop's own reorder default already in it. */
+  const blank: DefaultValues<ProductFormValues> = React.useMemo(
+    () => ({ ...BLANK, reorderLevel: defaultReorderLevel }),
+    [defaultReorderLevel],
+  );
+
   const defaults: DefaultValues<ProductFormValues> = React.useMemo(() => {
-    if (!product) return BLANK;
+    if (!product) return blank;
 
     return {
       sku: product.sku,
@@ -145,7 +163,7 @@ export function ProductForm({
       openingStock: product.stock,
       reorderLevel: product.reorderLevel,
     };
-  }, [product]);
+  }, [product, blank]);
 
   const {
     register,
@@ -206,7 +224,7 @@ export function ProductForm({
     // by the box from one supplier, so the next entry is nearly always the same
     // kind of thing — re-picking the category every time is the sort of friction
     // that makes people stop using the screen.
-    reset({ ...BLANK, categoryId: values.categoryId, unit: values.unit });
+    reset({ ...blank, categoryId: values.categoryId, unit: values.unit });
     setFocus("sku");
   };
 
@@ -417,10 +435,18 @@ export function ProductForm({
             ) : (
               <>
                 The reorder level is the point at which this product starts
-                showing as low stock on the dashboard. After today, quantity
-                changes are recorded as stock adjustments with a reason rather
-                than edited here, so a correction can never quietly overwrite a
-                sale.
+                showing as low stock on the dashboard.
+                {defaultReorderLevel > 0 ? (
+                  <>
+                    {" "}
+                    It starts at {defaultReorderLevel} from Settings → Business
+                    Logic; change it for anything that sells faster or slower
+                    than the rest of the shelf.
+                  </>
+                ) : null}{" "}
+                After today, quantity changes are recorded as stock adjustments
+                with a reason rather than edited here, so a correction can never
+                quietly overwrite a sale.
               </>
             )}
           </p>
@@ -470,7 +496,7 @@ export function ProductForm({
             // button on an untouched form is just noise.
             disabled={!isDirty || isSubmitting}
             onClick={() => {
-              reset(BLANK);
+              reset(blank);
               pendingImage.current = null;
               setNotice(null);
             }}

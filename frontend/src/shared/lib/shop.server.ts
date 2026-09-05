@@ -26,6 +26,8 @@ export interface ShopSettings {
   currencySymbol: string;
   /** A percentage, e.g. 15 for 15%. */
   taxRate: number;
+  /** The reorder level a new product starts on. A starting value, not a rule. */
+  lowStockThreshold: number;
   receiptPrefix: string;
   footerMessage: string;
   paperSize: string;
@@ -50,6 +52,7 @@ const FALLBACK: ShopSettings = {
   // is the value that is also the system's default, and the sale the server
   // returns after checkout is what the cashier is shown and prints.
   taxRate: 0,
+  lowStockThreshold: 0,
   receiptPrefix: "INV",
   footerMessage: "",
   paperSize: "80MM",
