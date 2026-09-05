@@ -240,6 +240,9 @@ Mongo pull the whole result set into memory and fail past 32MB.
 
 | Method | Path | Purpose |
 | ------ | ---- | ------- |
+| POST | `/api/v1/auth/{portal}/login` | Sign in — portal is `admin` or `cashier` |
+| POST | `/api/v1/auth/refresh` | Exchange a refresh token |
+| POST | `/api/v1/auth/password-reset/...` | Request and confirm a reset link |
 | GET | `/api/v1/pos/products` | Till catalogue (paged, searchable, no cost prices) |
 | POST | `/api/v1/pos/sales` | Complete a sale |
 | GET | `/api/v1/categories` | Filter chips |
@@ -247,14 +250,27 @@ Mongo pull the whole result set into memory and fail past 32MB.
 | GET | `/api/v1/inventory/products` | Admin table (paged, text search, filters) |
 | POST/PUT/DELETE | `/api/v1/inventory/products/...` | Manage products |
 | POST | `/api/v1/inventory/products/{id}/stock` | Record a stock movement |
+| GET/POST/DELETE | `/api/v1/inventory/products/{id}/image` | Product photograph |
+| GET | `/api/v1/inventory/products/by-sku/{sku}` | Shelf-code lookup |
 | GET | `/api/v1/inventory/summary` | The four inventory cards |
+| GET | `/api/v1/inventory/export` | Stock sheet as a PDF |
 | GET | `/api/v1/sales` | Sales in a date range |
 | GET | `/api/v1/sales/by-invoice/{n}` | Receipt reprint |
 | POST | `/api/v1/sales/{id}/void` | Void and return stock |
 | GET | `/api/v1/reports` | Whole reports screen in one payload |
+| GET | `/api/v1/reports/export` | The report as a PDF |
 | GET | `/api/v1/dashboard` | Whole dashboard in one payload |
+| GET | `/api/v1/notifications` | The bell's feed |
+| GET | `/api/v1/audit` | The activity log (administrator only) |
 | GET/POST/PUT | `/api/v1/staff/...` | Staff accounts |
-| GET/PATCH | `/api/v1/settings/...` | Shop configuration |
+| POST | `/api/v1/staff/{id}/password` | Reset somebody's password |
+| GET/POST/DELETE | `/api/v1/staff/{id}/avatar` | Staff photograph |
+| GET/PATCH | `/api/v1/profile/...` | The signed-in account's own details |
+| GET/POST/DELETE | `/api/v1/profile/avatar` | Own photograph |
+| GET/PATCH | `/api/v1/settings/...` | Shop configuration (administrator only) |
+| GET | `/api/v1/settings/public` | The subset the till needs — also readable by a cashier |
+| POST/DELETE | `/api/v1/settings/logo` | Replace or remove the shop logo |
+| GET | `/api/v1/settings/public/logo` | The logo image — the till prints it |
 
 ## Still to do
 

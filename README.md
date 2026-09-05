@@ -29,24 +29,38 @@ frontend/src/
 ├── app/                      # Routing only — thin, delegates to modules
 │   ├── (auth)/               #   Route group: shared shell for signed-out pages
 │   │   ├── layout.tsx        #   Split-screen shell (form column + showcase)
-│   │   ├── admin/login/      #   /admin/login
+│   │   ├── admin/            #   /admin/login, forgot-password, reset-password
 │   │   └── cashier/login/    #   /cashier/login
-│   ├── cashier/pos/          #   /cashier/pos — till landing (placeholder)
-│   └── api/auth/             #   BFF endpoints: [portal]/login, logout
-├── modules/                  # Feature modules — self-contained
-│   ├── auth/
-│   │   ├── components/       #   UI specific to authentication
-│   │   ├── constants/        #   Portal definitions, showcase copy
-│   │   ├── schemas/          #   Zod validation, shared by client and server
-│   │   ├── services/         #   auth.client.ts (browser) / auth.server.ts (BFF)
-│   │   └── types/            #   Backend contract types
-│   └── pos/                  #   Cashier till
-│       ├── components/       #     Terminal, catalogue, order panel
-│       ├── constants/        #     Placeholder catalogue
-│       ├── lib/              #     Order arithmetic and cart state
-│       └── types/            #     Till view model
+│   ├── (portal)/             #   Route group: sidebar shell, admin-only
+│   │   └── admin/            #   dashboard, inventory, reports, staff, profile, settings
+│   ├── cashier/pos/          #   /cashier/pos — the till
+│   └── api/                  #   BFF: sign-in, sign-out, image proxies, PDF downloads
+├── modules/                  # Feature modules — self-contained, never import each other
+│   ├── audit/                #   The activity log under Settings → Security
+│   ├── auth/                 #   Sign-in, sessions, the account menu
+│   ├── categories/           #   Product groupings
+│   ├── dashboard/            #   The owner's landing screen
+│   ├── inventory/            #   Catalogue table, product form, stock movements
+│   ├── notifications/        #   The bell and its feed
+│   ├── pos/                  #   Cashier till
+│   ├── profile/              #   The signed-in administrator's own account
+│   ├── reports/              #   Charts, daily details, PDF export
+│   ├── sales/                #   Looking a sale up, voiding one
+│   ├── settings/             #   The four settings sections
+│   └── staff/                #   Accounts, roles, password resets
+│
+│   Each module holds the same folders as it needs them:
+│     components/  UI specific to the feature
+│     constants/   Genuine configuration — never placeholder data
+│     lib/         Pure logic (the till's cart arithmetic and cash counting)
+│     schemas/     Zod validation, shared by client and server
+│     services/    Server-side reads (*.server.ts)
+│     actions.ts   Server Actions — the writes
+│     types/       Backend contract types
 └── shared/                   # Cross-module building blocks only
-    ├── components/ui/        #   Button, TextField, PasswordField, Checkbox, Alert
+    ├── components/ui/        #   Button, fields, Card, Alert, Badge, Pagination, StatCard
+    ├── components/layout/    #   Portal shell: sidebar, top bar, page header
+    ├── components/receipt/   #   The printed receipt — two modules render it
     ├── components/brand/     #   Logo
     ├── config/               #   App metadata, routes, cookie policy
     └── lib/                  #   env validation, cn(), error mapping, rate limiting
@@ -117,15 +131,18 @@ hard-codes a path string.
 | ------------------- | ----------- | ------------------------------------------- | ----- |
 | `/`                 | —           | `app/page.tsx`                              | Redirects to `/admin/login` |
 | `/admin/login`      | `(auth)`    | `app/(auth)/admin/login/page.tsx`           | Built |
+| `/admin/forgot-password` | `(auth)` | `app/(auth)/admin/forgot-password/page.tsx` | Built |
+| `/admin/reset-password` | `(auth)` | `app/(auth)/admin/reset-password/page.tsx`  | Built |
 | `/cashier/login`    | `(auth)`    | `app/(auth)/cashier/login/page.tsx`         | Built |
 | `/admin/dashboard`  | `(portal)`  | `app/(portal)/admin/dashboard/page.tsx`     | Built |
 | `/admin/inventory`  | `(portal)`  | `app/(portal)/admin/inventory/page.tsx`     | Built |
-| `/admin/inventory/new` | `(portal)` | `app/(portal)/admin/inventory/new/page.tsx` | Placeholder |
-| `/admin/inventory/categories` | `(portal)` | `app/(portal)/admin/inventory/categories/page.tsx` | Placeholder |
+| `/admin/inventory/new` | `(portal)` | `app/(portal)/admin/inventory/new/page.tsx` | Built |
+| `/admin/inventory/[id]/edit` | `(portal)` | `app/(portal)/admin/inventory/[id]/edit/page.tsx` | Built |
+| `/admin/inventory/categories` | `(portal)` | `app/(portal)/admin/inventory/categories/page.tsx` | Built |
 | `/admin/reports`    | `(portal)`  | `app/(portal)/admin/reports/page.tsx`       | Built |
-| `/admin/reports/generate` | `(portal)` | `app/(portal)/admin/reports/generate/page.tsx` | Placeholder |
-| `/admin/reports/daily` | `(portal)` | `app/(portal)/admin/reports/daily/page.tsx` | Placeholder |
+| `/admin/reports/daily` | `(portal)` | `app/(portal)/admin/reports/daily/page.tsx` | Built |
 | `/admin/staff`      | `(portal)`  | `app/(portal)/admin/staff/page.tsx`         | Built |
+| `/admin/profile`    | `(portal)`  | `app/(portal)/admin/profile/page.tsx`       | Built |
 | `/admin/settings`   | `(portal)`  | `app/(portal)/admin/settings/page.tsx`      | Built — Shop Profile |
 | `/admin/settings/business-logic` | `(portal)` | `app/(portal)/admin/settings/business-logic/page.tsx` | Built |
 | `/admin/settings/receipts` | `(portal)` | `app/(portal)/admin/settings/receipts/page.tsx` | Built |
@@ -133,17 +150,27 @@ hard-codes a path string.
 | `/cashier/pos`      | —           | `app/cashier/pos/page.tsx`                  | Built |
 | `/api/auth/{portal}/login` | —    | `app/api/auth/[portal]/login/route.ts`      | BFF endpoint (both portals) |
 | `/api/auth/logout`  | —           | `app/api/auth/logout/route.ts`              | BFF endpoint |
+| `/api/avatars/{id}` | —           | `app/api/avatars/[id]/route.ts`             | Image proxy |
+| `/api/product-images/{id}` | —    | `app/api/product-images/[id]/route.ts`      | Image proxy |
+| `/api/shop-logo`    | —           | `app/api/shop-logo/route.ts`                | Image proxy |
+| `/api/inventory/export` | —       | `app/api/inventory/export/route.ts`          | PDF download proxy |
+| `/api/reports/export` | —         | `app/api/reports/export/route.ts`            | PDF download proxy |
 
 Route groups are folder-only conventions and never appear in a URL. `(auth)`
 carries the split-screen sign-in shell and is shared by both portals'
 sign-in pages; `(portal)` carries the sidebar shell. `/cashier/pos` sits in
 neither, because the admin navigation rail is not the cashier's chrome.
 
-Placeholder pages exist so every navigation target leads somewhere and says
-plainly that the screen is still to come, rather than dead-ending on a 404 that
-looks like a bug. The same reasoning covers the inventory header buttons: they
-route to real placeholder screens instead of rendering as controls that do
-nothing when clicked. Delete each as its real design lands.
+Every route in that table is built; none is a placeholder standing in for a
+screen still to come. `/admin/reports/generate` was one and has been removed
+rather than filled in — the export button on the reports screen produces the
+report as a PDF, so a separate page for generating one had nothing left to do.
+
+The five `/api/*` routes are proxies, not pages. Each exists because the browser
+cannot call the backend itself: the session token is in an httpOnly cookie it
+cannot read, so the request has to be signed server-side. Three stream image
+bytes back; two turn an API response into a file download with the filename the
+API chose.
 
 Nested routes keep their parent section highlighted in the sidebar, so
 `/admin/inventory/new` still shows Inventory as current.
@@ -173,41 +200,28 @@ anyway.
 `server-only` import breaks the build if a Client Component imports it, which is
 what keeps the session token out of the browser bundle.
 
-What remains as illustrative data:
+**No screen renders placeholder data.** The constants files that used to hold
+it — dashboard figures, inventory rows, report charts, the staff record, stored
+settings, a ten-product catalogue for the till — are all gone. What is left
+under a `constants/` folder is genuine configuration: the reporting periods the
+toolbar offers, the sign-in portals, the settings sections, the staff roles, and
+the till's terminal name plus its "All Items" filter sentinel.
 
-| Module | Feeds |
-| ------ | ----- |
-| `modules/dashboard/constants/dashboard-data.ts` | Dashboard stats, low stock, activity |
-| `modules/inventory/constants/inventory-data.ts` | Inventory stats, products, paging |
-| `modules/reports/constants/reports-data.ts` | Report stats, sales trend, categories, top products, daily rows |
-| `modules/staff/constants/staff-data.ts` | The staff record shown on the staff screen |
-| `modules/settings/constants/settings-data.ts` | Stored configuration for all four settings sections |
-| `modules/pos/constants/pos-data.ts` | The terminal name only — the catalogue is live |
+**Inventory search, status filtering and pagination all run on the server.** The
+page number and the search term live in the URL, so a filtered view can be
+bookmarked and the back button behaves — and the query runs against the
+backend's text index rather than filtering rows already sent, so it spans the
+whole catalogue rather than the page on screen.
 
-Every widget already takes its rows as props, so swapping in live calls is a
-change to each page's data source rather than a rewrite.
-
-**What actually works today:** inventory search, status filtering and CSV export
-all run client-side over the loaded rows. That is real behaviour, but it is not
-catalogue-wide — once the endpoint accepts `q` and `page`, the query belongs on
-the server so it spans all entries.
-
-**What does not:** pagination cannot work until the server accepts a page
-parameter, so every target except the current page is genuinely disabled rather
-than rendered as a live control that does nothing. The staff quick-add form
-validates fully but reports plainly that it cannot save.
+**Export is a PDF, not a CSV.** Both the inventory stock sheet and the sales
+report are rendered server-side with OpenPDF and streamed through a proxy route
+as a download. The reports screen has no separate "generate" step: the export
+*is* the report.
 
 **The reports design puts the page title in the top bar**, where the dashboard
 and inventory designs leave the bar empty and title the page body. The shared
 chrome was kept consistent across all three screens and the title rendered in
 the body; say if the top-bar title should become the global pattern instead.
-
-**Currency still needs settling.** The supplied designs disagree — inventory
-and reports use `$`, the dashboard uses `Rs.`. Settings now has the control that
-should own this choice, but the screens still read the static
-`appConfig.currencySymbol`, and the dashboard's figures remain literal strings
-in its placeholder data. Once settings are persisted, every screen should read
-the stored value.
 
 ## Staff
 
@@ -222,8 +236,8 @@ current values stay visible while they are being edited.
 **The password reset is a separate card with its own submit button**, not a
 field in the profile form. Changing a credential is a different kind of act
 from correcting a phone number, and separating them means it cannot happen by
-accident while editing something else. When the endpoint is built it must
-require the signed-in administrator's own credentials before it will act.
+accident while editing something else. It posts to
+`POST /api/v1/staff/{id}/password` and the change is written to the audit log.
 
 ## Portal chrome
 
@@ -235,10 +249,9 @@ items misrepresents it to a screen reader. Escape closes it and returns focus
 to the avatar; so does clicking outside or navigating.
 
 The avatar falls back to initials, which is the normal case rather than an
-error state. To use a real photograph, drop it under `public/images/admin/` and
-point `avatarUrl` in `modules/auth/constants/placeholder-session.ts` at it. It
-is left null deliberately: a stock portrait standing in for a real person is
-worse than initials on client work.
+error state. A real photograph is uploaded from `/admin/profile`, stored as
+bytes by the API and served through `/api/avatars/{id}`; `shared/lib/avatar-url.ts`
+builds that address from the account's id and version stamp.
 
 The navigation rail ends with **Log out**, and it is real — it posts to
 `/api/auth/logout`, which expires the httpOnly cookies server-side. A
@@ -374,11 +387,19 @@ reconcile, but the figure that is charged, printed and posted to the ledger must
 be recomputed by the Spring Boot service from the line items it receives. A
 browser is not a trustworthy calculator, and this is money.
 
-**Payment is not connected.** Pressing *Pay & Print Receipt* says so plainly and
-leaves the order untouched. A till that appears to take money it has not
-recorded is the most damaging thing this screen could pretend to do; that notice
-is the placeholder for the real `POST /api/v1/pos/sales` call and receipt
-hand-off.
+**Payment is connected.** *Pay & Print Receipt* posts the basket to
+`POST /api/v1/pos/sales`, which prices it, takes the stock off the shelf and
+returns the sale; the receipt then prints from that document rather than from
+the basket that produced it. The request carries an idempotency key generated
+before the first attempt and kept until it succeeds, so pressing pay again after
+a network timeout returns the original sale instead of charging twice.
+
+**Cash is counted on screen.** For a cash sale the summary offers the exact
+amount plus the three round figures a customer is most likely to hand over for
+that particular bill, a box to type anything else, and the change in the largest
+type in the panel. The amount tendered is sent to the server, which computes the
+change that is stored and printed — the till only previews it. Leaving the box
+empty means the customer paid exactly, and that is what gets recorded.
 
 The commit action is orange (`--color-pay`) rather than brand blue on purpose:
 blue marks the tender the cashier has *selected*, and orange marks the
