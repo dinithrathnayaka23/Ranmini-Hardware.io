@@ -60,3 +60,15 @@ export function useShop(): ShopSettings | null {
 export function useCurrency(): string {
   return useShop()?.currencySymbol ?? appConfig.currencySymbol;
 }
+
+/**
+ * The tax percentage the shop charges, e.g. 15 for 15%.
+ *
+ * <p>Used by the till to preview a total. The figure actually charged is
+ * recomputed by the server at checkout from the same rate, so this is a
+ * preview — but it has to be the right preview, because the cashier reads it
+ * out to the customer before taking the money.
+ */
+export function useTaxRate(): number {
+  return useShop()?.taxRate ?? 0;
+}

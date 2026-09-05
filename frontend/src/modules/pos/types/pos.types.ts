@@ -78,6 +78,19 @@ export type TenderMethod = "CASH" | "CARD";
 export interface OrderTotals {
   subtotal: number;
   discountAmount: number;
+  /**
+   * The shop's tax percentage, carried so the summary can label the line.
+   *
+   * Zero when the shop charges no tax, which is the default — the line is
+   * hidden entirely rather than printed as "Tax 0%".
+   */
+  taxRate: number;
+  taxAmount: number;
+  /**
+   * What the customer will actually be charged: subtotal, less discount, plus
+   * tax. This omitted the tax until the till started reading the shop's rate,
+   * which meant a shop with a tax rate quoted one price and charged another.
+   */
   total: number;
   /** Total units across all lines, not the number of distinct lines. */
   itemCount: number;

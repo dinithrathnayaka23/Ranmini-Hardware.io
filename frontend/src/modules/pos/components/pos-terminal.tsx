@@ -25,7 +25,7 @@ import { OrderPanel } from "./order-panel";
 import { PosTopbar } from "./pos-topbar";
 import { ProductGrid } from "./product-grid";
 import { ProductSearch } from "./product-search";
-import { useCurrency } from "@/shared/components/shop-provider";
+import { useCurrency, useTaxRate } from "@/shared/components/shop-provider";
 
 /**
  * The whole till: catalogue on the left, the order being built on the right.
@@ -71,7 +71,8 @@ export function PosTerminal({
   terminalName: string;
   cashierName: string;
 }) {
-  const cart = useCart();
+  const taxRate = useTaxRate();
+  const cart = useCart(taxRate);
   const currency = useCurrency();
   const router = useRouter();
   const searchRef = React.useRef<HTMLInputElement>(null);

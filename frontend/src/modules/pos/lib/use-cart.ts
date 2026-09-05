@@ -114,12 +114,19 @@ export interface Cart {
   clear: () => void;
 }
 
-export function useCart(): Cart {
+/**
+ * @param taxRate the shop's tax percentage, from Settings → Business Logic.
+ *   Passed in rather than read from context here, because it is the one input
+ *   to this hook that changes what the customer is charged: an accidental
+ *   default of zero would put the till back to quoting a price below the one
+ *   the server takes, which is the bug this parameter exists to close.
+ */
+export function useCart(taxRate: number): Cart {
   const [state, dispatch] = React.useReducer(cartReducer, emptyCart);
 
   const totals = React.useMemo(
-    () => calculateTotals(state.lines, state.discountPercent),
-    [state.lines, state.discountPercent],
+    () => calculateTotals(state.lines, state.discountPercent, taxRate),
+    [state.lines, state.discountPercent, taxRate],
   );
 
   return {

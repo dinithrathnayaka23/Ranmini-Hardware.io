@@ -45,6 +45,10 @@ const FALLBACK: ShopSettings = {
   primaryAddress: "",
   contactPhone: "",
   currencySymbol: appConfig.currencySymbol,
+  // Zero, deliberately. If the settings cannot be read, the till previews an
+  // order without tax while the server would still charge it — so the fallback
+  // is the value that is also the system's default, and the sale the server
+  // returns after checkout is what the cashier is shown and prints.
   taxRate: 0,
   receiptPrefix: "INV",
   footerMessage: "",

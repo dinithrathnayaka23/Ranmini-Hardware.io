@@ -89,6 +89,27 @@ export function OrderSummary({
             />
           </dd>
         </div>
+
+        {/*
+          Shown only when the shop charges tax, so a shop that does not is not
+          given a permanent "Tax 0%" row to read past. When it is shown it is
+          not decoration: the total below includes it, and until the till read
+          the shop's rate this line was missing while the server charged it
+          anyway — so the cashier quoted one price and took another.
+        */}
+        {totals.taxAmount > 0 ? (
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-sm text-ink-soft">
+              Tax{" "}
+              <span className="text-muted">
+                {formatPercentLabel(totals.taxRate)}
+              </span>
+            </dt>
+            <dd className="text-sm font-medium whitespace-nowrap text-ink tabular-nums">
+              {formatCurrency(totals.taxAmount, symbol)}
+            </dd>
+          </div>
+        ) : null}
       </dl>
 
       <hr className="my-4 border-t border-dashed border-line" />
@@ -175,4 +196,14 @@ function TenderButton({
       {label}
     </button>
   );
+}
+
+/**
+ * "15%" rather than "15.00%".
+ *
+ * A rate is set once and read a hundred times a day; trailing zeroes are noise
+ * in a panel that is already tight on a tablet.
+ */
+function formatPercentLabel(rate: number): string {
+  return `${Number(rate.toFixed(2))}%`;
 }
