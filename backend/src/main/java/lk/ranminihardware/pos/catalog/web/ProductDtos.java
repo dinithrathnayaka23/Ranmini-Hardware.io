@@ -174,7 +174,18 @@ public final class ProductDtos {
           Integer delta,
       @NotBlank(message = "Give a reason for the adjustment.")
           @Size(max = 120, message = "Reason must be at most 120 characters.")
-          String reason) {}
+          String reason,
+      /**
+       * What the shop paid per unit on this delivery, or null.
+       *
+       * <p>Optional because most adjustments are not purchases: breakage and
+       * stocktake corrections have no price. When it is supplied on a positive
+       * movement the product's cost becomes the weighted average of what is now
+       * on the shelf, which is what Settings → Business Logic promises.
+       */
+      @DecimalMin(value = "0.0", message = "A delivery cost cannot be negative.")
+          @Digits(integer = 10, fraction = 2, message = "Enter a valid amount.")
+          BigDecimal unitCost) {}
 
   /** The four figures on the inventory summary cards. */
   public record Summary(

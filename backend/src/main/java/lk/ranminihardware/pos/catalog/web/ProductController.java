@@ -9,6 +9,8 @@ import lk.ranminihardware.pos.catalog.domain.Product;
 import lk.ranminihardware.pos.catalog.domain.StockStatus;
 import lk.ranminihardware.pos.catalog.repository.dto.InventorySummary;
 import lk.ranminihardware.pos.catalog.repository.dto.ProductSearchCriteria;
+import lk.ranminihardware.pos.audit.domain.AuditAction;
+import lk.ranminihardware.pos.audit.service.AuditService;
 import lk.ranminihardware.pos.auth.service.JwtService.AuthenticatedUser;
 import lk.ranminihardware.pos.catalog.service.InventoryPdfService;
 import lk.ranminihardware.pos.catalog.service.ProductService;
@@ -62,16 +64,19 @@ public class ProductController {
 
   private final ProductService products;
   private final InventoryPdfService inventoryPdf;
+  private final AuditService audit;
   private final PageQuery pageQuery;
   private final Clock clock;
 
   public ProductController(
       ProductService products,
       InventoryPdfService inventoryPdf,
+      AuditService audit,
       PageQuery pageQuery,
       Clock clock) {
     this.products = products;
     this.inventoryPdf = inventoryPdf;
+    this.audit = audit;
     this.pageQuery = pageQuery;
     this.clock = clock;
   }
@@ -139,19 +144,42 @@ public class ProductController {
    */
   @DeleteMapping("/products/{id}")
   public ProductDtos.Response deactivate(@PathVariable String id) {
-    return ProductDtos.Response.from(products.deactivate(id));
+    Product product = products.deactivate(id);
+
+    audit.record(
+        AuditAction.PRODUCT_WITHDRAWN,
+        "PRODUCT",
+        product.getId(),
+        "Withdrew %s (%s) from sale, with %d %s still on the shelf."
+            .formatted(
+                product.getName(),
+                product.getSku(),
+                product.getStock(),
+                product.getUnit() == null ? "units" : product.getUnit()));
+
+    return ProductDtos.Response.from(product);
   }
 
   @PostMapping("/products/{id}/reactivate")
   public ProductDtos.Response reactivate(@PathVariable String id) {
-    return ProductDtos.Response.from(products.reactivate(id));
+    Product product = products.reactivate(id);
+
+    audit.record(
+        AuditAction.PRODUCT_RESTORED,
+        "PRODUCT",
+        product.getId(),
+        "Put %s (%s) back on sale.".formatted(product.getName(), product.getSku()));
+
+    return ProductDtos.Response.from(product);
   }
 
   /** A delivery, a stocktake correction, or breakage. */
   @PostMapping("/products/{id}/stock")
   public ProductDtos.Response adjustStock(
       @PathVariable String id, @Valid @RequestBody ProductDtos.StockAdjustment adjustment) {
-    return ProductDtos.Response.from(products.adjustStock(id, adjustment.delta(), adjustment.reason()));
+    return ProductDtos.Response.from(
+        products.adjustStock(
+            id, adjustment.delta(), adjustment.reason(), adjustment.unitCost()));
   }
 
   /**

@@ -30,6 +30,20 @@ public class SettingsService {
    */
   private static final int ABSOLUTE_MIN_PASSWORD_LENGTH = 8;
 
+  /**
+   * Bounds on the configurable session length.
+   *
+   * <p>Five minutes is short enough for a shop that wants the till locking
+   * behind a distracted cashier; a day is the longest a signed token should
+   * live when it cannot be revoked before it expires.
+   */
+  private static final int MIN_SESSION_MINUTES = 5;
+
+  private static final int MAX_SESSION_MINUTES = 1440;
+
+  /** The one stock valuation method this service implements. */
+  public static final String WEIGHTED_AVERAGE = "WEIGHTED_AVERAGE";
+
   private final ShopSettingsRepository repository;
 
   public SettingsService(ShopSettingsRepository repository) {
@@ -102,6 +116,50 @@ public class SettingsService {
   public String receiptPrefix() {
     String prefix = get().getReceipts().getReceiptPrefix();
     return prefix == null || prefix.isBlank() ? "INV" : prefix;
+  }
+
+  /**
+   * Whether actions are recorded to the audit log.
+   *
+   * <p>Read on every auditable action, which is why it goes through the cache
+   * rather than to Mongo: the switch changes perhaps once in the life of the
+   * shop, and a database read per voided sale to ask a question with the same
+   * answer every time would be a round trip bought for nothing.
+   */
+  public boolean isAuditLogEnabled() {
+    return get().getSecurity().isAuditLogEnabled();
+  }
+
+  /**
+   * How long a signed-in session lasts before the token must be refreshed.
+   *
+   * <p>Clamped rather than trusted. The value reaches the database through a
+   * validated endpoint today, but a document written by an older version — or
+   * edited by hand — must not be able to mint a token that lasts a year, or one
+   * so short that the till re-authenticates between customers.
+   */
+  public int sessionTimeoutMinutes() {
+    int minutes = get().getSecurity().getSessionTimeoutMinutes();
+    return Math.clamp(minutes, MIN_SESSION_MINUTES, MAX_SESSION_MINUTES);
+  }
+
+  /**
+   * How stock on hand is valued.
+   *
+   * <p>Coerced to weighted average, which is the only method this service
+   * implements. A document holding the FIFO that an earlier version of the
+   * settings form offered would otherwise name a costing rule that nothing
+   * applies — see {@code ProductService.adjustStock} for what actually happens
+   * when stock is received.
+   */
+  public String stockValuation() {
+    // Every stored value maps to the same answer today, because weighted
+    // average is the only method implemented — including the FIFO an earlier
+    // version of the settings form offered. The method exists so the call site
+    // reads as a question about the shop's rule rather than a hardcoded
+    // constant, and so adding FIFO later is a change here rather than a hunt
+    // through the catalogue.
+    return WEIGHTED_AVERAGE;
   }
 
   /** Default reorder level applied to newly created products. */

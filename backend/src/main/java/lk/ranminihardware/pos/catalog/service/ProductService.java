@@ -1,5 +1,7 @@
 package lk.ranminihardware.pos.catalog.service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -15,6 +17,7 @@ import lk.ranminihardware.pos.catalog.repository.dto.InventorySummary;
 import lk.ranminihardware.pos.catalog.repository.dto.ProductSearchCriteria;
 import lk.ranminihardware.pos.shared.error.ApiException;
 import lk.ranminihardware.pos.shared.media.ImageBytes;
+import lk.ranminihardware.pos.settings.service.SettingsService;
 import lk.ranminihardware.pos.shared.money.Money;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -36,6 +39,7 @@ public class ProductService {
   private final ProductImageRepository images;
   private final CategoryService categories;
   private final CatalogApiAdapter stock;
+  private final SettingsService settings;
   private final Clock clock;
 
   public ProductService(
@@ -43,11 +47,13 @@ public class ProductService {
       ProductImageRepository images,
       CategoryService categories,
       CatalogApiAdapter stock,
+      SettingsService settings,
       Clock clock) {
     this.products = products;
     this.images = images;
     this.categories = categories;
     this.stock = stock;
+    this.settings = settings;
     this.clock = clock;
   }
 
@@ -173,7 +179,23 @@ public class ProductService {
    * landing at the same moment as a sale cannot lose one of them.
    */
   public Product adjustStock(String id, int delta, String reason) {
+    return adjustStock(id, delta, reason, null);
+  }
+
+  /**
+   * Records a stock movement, optionally repricing the stock it adds.
+   *
+   * @param unitCost what the shop paid per unit on this delivery, or null when
+   *     the movement is a correction rather than a purchase. Supplying it is
+   *     what makes the weighted-average valuation in Settings → Business Logic
+   *     mean something: see {@link #revalue}.
+   */
+  public Product adjustStock(String id, int delta, String reason, BigDecimal unitCost) {
     if (delta == 0) return get(id);
+
+    // Read before the movement, because the weighted average needs the stock
+    // and cost as they were before this delivery landed.
+    Product before = get(id);
 
     // Routed through the catalogue API so the ledger entry is written by the
     // same code path the till uses. An adjustment that left no trace would be
@@ -187,7 +209,68 @@ public class ProductService {
           "INSUFFICIENT_STOCK", "That adjustment would take the stock below zero.");
     }
 
+    if (delta > 0 && unitCost != null) {
+      revalue(id, before, delta, unitCost);
+    }
+
     return get(id);
+  }
+
+  /**
+   * Moves a product's buying price to the weighted average of what is now on
+   * the shelf.
+   *
+   * <p><b>This is what Settings → Business Logic → Stock Valuation now does.</b>
+   * The setting was stored and never read, so a delivery at a new price left the
+   * old cost in place and every margin and profit figure quietly drifted from
+   * what the shop had actually paid.
+   *
+   * <p>The rule is the ordinary one: the stock already held keeps its cost, the
+   * stock arriving carries its own, and the new cost is the total spend divided
+   * by the total units.
+   *
+   * <pre>
+   *   40 bags on hand at 1,900  +  60 bags delivered at 2,000
+   *   = (40 x 1900 + 60 x 2000) / 100 = 1,960 per bag
+   * </pre>
+   *
+   * <p>FIFO is deliberately not offered. It would mean storing a cost layer per
+   * delivery and consuming layers in order on every sale — a real
+   * inventory-accounting feature, and a much larger one than this. Weighted
+   * average is also what a shop of this size actually keeps its books on.
+   *
+   * <p>Negative movements never revalue. Breakage and stocktake corrections
+   * remove units at whatever they cost; they do not change the price of what is
+   * left.
+   */
+  private void revalue(String id, Product before, int received, BigDecimal unitCost) {
+    if (Money.isNegative(unitCost)) {
+      throw ApiException.badRequest("INVALID_PRICE", "A delivery cost cannot be negative.");
+    }
+    if (!SettingsService.WEIGHTED_AVERAGE.equals(settings.stockValuation())) return;
+
+    int heldBefore = Math.max(0, before.getStock());
+    BigDecimal costBefore = Money.of(before.getBuyingPrice());
+
+    BigDecimal valueBefore = Money.multiply(costBefore, heldBefore);
+    BigDecimal valueReceived = Money.multiply(Money.of(unitCost), received);
+
+    int total = heldBefore + received;
+    if (total <= 0) return;
+
+    // Rounded to the money scale like every other stored amount. The remainder
+    // is a fraction of a cent per unit and would otherwise accumulate in the
+    // product document for ever.
+    BigDecimal average =
+        Money.add(valueBefore, valueReceived)
+            .divide(BigDecimal.valueOf(total), Money.SCALE, RoundingMode.HALF_UP);
+
+    // Re-read rather than reusing `before`: the sale that landed while this
+    // delivery was being recorded has already changed the document, and saving
+    // the stale copy would undo it.
+    Product current = get(id);
+    current.setBuyingPrice(average);
+    products.save(current);
   }
 
   /**
