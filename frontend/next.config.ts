@@ -63,21 +63,26 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
 
   /**
-   * How long the development server keeps a compiled route in memory.
+   * How long the webpack development server keeps a compiled route in memory.
    *
-   * This is the single biggest cause of the portal feeling slow locally. The
-   * defaults hold five routes for sixty seconds; this application has fourteen
-   * screens under /admin alone, so ordinary use evicts a route within a minute
-   * of leaving it and the next visit pays a full recompile — measured here at
-   * five to eight seconds, against roughly a quarter of a second once a route
-   * is warm.
+   * Its defaults hold five routes for sixty seconds; this application has
+   * fourteen screens under /admin alone, so ordinary use evicted a route within
+   * a minute of leaving it and the next visit paid a full recompile. Holding
+   * thirty routes for an hour means each screen compiles once per session.
    *
-   * Holding thirty routes for an hour means each screen compiles once per
-   * `next dev` session instead of repeatedly. The cost is memory in the dev
-   * server, which is the right thing to spend on a development machine.
+   * <p>Kept, but no longer the main answer: `npm run dev` passes `--turbopack`,
+   * and this setting governs the webpack dev server it replaced. It still
+   * applies to anyone who runs `next dev` without the flag. Measured on this
+   * app, cold, on the same machine:
    *
-   * Development only — the setting has no effect on `next build` or `next
-   * start`, where every route is compiled ahead of time.
+   * <pre>
+   *              startup   first page compile
+   *   webpack     17.3s          24.7s
+   *   turbopack    2.8s           8.0s
+   * </pre>
+   *
+   * <p>Neither affects `next build` or `next start`, where every route is
+   * compiled ahead of time — production serves these same pages in 40–80ms.
    */
   onDemandEntries: {
     maxInactiveAge: 60 * 60 * 1000,
