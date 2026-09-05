@@ -15,5 +15,11 @@ export const metadata: Metadata = {
  */
 export default async function ShopProfileSettingsPage() {
   const settings = await fetchSettings();
-  return <ShopProfileForm defaults={settings.profile} />;
+
+  return (
+    <ShopProfileForm
+      defaults={settings.profile}
+      logoUpdatedAt={settings.logoUpdatedAt}
+    />
+  );
 }

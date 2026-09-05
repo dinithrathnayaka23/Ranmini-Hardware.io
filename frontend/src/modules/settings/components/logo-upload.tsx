@@ -1,34 +1,62 @@
 "use client";
 
-import { Image as ImageIcon } from "lucide-react";
+import { Image as ImageIcon, Trash2, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { Button } from "@/shared/components/ui/button";
+import { shopLogoUrl } from "@/shared/lib/shop-logo-url";
 
-/** Formats accepted by the picker. */
-const ACCEPTED_TYPES = ["image/png", "image/svg+xml"];
+import { removeShopLogo, uploadShopLogo } from "../actions";
+
+/**
+ * Formats the picker offers.
+ *
+ * <p><b>SVG is deliberately absent</b>, and it used to be here. An SVG is a
+ * script-bearing document, not just a picture, and this image is rendered back
+ * into the administrator's own portal — accepting one would turn the logo
+ * picker into stored cross-site scripting aimed at the person most worth
+ * attacking. The API refuses it for the same reason, which is the check that
+ * actually decides; this list only spares the owner a rejected upload.
+ */
+const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp"];
+
+/** Matches the API's own ceiling, so the picker refuses what it would refuse. */
 const MAX_BYTES = 512 * 1024;
 
 /**
- * Company logo picker with a live preview.
+ * The shop's logo, uploaded and stored.
  *
- * The preview is entirely local — the file never leaves the browser, because
- * there is no upload endpoint yet. When one exists it should be a Route
- * Handler that streams to the backend, so the browser still never talks to the
- * API directly.
+ * <p>Until now this was a picker with a preview and nothing behind it — the
+ * file never left the browser, because there was no endpoint to send it to. The
+ * owner would choose a logo, see it appear, and find it gone on the next page
+ * load. It now uploads, and what it uploads is printed on receipts when
+ * Settings → Receipts has the logo switched on.
  *
- * SECURITY NOTE for whoever builds that endpoint: an SVG is a script-bearing
- * document, not just a picture. Accepting one means it must be sanitised
- * server-side (or served from a separate origin with a restrictive CSP) before
- * it is ever rendered back into the admin portal, or a logo upload becomes a
- * stored-XSS vector. The type and size checks below are convenience only —
- * both are trivially bypassed by posting straight to the endpoint.
+ * <p>The upload is immediate rather than deferred to the form's Save button.
+ * The rest of this screen is text fields that submit together; an image is a
+ * different kind of change, and a picture that appeared on screen but needed a
+ * separate save to persist is exactly the confusion the old version created.
  */
-export function LogoUpload() {
+export function LogoUpload({
+  logoUpdatedAt,
+}: {
+  /** When the stored logo last changed, or null when the shop has none. */
+  logoUpdatedAt: string | null;
+}) {
+  const router = useRouter();
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
-  const [fileName, setFileName] = React.useState<string | null>(null);
+
+  const [isPending, setIsPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  /**
+   * A locally chosen file, shown while it uploads.
+   *
+   * <p>The stored logo is the source of truth and takes over as soon as the
+   * server has it. This exists only so the tile is not empty for the second or
+   * two in between.
+   */
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
 
   // Object URLs hold the file in memory until explicitly released.
   React.useEffect(() => {
@@ -37,25 +65,65 @@ export function LogoUpload() {
     };
   }, [previewUrl]);
 
-  const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const storedUrl = shopLogoUrl(logoUpdatedAt);
+  const shownUrl = previewUrl ?? storedUrl;
+
+  const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setError(null);
 
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError("Choose a PNG or SVG file.");
+      setError("Choose a PNG, JPEG or WebP image.");
       return;
     }
 
     if (file.size > MAX_BYTES) {
-      setError("File must be 512 KB or smaller.");
+      setError("The image must be 512 KB or smaller.");
       return;
     }
 
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(URL.createObjectURL(file));
-    setFileName(file.name);
+
+    const data = new FormData();
+    data.append("file", file);
+
+    setIsPending(true);
+    const result = await uploadShopLogo(data);
+    setIsPending(false);
+
+    // The input keeps its value, so choosing the same file twice after a failure
+    // would not fire another change event.
+    event.target.value = "";
+
+    if (!result.success) {
+      setError(result.message);
+      URL.revokeObjectURL(previewUrl ?? "");
+      setPreviewUrl(null);
+      return;
+    }
+
+    // The stamp on the page is stale until the server data is re-read; the
+    // action revalidated the paths, this applies them.
+    router.refresh();
+  };
+
+  const handleRemove = async () => {
+    setError(null);
+    setIsPending(true);
+    const result = await removeShopLogo();
+    setIsPending(false);
+
+    if (!result.success) {
+      setError(result.message);
+      return;
+    }
+
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    router.refresh();
   };
 
   return (
@@ -64,13 +132,14 @@ export function LogoUpload() {
 
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-line-strong bg-canvas-subtle">
-          {previewUrl ? (
-            // A plain <img>, not next/image: the source is a local object URL
-            // with no known dimensions, which the image optimiser cannot handle.
+          {shownUrl ? (
+            // A plain <img>, not next/image: the source is either a local object
+            // URL with no known dimensions or a proxy route serving arbitrary
+            // bytes, and the image optimiser can handle neither.
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={previewUrl}
-              alt="Selected company logo preview"
+              src={shownUrl}
+              alt="The shop's logo"
               className="size-full object-contain"
             />
           ) : (
@@ -90,24 +159,38 @@ export function LogoUpload() {
             aria-label="Choose a company logo file"
           />
 
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => inputRef.current?.click()}
-          >
-            Upload New
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              isLoading={isPending}
+              loadingText="Saving…"
+              onClick={() => inputRef.current?.click()}
+            >
+              <Upload aria-hidden className="size-4" />
+              {storedUrl ? "Replace" : "Upload"}
+            </Button>
 
-          <p className="mt-2 text-xs text-muted">
-            Recommended: 400×400px PNG or SVG, up to 512 KB.
+            {storedUrl ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={isPending}
+                onClick={handleRemove}
+              >
+                <Trash2 aria-hidden className="size-4" />
+                Remove
+              </Button>
+            ) : null}
+          </div>
+
+          <p className="mt-2 text-xs leading-relaxed text-muted">
+            PNG, JPEG or WebP, up to 512 KB. Around 400×400px is plenty — it is
+            printed small at the top of a receipt.
+            {storedUrl ? null : " Receipts print without one until you add it."}
           </p>
-
-          {fileName ? (
-            <p className="mt-1 max-w-64 truncate text-xs text-ink-soft">
-              Selected: {fileName}
-            </p>
-          ) : null}
 
           {error ? (
             <p role="alert" className="mt-1 text-xs text-danger">

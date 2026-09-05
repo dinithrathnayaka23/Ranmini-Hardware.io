@@ -32,6 +32,12 @@ export interface ShopSettings {
   footerMessage: string;
   paperSize: string;
   showLogo: boolean;
+  /**
+   * When the logo last changed, as an ISO timestamp, or null when there is
+   * none. Doubles as the cache-busting stamp in the logo's URL — see
+   * `shop-logo-url.ts`.
+   */
+  logoUpdatedAt: string | null;
 }
 
 /**
@@ -57,6 +63,9 @@ const FALLBACK: ShopSettings = {
   footerMessage: "",
   paperSize: "80MM",
   showLogo: true,
+  // Null, so a settings blip prints a receipt with no logo rather than one
+  // with a broken image on it.
+  logoUpdatedAt: null,
 };
 
 /**

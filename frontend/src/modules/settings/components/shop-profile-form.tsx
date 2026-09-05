@@ -20,11 +20,21 @@ import { SettingsPanel } from "./settings-panel";
 /**
  * Business identity, address and contact details.
  *
- * NOT YET PERSISTED — validation is real, but there is no settings endpoint to
- * submit to, so a valid submission says so plainly. The form carries the shared
- * id that lets the page header's "Save Changes" button submit it from outside.
+ * <p>The form carries the shared id that lets the page header's "Save Changes"
+ * button submit it from outside.
+ *
+ * <p>The logo above the fields is not part of that submission. It uploads on
+ * its own, immediately, because an image is a different kind of change from a
+ * text field and one that appeared on screen but needed a separate save to
+ * persist would be the more confusing of the two.
  */
-export function ShopProfileForm({ defaults }: { defaults: ShopProfileValues }) {
+export function ShopProfileForm({
+  defaults,
+  logoUpdatedAt,
+}: {
+  defaults: ShopProfileValues;
+  logoUpdatedAt: string | null;
+}) {
   const { notice, save, isSaving } = useSectionSave<ShopProfileValues>(saveShopProfile);
 
   const {
@@ -48,7 +58,7 @@ export function ShopProfileForm({ defaults }: { defaults: ShopProfileValues }) {
       >
         {notice ? <Alert tone={notice.tone} message={notice.message} /> : null}
 
-        <LogoUpload />
+        <LogoUpload logoUpdatedAt={logoUpdatedAt} />
 
         <div className="grid gap-5 sm:grid-cols-2">
           <TextField

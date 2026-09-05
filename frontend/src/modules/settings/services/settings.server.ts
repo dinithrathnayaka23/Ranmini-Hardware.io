@@ -19,6 +19,8 @@ import type {
 
 interface SettingsResponse {
   profile: ShopProfileValues;
+  /** ISO timestamp, or null when the shop has no logo. */
+  logoUpdatedAt: string | null;
   businessLogic: {
     taxRate: number;
     lowStockThreshold: number;
@@ -36,6 +38,14 @@ interface SettingsResponse {
 
 export interface SettingsView {
   profile: ShopProfileValues;
+  /**
+   * When the shop's logo last changed, or null when there is none.
+   *
+   * <p>Outside `profile` because that object is exactly the shape the profile
+   * form submits back. A stamp inside it would be posted to the API as though
+   * it were an editable field.
+   */
+  logoUpdatedAt: string | null;
   businessLogic: BusinessLogicValues;
   receipts: ReceiptsValues;
   security: SecurityValues;
@@ -50,6 +60,7 @@ export async function fetchSettings(): Promise<SettingsView> {
 
   return {
     profile: settings.profile,
+    logoUpdatedAt: settings.logoUpdatedAt ?? null,
     businessLogic: {
       taxRate: settings.businessLogic.taxRate,
       lowStockThreshold: settings.businessLogic.lowStockThreshold,

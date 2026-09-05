@@ -6,6 +6,8 @@ import { useShop } from "@/shared/components/shop-provider";
 import { appConfig } from "@/shared/config/app.config";
 import { cn } from "@/shared/lib/cn";
 
+import { shopLogoUrl } from "@/shared/lib/shop-logo-url";
+
 import { paperFor } from "./paper";
 import type { ReceiptSale } from "./receipt-sale";
 
@@ -37,6 +39,11 @@ export function Receipt({
   const currency = shop?.currencySymbol ?? appConfig.currencySymbol;
   const paper = paperFor(shop?.paperSize);
 
+  // Both conditions matter. `showLogo` is the shop saying it wants one printed;
+  // the stamp is whether one actually exists. Until now the first was a
+  // settings checkbox that changed a stored value nothing read.
+  const logo = shop?.showLogo ? shopLogoUrl(shop.logoUpdatedAt) : null;
+
   return (
     <article
       // The width is a style rather than a class because it comes from a stored
@@ -49,6 +56,19 @@ export function Receipt({
       )}
     >
       <header className="text-center">
+        {logo ? (
+          // A plain <img>: this is a print document, and next/image wraps its
+          // output in a sized container with a loading state that a thermal
+          // printer has no use for. Bounded in height so a tall source cannot
+          // push the invoice number off the top of an 80mm roll.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logo}
+            alt=""
+            className="mx-auto mb-1 max-h-12 w-auto max-w-[60%] object-contain"
+          />
+        ) : null}
+
         <p className="text-[13px] font-bold tracking-tight">
           {shop?.companyName ?? appConfig.name}
         </p>
