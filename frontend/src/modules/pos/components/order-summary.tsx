@@ -152,7 +152,7 @@ export function OrderSummary({
           isSelected={tender === "CASH"}
           onClick={() => onTenderChange("CASH")}
           icon={Banknote}
-          label="Cash (F9)"
+          label="Cash"
         />
       </div>
 
