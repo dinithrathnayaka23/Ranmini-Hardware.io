@@ -3,6 +3,9 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import { useShop } from "@/shared/components/shop-provider";
+
+import { paperFor } from "./paper";
 import type { ReceiptSale } from "./receipt-sale";
 import { Receipt } from "./receipt";
 
@@ -38,6 +41,8 @@ export function PrintReceiptPortal({
   /** Called when the print dialog closes, so the caller can unmount this. */
   onDone: () => void;
 }) {
+  const paper = paperFor(useShop()?.paperSize);
+
   // Rendered only after mount: `document` does not exist while the server
   // renders this, and a portal asked for it there would break the page.
   const [container, setContainer] = React.useState<HTMLElement | null>(null);
@@ -87,6 +92,14 @@ export function PrintReceiptPortal({
 
   return createPortal(
     <div data-print-receipt="">
+      {/*
+        `@page` is a document-level rule wherever it is declared, so mounting it
+        with the portal is what makes the printer's paper follow the shop's
+        setting — and unmounting it puts the page back for anything else that
+        gets printed afterwards. It cannot live in globals.css, because the size
+        is not known until the settings are read.
+      */}
+      <style>{`@page { ${paper.page} }`}</style>
       <Receipt sale={sale} />
     </div>,
     container,

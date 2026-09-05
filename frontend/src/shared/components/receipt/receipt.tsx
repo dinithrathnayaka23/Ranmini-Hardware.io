@@ -6,14 +6,16 @@ import { useShop } from "@/shared/components/shop-provider";
 import { appConfig } from "@/shared/config/app.config";
 import { cn } from "@/shared/lib/cn";
 
+import { paperFor } from "./paper";
 import type { ReceiptSale } from "./receipt-sale";
 
 /**
  * A printed receipt.
  *
- * <p>Sized for the 80mm thermal roll a shop counter actually has — 72mm of
- * printable width — and set in a monospaced face so the quantity and price
- * columns line up the way every receipt anybody has ever been handed does.
+ * <p>Sized from Settings → Receipts → Paper Size — an 80mm roll by default,
+ * with 58mm and A4 offered — and set in a monospaced face so the quantity and
+ * price columns line up the way every receipt anybody has ever been handed
+ * does. See `paper.ts` for what each setting means in millimetres.
  *
  * <p><b>Everything on it comes from the sale document</b>, not from the basket
  * that produced it. The server priced the basket, so the total printed here is
@@ -33,11 +35,16 @@ export function Receipt({
 }) {
   const shop = useShop();
   const currency = shop?.currencySymbol ?? appConfig.currencySymbol;
+  const paper = paperFor(shop?.paperSize);
 
   return (
     <article
+      // The width is a style rather than a class because it comes from a stored
+      // setting: Tailwind generates classes from source at build time and could
+      // not produce one for a value only known at runtime.
+      style={{ width: paper.width }}
       className={cn(
-        "mx-auto w-[72mm] max-w-full bg-white px-1 py-2 font-mono text-[11px] leading-[1.45] text-black",
+        "mx-auto max-w-full bg-white px-1 py-2 font-mono text-[11px] leading-[1.45] text-black",
         className,
       )}
     >
