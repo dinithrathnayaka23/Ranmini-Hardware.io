@@ -125,7 +125,7 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/inventory/**", "/api/v1/staff/**",
                         "/api/v1/settings/**", "/api/v1/reports/**", "/api/v1/dashboard/**",
                         "/api/v1/sales/**", "/api/v1/categories/**",
-                        "/api/v1/notifications/**")
+                        "/api/v1/notifications/**", "/api/v1/audit/**")
                     .hasRole("ADMIN")
 
                     // Deny by default. New endpoints are protected until opened.

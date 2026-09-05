@@ -51,6 +51,7 @@ public class MongoIndexInitializer {
       stockMovements();
       staff();
       passwordResetTokens();
+      auditEvents();
       log.info("MongoDB indexes verified in {} ms", System.currentTimeMillis() - started);
     } catch (RuntimeException ex) {
       // A missing index must not stop the till from opening: the shop can trade
@@ -195,6 +196,25 @@ public class MongoIndexInitializer {
             .on("occurredAt", Sort.Direction.ASC)
             .expire(730, TimeUnit.DAYS)
             .named("ttl_movement_occurred_at"));
+  }
+
+  private void auditEvents() {
+    IndexOperations ops = mongo.indexOps("audit_events");
+
+    // The log is only ever read one way: newest first.
+    ops.createIndex(
+        new Index().on("occurredAt", Sort.Direction.DESC).named("ix_audit_occurred_at"));
+
+    // Entries expire themselves after two years, the same rule the stock
+    // ledger follows. An audit log with no expiry grows for ever, and one
+    // pruned by a job somebody has to remember to run is pruned by nobody.
+    // Two years is long enough to cover an accounting year and the argument
+    // about it afterwards.
+    ops.createIndex(
+        new Index()
+            .on("occurredAt", Sort.Direction.ASC)
+            .expire(730, TimeUnit.DAYS)
+            .named("ttl_audit_occurred_at"));
   }
 
   private void passwordResetTokens() {
