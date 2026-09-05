@@ -71,34 +71,49 @@ feature module. Anything two modules both need is promoted to `shared/`.
 
 ## Getting started
 
-### Frontend
-
-```bash
-cd frontend
-npm install
-cp .env.example .env.local     # then fill in API_BASE_URL
-npm run dev                    # http://localhost:3000
-```
-
-`/` redirects to `/admin/login`.
+You need **Node 20+**, **Java 21**, **Maven**, and a **MongoDB** to point at.
+Start the backend first: the frontend renders every screen from it, so a portal
+started on its own shows sign-in and nothing else.
 
 ### Backend
 
 Spring Boot 3.5 on Java 21 with MongoDB, in `backend/`. See
-[backend/README.md](backend/README.md) for how to run it, the endpoint table,
-and the reasoning behind the storage and concurrency decisions.
+[backend/README.md](backend/README.md) for the endpoint table and the reasoning
+behind the storage and concurrency decisions.
 
 ```bash
 cd backend
-cp .env.example .env          # fill in MONGODB_URI
-mvn spring-boot:run           # docs at /swagger-ui.html
+cp .env.example .env          # then set RANMINI_AUTH_JWT_SECRET
+mvn spring-boot:run           # http://localhost:8080, docs at /swagger-ui.html
 ```
+
+**`RANMINI_AUTH_JWT_SECRET` is the one value with no default**, and the service
+refuses to start without it rather than inventing a key — a generated one would
+change on every restart and invalidate every session, and a committed one would
+be shared by every deployment of this code. Any string of 32 characters or more
+does for development; `openssl rand -base64 48` gives a real one.
+
+Everything else in `.env.example` has a working default, `MONGODB_URI` included
+(`mongodb://localhost:27017/ranmini_pos`). A real environment variable takes
+precedence over a line in `.env`, so `SERVER_PORT=8099 mvn spring-boot:run`
+overrides the file for a one-off run.
 
 The two rules that govern the money endpoints are worth knowing before reading
 any of it. The server prices every basket — a checkout request carries product
 ids and quantities and no amounts at all, because a total posted by a browser is
 a number the customer can edit. And stock only ever moves through a single
 atomic conditional update, so two tills cannot sell the same last bag of cement.
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+cp .env.example .env.local     # API_BASE_URL, if the backend is not on :8080
+npm run dev                    # http://localhost:3000
+```
+
+`/` redirects to `/admin/login`.
 
 ### Signing in
 
@@ -108,7 +123,8 @@ the till and nothing else.
 
 The two admin accounts are created on a fresh database from environment
 variables; leave the passwords blank and a strong one is generated and printed
-once at first startup. Cashiers are created by an admin from the Staff screen,
+once at first startup — watch the log on that first run, because it is printed
+once and never again. Cashiers are created by an admin from the Staff screen,
 who then hands the credentials over directly — there is no invitation email.
 
 An admin who forgets their password recovers it themselves: **Forgot Password?**

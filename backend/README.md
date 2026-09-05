@@ -10,19 +10,33 @@ requires it.
 ## Running it
 
 ```bash
-cp .env.example .env          # then fill in MONGODB_URI
+cp .env.example .env          # then set RANMINI_AUTH_JWT_SECRET
 
-# Option A — a MongoDB you already have (a local service, or Atlas)
-mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dspring.data.mongodb.uri=mongodb://localhost:27017/ranmini_pos"
+# Option A — a MongoDB you already have (a local service, or Atlas).
+# Set MONGODB_URI in .env; it defaults to a local one on the standard port.
+mvn spring-boot:run
 
-# Option B — a throwaway one in Docker
+# Option B — a throwaway one in Docker, on that same default URI
 docker compose up -d
 mvn spring-boot:run
 ```
 
-Add `-Dranmini.seed.enabled=true` on a **development** database to load a small
-catalogue that matches the till's mock-up. It refuses to run if any product
-already exists.
+`.env` is read because `application.yml` imports it
+(`spring.config.import: optional:file:.env[.properties]`). Spring Boot has no
+built-in dotenv support, so without that line the file would sit there being
+ignored. The import is optional, so a container or a systemd unit supplying real
+environment variables needs no file at all — and a real environment variable
+still wins over a line in `.env`, which is what makes
+`SERVER_PORT=8099 mvn spring-boot:run` work for a one-off run.
+
+**`RANMINI_AUTH_JWT_SECRET` is the only value with no default.** The service
+refuses to start without it, deliberately: a generated key would change on every
+restart and invalidate every session, and a committed one would be shared by
+every deployment of this code. 32 characters or more — `openssl rand -base64 48`.
+
+Add `-Dranmini.seed.enabled=true` on a **development** database to load a
+catalogue and ninety days of sales history to look at. It refuses to run if any
+product already exists, so it cannot touch a real shop's data.
 
 - API docs: `http://localhost:8080/swagger-ui.html`
 - Health: `http://localhost:8080/actuator/health`
