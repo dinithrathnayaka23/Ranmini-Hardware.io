@@ -23,6 +23,7 @@ type CartAction =
   | { type: "ADD"; product: PosProduct }
   | { type: "INCREMENT"; productId: string }
   | { type: "DECREMENT"; productId: string }
+  | { type: "SET_QUANTITY"; productId: string; quantity: number }
   | { type: "SET_DISCOUNT"; percent: number }
   | { type: "CLEAR" };
 
@@ -73,6 +74,31 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       return { ...state, lines: lines.filter((line) => line.quantity > 0) };
     }
 
+    /**
+     * A quantity typed rather than stepped to.
+     *
+     * <p>Expressed as a delta so it goes through the same {@link adjust} cap as
+     * every other route to a quantity — the rule that a line may never exceed
+     * the stock on hand has to hold however the number got there.
+     *
+     * <p>Zero and below are ignored rather than removing the line. Emptying a
+     * box while retyping a number passes through zero on the way, and a line
+     * that vanished mid-keystroke would be a worse surprise than a "1" the
+     * cashier has to correct. Removing a line stays the bin button, which says
+     * so.
+     */
+    case "SET_QUANTITY": {
+      if (!Number.isFinite(action.quantity) || action.quantity < 1) return state;
+
+      const line = state.lines.find((item) => item.productId === action.productId);
+      if (!line) return state;
+
+      return {
+        ...state,
+        lines: adjust(state.lines, action.productId, action.quantity - line.quantity),
+      };
+    }
+
     case "SET_DISCOUNT":
       return { ...state, discountPercent: clampDiscountPercent(action.percent) };
 
@@ -110,6 +136,8 @@ export interface Cart {
   add: (product: PosProduct) => void;
   increment: (productId: string) => void;
   decrement: (productId: string) => void;
+  /** Sets a line's quantity outright, capped at the stock on hand. */
+  setQuantity: (productId: string, quantity: number) => void;
   setDiscountPercent: (percent: number) => void;
   clear: () => void;
 }
@@ -141,6 +169,8 @@ export function useCart(taxRate: number): Cart {
     add: (product) => dispatch({ type: "ADD", product }),
     increment: (productId) => dispatch({ type: "INCREMENT", productId }),
     decrement: (productId) => dispatch({ type: "DECREMENT", productId }),
+    setQuantity: (productId, quantity) =>
+      dispatch({ type: "SET_QUANTITY", productId, quantity }),
     setDiscountPercent: (percent) =>
       dispatch({ type: "SET_DISCOUNT", percent }),
     clear: () => dispatch({ type: "CLEAR" }),

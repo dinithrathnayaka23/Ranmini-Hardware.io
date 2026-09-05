@@ -126,6 +126,7 @@ export function OrderPanel({
               line={line}
               onIncrement={cart.increment}
               onDecrement={cart.decrement}
+              onSetQuantity={cart.setQuantity}
             />
           ))}
         </ul>
