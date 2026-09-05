@@ -1,8 +1,14 @@
 package lk.ranminihardware.pos.settings.service;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.Optional;
+import lk.ranminihardware.pos.settings.domain.ShopLogo;
 import lk.ranminihardware.pos.settings.domain.ShopSettings;
+import lk.ranminihardware.pos.settings.repository.ShopLogoRepository;
 import lk.ranminihardware.pos.settings.repository.ShopSettingsRepository;
+import lk.ranminihardware.pos.shared.media.ImageBytes;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -45,9 +51,14 @@ public class SettingsService {
   public static final String WEIGHTED_AVERAGE = "WEIGHTED_AVERAGE";
 
   private final ShopSettingsRepository repository;
+  private final ShopLogoRepository logos;
+  private final Clock clock;
 
-  public SettingsService(ShopSettingsRepository repository) {
+  public SettingsService(
+      ShopSettingsRepository repository, ShopLogoRepository logos, Clock clock) {
     this.repository = repository;
+    this.logos = logos;
+    this.clock = clock;
   }
 
   /**
@@ -165,5 +176,63 @@ public class SettingsService {
   /** Default reorder level applied to newly created products. */
   public int defaultLowStockThreshold() {
     return get().getBusinessLogic().getLowStockThreshold();
+  }
+
+  // ---------------------------------------------------------------- the logo
+
+  /**
+   * Stores the shop's logo, replacing whatever was there.
+   *
+   * <p>The bytes are validated before anything is written, by the same check
+   * every other upload in this service uses. That check is the reason SVG is
+   * not accepted here even though the settings screen originally offered it: an
+   * SVG is a script-bearing document, and this image is rendered back into the
+   * administrator's own portal, so accepting one would turn the logo picker
+   * into stored cross-site scripting against the person most worth attacking.
+   *
+   * <p>The stamp on the settings document and the bytes are written together,
+   * settings last. If the second write fails the shop keeps the old stamp and
+   * the old image is still the one being served — a stale logo, rather than a
+   * settings document pointing at an image that was never stored.
+   */
+  @CacheEvict(value = CACHE, allEntries = true)
+  public ShopSettings setLogo(byte[] data, String contentType) {
+    ImageBytes.validate(data, contentType, ImageBytes.MAX_LOGO_BYTES);
+
+    Instant now = Instant.now(clock);
+
+    logos.save(
+        ShopLogo.builder()
+            .id(ShopLogo.SINGLETON_ID)
+            .contentType(ImageBytes.normaliseType(contentType))
+            .data(data)
+            .updatedAt(now)
+            .build());
+
+    ShopSettings settings = get();
+    settings.setLogoUpdatedAt(now);
+    return repository.save(settings);
+  }
+
+  /**
+   * Removes the logo.
+   *
+   * <p>Clears the stamp first. A receipt that briefly prints without a logo is
+   * a cosmetic fault; one that asks for an image already deleted is a broken
+   * picture on a customer's copy.
+   */
+  @CacheEvict(value = CACHE, allEntries = true)
+  public ShopSettings removeLogo() {
+    ShopSettings settings = get();
+    settings.setLogoUpdatedAt(null);
+    ShopSettings saved = repository.save(settings);
+
+    logos.deleteById(ShopLogo.SINGLETON_ID);
+    return saved;
+  }
+
+  /** The logo bytes, or empty when the shop has not set one. */
+  public Optional<ShopLogo> findLogo() {
+    return logos.findById(ShopLogo.SINGLETON_ID);
   }
 }

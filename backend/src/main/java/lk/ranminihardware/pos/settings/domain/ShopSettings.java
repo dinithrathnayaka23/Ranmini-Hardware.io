@@ -35,6 +35,20 @@ public class ShopSettings {
 
   @Id @Builder.Default private String id = SINGLETON_ID;
 
+  /**
+   * When the shop's logo was last replaced, or null when there is none.
+   *
+   * <p>Top-level rather than inside {@link ShopProfile}, and deliberately so:
+   * the profile section is overwritten wholesale every time that form is saved,
+   * built from the request's five text fields. A logo stamp living inside it
+   * would be erased the next time somebody corrected the shop's phone number.
+   *
+   * <p>It is the whole reason the bytes can live in another collection: it says
+   * whether a logo exists without reading it, and changes whenever the image
+   * does, which is what lets the image URL be cached forever.
+   */
+  private Instant logoUpdatedAt;
+
   private ShopProfile profile;
   private BusinessLogic businessLogic;
   private Receipts receipts;
@@ -75,7 +89,10 @@ public class ShopSettings {
 
     private String currencySymbol;
 
-    /** FIFO or WEIGHTED_AVERAGE — how stock on hand is valued. */
+    /**
+     * How stock on hand is valued. WEIGHTED_AVERAGE is the only value the
+     * service implements, and the only one the endpoint accepts.
+     */
     private String stockValuation;
   }
 

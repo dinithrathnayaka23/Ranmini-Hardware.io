@@ -10,17 +10,25 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.Instant;
 import lk.ranminihardware.pos.audit.domain.AuditAction;
 import lk.ranminihardware.pos.audit.service.AuditService;
 import lk.ranminihardware.pos.settings.domain.ShopSettings;
 import lk.ranminihardware.pos.settings.service.SettingsService;
+import lk.ranminihardware.pos.shared.error.ApiException;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Shop configuration.
@@ -69,6 +77,18 @@ public class SettingsController {
         "Saved the %s settings.".formatted(section));
   }
 
+  /**
+   * The logo's own audit sentence.
+   *
+   * <p>Separate from {@link #recordChange} because that one names a settings
+   * section and formats "Saved the ... settings", which reads as nonsense for
+   * an image. Unlike the security fields, there is nothing sensitive to leave
+   * out here — the logo is printed on every customer's receipt.
+   */
+  private void recordLogoChange(String summary) {
+    audit.record(AuditAction.SETTINGS_CHANGED, "SETTINGS", "logo", summary);
+  }
+
   @GetMapping
   public ShopSettings get() {
     return settings.get();
@@ -102,7 +122,8 @@ public class SettingsController {
             shop.getReceipts().getReceiptPrefix(),
             shop.getReceipts().getFooterMessage(),
             shop.getReceipts().getPaperSize(),
-            shop.getReceipts().isShowLogo());
+            shop.getReceipts().isShowLogo(),
+            shop.getLogoUpdatedAt());
 
     return ResponseEntity.ok()
         // Read on nearly every page render and changed perhaps twice a year, so
@@ -187,6 +208,71 @@ public class SettingsController {
   // repeated rather than shared because this endpoint is publicly reachable and
   // the browser's copy is a convenience, not a control.
 
+  // ---------------------------------------------------------------- the logo
+
+  /**
+   * Uploads or replaces the shop's logo.
+   *
+   * <p>Multipart and bytes, like every other image this API accepts, and
+   * validated the same way: the declared type against a closed allowlist, then
+   * the bytes against the signature that type implies. PNG, JPEG or WebP — not
+   * SVG, which is a script-bearing document and would be rendered straight back
+   * into the administrator's own portal.
+   */
+  @PostMapping(value = "/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ShopSettings uploadLogo(@RequestParam("file") MultipartFile file) {
+    if (file == null || file.isEmpty()) {
+      throw ApiException.badRequest("EMPTY_IMAGE", "Choose a logo to upload.");
+    }
+
+    try {
+      ShopSettings saved = settings.setLogo(file.getBytes(), file.getContentType());
+      recordLogoChange("Uploaded a new shop logo.");
+      return saved;
+    } catch (IOException ex) {
+      throw ApiException.badRequest("UNREADABLE_IMAGE", "That file could not be read.");
+    }
+  }
+
+  @DeleteMapping("/logo")
+  public ShopSettings removeLogo() {
+    ShopSettings saved = settings.removeLogo();
+    recordLogoChange("Removed the shop logo.");
+    return saved;
+  }
+
+  /**
+   * The logo itself.
+   *
+   * <p>Under {@code /public} because a cashier has to be able to load it: the
+   * till prints it at the top of the receipt, and the receipt is rendered in
+   * the browser. It is the shop's own mark on a customer's copy, so there is
+   * nothing here a cashier should not see.
+   *
+   * <p>404 rather than a stand-in when there is none. An absent logo is an
+   * ordinary state and the client simply draws nothing; a placeholder image
+   * would print a grey box on every receipt instead.
+   */
+  @GetMapping("/public/logo")
+  public ResponseEntity<byte[]> logo() {
+    return settings
+        .findLogo()
+        .map(
+            logo ->
+                ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(logo.getContentType()))
+                    // Immutable: the caller's URL carries the version stamp, so
+                    // a replaced logo is a different address and this response
+                    // can never go stale. Private because the portal and the
+                    // till are both behind a sign-in.
+                    .header("Cache-Control", "private, max-age=31536000, immutable")
+                    // The bytes were signature-checked on upload; a browser that
+                    // sniffed its own type would make that check pointless.
+                    .header("X-Content-Type-Options", "nosniff")
+                    .body(logo.getData()))
+        .orElseGet(() -> ResponseEntity.notFound().build());
+  }
+
   public record ProfileRequest(
       @NotBlank(message = "Enter the registered business name.") @Size(min = 2, max = 120)
           String companyName,
@@ -247,7 +333,15 @@ public class SettingsController {
       String receiptPrefix,
       String footerMessage,
       String paperSize,
-      boolean showLogo) {}
+      boolean showLogo,
+      /**
+       * When the logo last changed, or null when the shop has not set one.
+       *
+       * <p>The till needs this to decide whether to draw a logo at all, and to
+       * build an image URL that can be cached forever — a new stamp is a new
+       * address, so a replaced logo can never be served from a stale cache.
+       */
+      Instant logoUpdatedAt) {}
 
   public record ReceiptsRequest(
       @NotBlank(message = "Enter a prefix.")

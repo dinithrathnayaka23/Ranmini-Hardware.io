@@ -41,6 +41,15 @@ public final class ImageBytes {
   public static final int MAX_AVATAR_BYTES = 512 * 1024;
 
   /**
+   * Ceiling on the shop's logo.
+   *
+   * <p>The smallest of the three. A logo is drawn once, small, at the top of a
+   * receipt roll 80mm wide and in a 96px box in the settings screen — there is
+   * no size of source image above a few hundred kilobytes that improves either.
+   */
+  public static final int MAX_LOGO_BYTES = 512 * 1024;
+
+  /**
    * Ceiling on a product photograph.
    *
    * <p>Larger than an avatar because a product picture is shown at card size on

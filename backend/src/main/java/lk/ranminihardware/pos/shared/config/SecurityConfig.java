@@ -114,7 +114,13 @@ public class SecurityConfig {
                     // one of them ends up on the customer's copy anyway. The
                     // full settings document — session policy, lockout
                     // threshold — stays administrator-only below.
-                    .requestMatchers(HttpMethod.GET, "/api/v1/settings/public")
+                    .requestMatchers(
+                        HttpMethod.GET,
+                        "/api/v1/settings/public",
+                        // The logo image itself. The till draws it at the top of
+                        // the receipt, so a cashier must be able to load it — it
+                        // is the shop's own mark on a customer's copy.
+                        "/api/v1/settings/public/logo")
                     .hasAnyRole("CASHIER", "ADMIN")
 
                     // Everything else in the management portal. Notifications
