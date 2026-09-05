@@ -61,8 +61,8 @@ import { useCurrency, useTaxRate } from "@/shared/components/shop-provider";
  * the screen — and the order panel becomes a sheet reached from a summary bar
  * pinned to the bottom.
  */
-/** What the last scan did, and how loudly to say it. */
-interface ScanNotice {
+/** What the last search did, and how loudly to say it. */
+interface SearchNotice {
   tone: "success" | "danger" | "info";
   message: string;
 }
@@ -88,13 +88,13 @@ export function PosTerminal({
 
   const [query, setQuery] = React.useState("");
   /**
-   * What the last scan or Enter did, shown above the grid.
+   * What the last search did, shown above the grid.
    *
    * Held as an object rather than a string so replacing one notice with an
-   * identical one still re-triggers the dismissal timer — scanning the same
-   * unlisted barcode twice should look like two failed scans, not one.
+   * identical one still re-triggers the dismissal timer — pressing Enter twice
+   * on the same unlisted product should look like two failed lookups, not one.
    */
-  const [scanNotice, setScanNotice] = React.useState<ScanNotice | null>(null);
+  const [notice, setNotice] = React.useState<SearchNotice | null>(null);
   const [categoryId, setCategoryId] = React.useState(ALL_CATEGORIES);
   const [tender, setTender] = React.useState<TenderMethod>("CASH");
   /**
@@ -138,19 +138,21 @@ export function PosTerminal({
   /**
    * What Enter in the search box does.
    *
-   * A barcode scanner types a SKU and presses Enter, so an exact SKU match is
-   * added straight away. Failing that, a search narrowed to a single product is
-   * treated the same way — it is unambiguous, and it saves a tap. Anything
-   * broader is left showing in the grid rather than guessing which product was
-   * meant.
+   * <p>An exact code match is added straight away, so a cashier who knows the
+   * shelf code can type it and carry on. Failing that, a search narrowed to a
+   * single product is treated the same way — it is unambiguous, and it saves a
+   * tap. Anything broader is left showing in the grid rather than guessing
+   * which product was meant.
    *
    * <p><b>Every outcome says something.</b> This used to return silently when
-   * the code matched nothing, or matched something sold out, and it left the
-   * failed text in the box. A scanner types into whatever has focus, so the
-   * next barcode was appended to the last one and failed too — two scans in and
-   * the cashier is looking at a box full of digits, with no idea which scan
-   * went wrong or why. Clearing the field is what makes the next scan clean;
-   * the message is what stops them scanning the same unlisted item four times.
+   * the text matched nothing or matched something sold out, leaving the cashier
+   * pressing Enter at a field that appeared to be ignoring them.
+   *
+   * <p>What happens to the text afterwards depends on why. A product that was
+   * added, or that cannot be, is finished with, so the box is cleared for the
+   * next one. Text that simply matched nothing is kept: it is almost always a
+   * misspelling, and correcting three letters is far quicker than typing the
+   * whole word again.
    */
   const handleSearchSubmit = React.useCallback(() => {
     const term = query.trim().toLowerCase();
@@ -165,29 +167,28 @@ export function PosTerminal({
       // those products, which is the useful state. The term stays so the filter
       // holds while the cashier picks one.
       if (visibleProducts.length > 1) {
-        setScanNotice({
+        setNotice({
           tone: "info",
           message: `${visibleProducts.length} products match "${query.trim()}" — tap the one you want.`,
         });
         return;
       }
 
-      setScanNotice({
+      setNotice({
         tone: "danger",
         message: `Nothing in the catalogue matches "${query.trim()}".`,
       });
-      setQuery("");
       return;
     }
 
     if (match.stock <= 0) {
-      setScanNotice({ tone: "danger", message: `${match.name} is out of stock.` });
+      setNotice({ tone: "danger", message: `${match.name} is out of stock.` });
       setQuery("");
       return;
     }
 
     if (cart.isAtStockCeiling(match.id)) {
-      setScanNotice({
+      setNotice({
         tone: "danger",
         message: `All ${match.stock} ${match.name} in stock are already on this order.`,
       });
@@ -196,22 +197,21 @@ export function PosTerminal({
     }
 
     addToCart(match);
-    // Confirmed by name, not just by the line appearing in the panel. A cashier
-    // scanning a trolley of goods is watching the items, not the screen, and
-    // below `md` the order panel is a sheet that is not even open.
-    setScanNotice({ tone: "success", message: `Added ${match.name}.` });
+    // Confirmed by name, not just by the line appearing in the panel — below
+    // `md` the order panel is a sheet that is not even open.
+    setNotice({ tone: "success", message: `Added ${match.name}.` });
     setQuery("");
   }, [addToCart, cart, products, query, visibleProducts]);
 
-  // The notice describes one scan, so it clears itself rather than sitting
+  // The notice describes one action, so it clears itself rather than sitting
   // there describing an item three customers ago. Re-armed on every notice,
   // including one that replaces another.
   React.useEffect(() => {
-    if (!scanNotice) return;
+    if (!notice) return;
 
-    const timer = window.setTimeout(() => setScanNotice(null), 3500);
+    const timer = window.setTimeout(() => setNotice(null), 3500);
     return () => window.clearTimeout(timer);
-  }, [scanNotice]);
+  }, [notice]);
 
   /**
    * The latest pay handler, for the F10 shortcut.
@@ -219,7 +219,7 @@ export function PosTerminal({
    * <p>A ref rather than a dependency of the key listener: `handlePay` closes
    * over the basket and is therefore a new function on every keystroke, and
    * tearing the window listener down and rebuilding it that often risks
-   * dropping a key from a barcode scanner mid-scan.
+   * dropping a keystroke while the cashier is mid-search.
    */
   const payRef = React.useRef<() => void>(() => {});
 
@@ -336,10 +336,10 @@ export function PosTerminal({
      * Back to the search box, ready for the next customer.
      *
      * Focus was on the pay button, which the empty basket has just disabled —
-     * so a barcode scanned straight after a sale went nowhere at all, and the
-     * cashier had to tap the field before the till would take anything. The
-     * whole point of the search box being autofocused on load is that a scanner
-     * is a keyboard, and that has to hold for the second sale as much as the
+     * so the first thing typed for the next customer went nowhere at all, and
+     * the cashier had to tap the field before the till would take anything. The
+     * search box is autofocused on load because typing is how products are
+     * found here, and that has to hold for the second sale as much as the
      * first.
      *
      * Done here as well as after printing, because the receipt may not print —
@@ -360,21 +360,21 @@ export function PosTerminal({
   const handlePrinted = React.useCallback(() => {
     setIsPrinting(false);
     // The print dialog took focus; hand it back to the search box so the next
-    // customer's first barcode lands somewhere.
+    // customer's first keystroke lands somewhere.
     searchRef.current?.focus();
   }, []);
 
-  // Typing is the cashier moving on, so the previous scan's message goes with
-  // them rather than hanging over a search they have already corrected.
+  // Typing is the cashier moving on, so the previous message goes with them
+  // rather than hanging over a search they have already corrected.
   const handleQueryChange = React.useCallback((value: string) => {
     setQuery(value);
-    setScanNotice(null);
+    setNotice(null);
   }, []);
 
   const handleSelectProduct = (product: PosProduct) => {
     addToCart(product);
-    // Keep the keyboard pointed at the search box so the next scan still lands
-    // somewhere useful after a tap on a card.
+    // Keep the keyboard pointed at the search box, so typing still works after
+    // a tap on a card.
     searchRef.current?.focus();
   };
 
@@ -406,7 +406,7 @@ export function PosTerminal({
                 onSelect={setCategoryId}
               />
 
-              <ScanStatusBar notice={scanNotice} />
+              <SearchStatusBar notice={notice} />
             </div>
           </div>
 
@@ -493,23 +493,23 @@ export function PosTerminal({
 }
 
 /**
- * One line under the search box saying what the last scan did.
+ * One line under the search box saying what the last search did.
  *
  * <p><b>Always present, even with nothing to report.</b> A strip that appeared
  * and vanished would push the product grid down and let it spring back on
- * every single scan, and a cashier taps cards in that grid — a tile that moves
- * 40px under a finger already on its way down is a mis-tap and a wrong item on
- * the bill. Holding the row open costs one line of the catalogue once, rather
- * than moving the whole thing dozens of times an hour.
+ * every lookup, and a cashier taps cards in that grid — a tile that moves 40px
+ * under a finger already on its way down is a mis-tap and a wrong item on the
+ * bill. Holding the row open costs one line of the catalogue once, rather than
+ * moving the whole thing dozens of times an hour.
  *
  * <p>Idle, it earns its place by naming the keyboard shortcuts. They were only
  * ever discoverable from two hints in placeholder text, so a cashier who had
  * not been shown them never found F9 at all.
  *
  * <p>`role="status"` rather than an alert: a screen-reader user wants to hear
- * "Added Cement 50kg" between scans, not to have the order interrupted by it.
+ * "Added Cement 50kg" between lookups, not to have the order interrupted by it.
  */
-function ScanStatusBar({ notice }: { notice: ScanNotice | null }) {
+function SearchStatusBar({ notice }: { notice: SearchNotice | null }) {
   const Icon = notice
     ? notice.tone === "success"
       ? CircleCheck
@@ -542,7 +542,7 @@ function ScanStatusBar({ notice }: { notice: ScanNotice | null }) {
           <Shortcut keyLabel="F9">Cash</Shortcut>
           <Shortcut keyLabel="F10">Pay</Shortcut>
           <span className="hidden sm:inline">
-            Scan a barcode, or tap a product to add it.
+            Search by name or code, or tap a product to add it.
           </span>
         </span>
       )}
@@ -571,8 +571,8 @@ function Shortcut({
 /**
  * Filters the catalogue by category and free text.
  *
- * SKU is matched as well as name because that is what a scanner sends and what
- * a cashier reads off a shelf label.
+ * The code is matched as well as the name, because a shelf label is often
+ * quicker to read than a product name is to spell.
  */
 function filterProducts(
   products: PosProduct[],

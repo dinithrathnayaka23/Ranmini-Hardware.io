@@ -161,8 +161,8 @@ function QuantityInput({
   const [draft, setDraft] = React.useState<string | null>(null);
 
   const handleChange = (value: string) => {
-    // Digits only. A scanner or a stray keystroke can put anything in here, and
-    // "4e2" parses to 400 in JavaScript.
+    // Digits only. A stray keystroke can put anything in here, and "4e2" parses
+    // to 400 in JavaScript.
     const cleaned = value.replace(/[^0-9]/g, "");
 
     if (cleaned === "") {
@@ -191,7 +191,7 @@ function QuantityInput({
       onBlur={() => setDraft(null)}
       onKeyDown={(event) => {
         // Enter is "done with this line" — it hands the keyboard back to the
-        // search box for the next scan.
+        // search box for the next product.
         if (event.key === "Enter") event.currentTarget.blur();
       }}
       aria-label={`Quantity of ${line.name}`}

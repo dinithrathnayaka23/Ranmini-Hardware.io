@@ -56,8 +56,8 @@ export function ProductCard({
       className={cn(
         "group flex flex-col overflow-hidden rounded-xl border bg-surface text-left",
         // `touch-manipulation` drops the browser's double-tap-to-zoom wait, so
-        // a tap registers immediately — on a till that delay reads as a
-        // dropped scan and the cashier taps again.
+        // a tap registers immediately — on a till that delay reads as a tap
+        // that did not land, and the cashier taps again.
         "touch-manipulation select-none transition-[color,background-color,border-color,transform,box-shadow] duration-150",
         // Red is reserved for the one card that cannot be sold. Low stock used
         // to draw a red border too, which made a shelf that merely needs

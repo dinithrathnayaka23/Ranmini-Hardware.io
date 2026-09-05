@@ -56,7 +56,7 @@ export function OrderPanel({
    * Whether "Clear All" has been pressed once and is waiting to be confirmed.
    *
    * <p>Two taps, because one tap here throws away a basket that took two
-   * minutes to scan and there is no undo — the customer has to unload the
+   * minutes to ring up and there is no undo — the customer has to unload the
    * trolley again. It sits next to the close button on the sheet, which is
    * exactly the sort of neighbour that gets hit by accident.
    */
@@ -86,10 +86,10 @@ export function OrderPanel({
     setIsConfirmingClear(false);
   };
 
-  // A newly scanned product is appended to the end of the list, which on a long
-  // order is below the fold. Scrolling to it is the confirmation the cashier
-  // needs that the scan landed — quantity changes on an existing line are left
-  // alone, since that row is already the one being looked at.
+  // A newly added product goes to the end of the list, which on a long order is
+  // below the fold. Scrolling to it is the confirmation the cashier needs that
+  // it landed — quantity changes on an existing line are left alone, since that
+  // row is already the one being looked at.
   React.useEffect(() => {
     if (lineCount > previousLineCount.current && listRef.current) {
       listRef.current.scrollTo({
@@ -209,7 +209,7 @@ function EmptyOrder() {
       </span>
       <p className="mt-4 text-sm font-medium text-ink">No items yet</p>
       <p className="mt-1 max-w-56 text-sm text-muted">
-        Scan a barcode or tap a product to start the order.
+        Search for a product, or tap one, to start the order.
       </p>
     </div>
   );
