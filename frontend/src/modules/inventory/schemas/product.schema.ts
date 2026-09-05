@@ -49,7 +49,7 @@ function quantity(field: string, ceiling: number) {
 
 export const productSchema = z.object({
   /**
-   * The barcode or shelf code. Stored upper case by the backend, so the field
+   * The shop's shelf code. Stored upper case by the backend, so the field
    * is displayed upper case too rather than letting the two disagree.
    */
   sku: z

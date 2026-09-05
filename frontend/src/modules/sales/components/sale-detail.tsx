@@ -118,7 +118,7 @@ export function SaleDetail({ sale: initial }: { sale: Sale }) {
           <div className="space-y-3 rounded-lg border border-line bg-surface p-3">
             <TextField
               label="Why is this sale being voided?"
-              placeholder="Wrong item scanned, customer returned everything…"
+              placeholder="Wrong item rung up, customer returned everything…"
               maxLength={200}
               value={reason}
               onChange={(event) => setReason(event.target.value)}
