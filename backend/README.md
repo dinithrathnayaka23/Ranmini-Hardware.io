@@ -148,8 +148,18 @@ attacker which usernames are real.
 **The portal check is server-side.** The frontend has separate admin and cashier
 sign-in pages, but that is presentation; a cashier posting to the admin endpoint
 is rejected by the service, because the client choosing which door to knock on
-must never decide whether it opens. Admins can use the till as well as the
-portal, so the owner can cover the counter without a second account.
+must never decide whether it opens.
+
+**Each role has exactly one door.** An admin is refused at the till and a
+cashier at the portal, and `StaffRole` is the single place that decides, so the
+two cannot drift apart. Authorisation matches: `/api/v1/pos/**` is cashier-only
+and the whole management surface is administrator-only. Three paths are open to
+both because both genuinely need them — `/api/v1/settings/public` (the currency
+symbol every screen formats money with), `GET /api/v1/categories`, and
+`/api/v1/profile/**`, which always acts on the token's own account. Product
+photographs are the fourth: they are the tiles on the till, so
+`GET /api/v1/inventory/products/*/image` is listed before the administrator-only
+block that would otherwise swallow it.
 
 Authorisation is written **deny-by-default**: `anyRequest().authenticated()` is
 the last rule, so an endpoint added tomorrow is protected until somebody

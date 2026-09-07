@@ -135,8 +135,19 @@ machine and a locked-out owner can still be helped by hand. See
 [backend/README.md](backend/README.md) for the rules that make an open reset
 endpoint safe.
 
-An admin can also sign in at the till, so the owner can cover the counter
-without a second account.
+**The two sides do not overlap.** An admin cannot sign in at the till and a
+cashier cannot sign in to the portal; each is refused at the other's door with
+the same message a wrong password gets. An admin who opens a till URL is sent
+to the dashboard and a cashier who opens a portal URL is sent to the till —
+neither is bounced to a sign-in form they would pass and then be turned away
+from.
+
+That is stricter than it was: an admin used to be allowed at the till so the
+owner could cover the counter. Keeping them apart means every sale is
+attributed to whoever is actually meant to be on the counter, and an owner who
+leaves the portal signed in on the counter machine no longer exposes the whole
+business to anyone who walks past it. An owner who does serve customers gets a
+cashier account of their own.
 
 ## Routes
 
