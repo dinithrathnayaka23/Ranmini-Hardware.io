@@ -55,7 +55,10 @@ export default async function EditProductPage({
         }
       />
 
-      <div className="mt-6 max-w-4xl">
+      {/* Wide enough for the form's two columns from `xl`; the form itself
+          stays a single column below that, so this is a ceiling rather than a
+          width. */}
+      <div className="mt-6 max-w-6xl">
         <ProductForm categories={categories} product={product} />
       </div>
     </div>

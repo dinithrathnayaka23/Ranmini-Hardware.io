@@ -233,10 +233,24 @@ export function ProductForm({
       method="post"
       onSubmit={handleSubmit(onSubmit)}
       noValidate
-      className="space-y-5"
+      /*
+        Two columns from `xl`, one below it.
+
+        Stacked, this form is about a thousand pixels tall — slightly more than
+        a 1080p laptop leaves once the browser chrome and the top bar are taken
+        off. That produced the worst possible amount of scrolling: a short drag
+        into a mostly empty strip at the bottom, on a screen whose entire right
+        half was blank. Pairing the cards up fits the whole form in the viewport
+        at laptop sizes and spends the empty width on something.
+
+        `items-start` matters: without it the grid stretches both cards in a row
+        to match the taller one, padding the shorter with the same dead space
+        this is meant to remove.
+      */
+      className="grid gap-5 xl:grid-cols-2 xl:items-start"
     >
       {notice ? (
-        <div className="space-y-2">
+        <div className="space-y-2 xl:col-span-2">
           <Alert tone={notice.tone} message={notice.message} />
           {notice.tone === "success" && !isEditing ? (
             <p className="text-sm text-muted">
@@ -454,7 +468,7 @@ export function ProductForm({
       </Card>
 
       {/* ----------------------------- Actions ------------------------------ */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 xl:col-span-2">
         <Button
           type="submit"
           size="md"
