@@ -64,7 +64,12 @@ export default function AuthLayout({
           items, two of them broken, read as navigation.
         */}
         <footer className="mx-auto w-full max-w-sm shrink-0 pt-8 sm:pt-10 lg:mx-0 lg:max-w-80 lg:pt-6">
-          <p className="border-t border-line pt-5 text-[0.8rem] text-muted">
+          {/* Centred rather than matching the header/form's left edge at `lg`.
+              A single short line reads as an aside, and an aside sitting flush
+              against the rule above it looks like a stray label rather than a
+              line on its own — centring it under the rule is what makes it read
+              as a footer instead. */}
+          <p className="border-t border-line pt-5 text-center text-[0.8rem] text-muted">
             {/* Fixed year: `new Date()` here would be frozen at build time on
                 this statically rendered page anyway. */}
             &copy; {appConfig.copyrightStartYear} {appConfig.legalEntity}
