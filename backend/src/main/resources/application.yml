@@ -10,21 +10,28 @@ spring:
     name: ranmini-pos
 
   config:
-    # Load backend/.env when it exists, so the file .env.example tells you to
+    # Load the repository's single .env, so the file .env.example tells you to
     # create is actually read. Spring Boot has no built-in dotenv support: until
     # this line, copying .env.example to .env produced a file nothing looked at,
     # and the service started on its defaults or refused to start at all with no
     # hint as to why.
     #
-    # `optional:` so a deployment that supplies real environment variables — a
-    # container, a systemd unit — starts perfectly well without the file.
+    # Two locations, because the working directory depends on how it was
+    # started: `../.env` finds the repository root when running from backend/
+    # (mvn spring-boot:run, or java -jar from here), and `./.env` finds it when
+    # running from the root itself. Both are listed rather than guessed at, and
+    # both are optional, so whichever is absent costs nothing.
+    #
+    # `optional:` also means a deployment supplying real environment variables —
+    # a container, a systemd unit — starts perfectly well with no file at all.
     # `[.properties]` tells Spring how to parse a file whose name has no
     # recognised extension.
     #
     # Precedence is unchanged and is what you would want: a real environment
     # variable still wins over a line in .env, so `SERVER_PORT=8099 java -jar`
-    # overrides the file for a one-off run.
-    import: optional:file:.env[.properties]
+    # overrides the file for a one-off run. Where both files exist, the later
+    # import wins, so the repository root is the authority.
+    import: optional:file:./.env[.properties],optional:file:../.env[.properties]
 
   data:
     mongodb:

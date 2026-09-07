@@ -1,6 +1,68 @@
+import fs from "node:fs";
 import path from "node:path";
 
 import type { NextConfig } from "next";
+
+/**
+ * The variables this app is allowed to take from the repository's `.env`.
+ *
+ * <p>An allowlist, and that is the whole point. The single `.env` at the
+ * repository root also holds the backend's signing key, its Mongo credentials
+ * and its mail password — none of which the Next.js process has any use for. A
+ * process that never holds a secret cannot leak one, so only these two names
+ * are ever copied in.
+ */
+const SHARED_ENV_KEYS = ["API_BASE_URL", "API_TIMEOUT_MS"] as const;
+
+/**
+ * Loads the two shared variables from the repository root's `.env`.
+ *
+ * <p>Next.js reads `.env` files from its own project directory and does not
+ * look upwards, so a single file for the whole repository has to be read here
+ * by hand. This runs once, when the config is evaluated, which is before the
+ * server starts handling requests — so `getServerEnv()` sees the values.
+ *
+ * <p>A real environment variable always wins: anything already set is left
+ * alone, matching how the backend treats the same file, so one override on the
+ * command line behaves the same for both halves of the system.
+ *
+ * <p>The parser is deliberately small. Spring reads this same file as a Java
+ * properties file, which is what constrains the format to plain `KEY=value`
+ * with `#` comments — no quoting, no interpolation, no multi-line values. A
+ * dotenv dependency would accept more than the backend can, and the first
+ * variable that worked on one side and not the other would be a bad afternoon.
+ */
+function loadSharedEnv(): void {
+  const file = path.join(__dirname, "..", ".env");
+
+  let contents: string;
+  try {
+    contents = fs.readFileSync(file, "utf8");
+  } catch {
+    // Absent is normal: a deployment supplies real environment variables, and
+    // `getServerEnv()` reports anything genuinely missing with a clear message.
+    return;
+  }
+
+  // A stray carriage return from a Windows editor is removed by the trim below,
+  // so splitting on the line feed alone is enough.
+  for (const line of contents.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed === "" || trimmed.startsWith("#")) continue;
+
+    const separator = trimmed.indexOf("=");
+    if (separator === -1) continue;
+
+    const key = trimmed.slice(0, separator).trim();
+    if (!(SHARED_ENV_KEYS as readonly string[]).includes(key)) continue;
+    if (process.env[key] !== undefined) continue;
+
+    const value = trimmed.slice(separator + 1).trim();
+    if (value !== "") process.env[key] = value;
+  }
+}
+
+loadSharedEnv();
 
 /**
  * Security response headers applied to every route.

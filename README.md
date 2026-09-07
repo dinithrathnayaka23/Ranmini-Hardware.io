@@ -75,6 +75,28 @@ You need **Node 20+**, **Java 21**, **Maven**, and a **MongoDB** to point at.
 Start the backend first: the frontend renders every screen from it, so a portal
 started on its own shows sign-in and nothing else.
 
+### Configuration — one file for both halves
+
+```bash
+cp .env.example .env          # at the repository root, then set
+                              # RANMINI_AUTH_JWT_SECRET
+```
+
+There is a single `.env` at the root rather than one per project. `.env` is
+git-ignored; `.env.example` is the only version committed and every secret in
+it is blank.
+
+The two halves read it differently, because they have to. Spring Boot imports
+the file directly — it looks for `./.env` and `../.env`, so it works whether you
+start from the repository root or from `backend/`. Next.js only reads `.env`
+files inside its own project directory and will not look upwards, so
+`frontend/next.config.ts` reads the root file itself and adopts **only**
+`API_BASE_URL` and `API_TIMEOUT_MS`.
+
+That allowlist is the point. The Next.js process has no use for the signing key,
+the Mongo credentials or the mail password, and a process that never holds a
+secret cannot leak one.
+
 ### Backend
 
 Spring Boot 3.5 on Java 21 with MongoDB, in `backend/`. See
@@ -83,7 +105,6 @@ behind the storage and concurrency decisions.
 
 ```bash
 cd backend
-cp .env.example .env          # then set RANMINI_AUTH_JWT_SECRET
 mvn spring-boot:run           # http://localhost:8080, docs at /swagger-ui.html
 ```
 
@@ -95,8 +116,8 @@ does for development; `openssl rand -base64 48` gives a real one.
 
 Everything else in `.env.example` has a working default, `MONGODB_URI` included
 (`mongodb://localhost:27017/ranmini_pos`). A real environment variable takes
-precedence over a line in `.env`, so `SERVER_PORT=8099 mvn spring-boot:run`
-overrides the file for a one-off run.
+precedence over a line in `.env` on both sides, so
+`SERVER_PORT=8099 mvn spring-boot:run` overrides the file for a one-off run.
 
 The two rules that govern the money endpoints are worth knowing before reading
 any of it. The server prices every basket — a checkout request carries product
@@ -109,9 +130,11 @@ atomic conditional update, so two tills cannot sell the same last bag of cement.
 ```bash
 cd frontend
 npm install
-cp .env.example .env.local     # API_BASE_URL, if the backend is not on :8080
 npm run dev                    # http://localhost:3000
 ```
+
+Nothing to copy here — `API_BASE_URL` comes from the root `.env`, and only needs
+changing if the backend is not on `:8080`.
 
 `/` redirects to `/admin/login`.
 

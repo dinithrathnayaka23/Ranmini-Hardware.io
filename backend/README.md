@@ -10,7 +10,8 @@ requires it.
 ## Running it
 
 ```bash
-cp .env.example .env          # then set RANMINI_AUTH_JWT_SECRET
+cp ../.env.example ../.env    # at the repository root, then set
+                              # RANMINI_AUTH_JWT_SECRET
 
 # Option A — a MongoDB you already have (a local service, or Atlas).
 # Set MONGODB_URI in .env; it defaults to a local one on the standard port.
@@ -21,10 +22,14 @@ docker compose up -d
 mvn spring-boot:run
 ```
 
-`.env` is read because `application.yml` imports it
-(`spring.config.import: optional:file:.env[.properties]`). Spring Boot has no
-built-in dotenv support, so without that line the file would sit there being
-ignored. The import is optional, so a container or a systemd unit supplying real
+`.env` lives at the **repository root** and is shared with the frontend — see
+the root README for how each side reads it. This service picks it up because
+`application.yml` imports it (`spring.config.import:
+optional:file:./.env[.properties],optional:file:../.env[.properties]`). Both
+locations are listed because the working directory depends on how it was
+started: `../.env` finds the root from `backend/`, `./.env` finds it when
+running from the root itself. Spring Boot has no built-in dotenv support, so
+without that line the file would sit there being ignored. The import is optional, so a container or a systemd unit supplying real
 environment variables needs no file at all — and a real environment variable
 still wins over a line in `.env`, which is what makes
 `SERVER_PORT=8099 mvn spring-boot:run` work for a one-off run.
