@@ -172,9 +172,14 @@ public class AuthService {
   /**
    * Whether a role may sign in at the given portal.
    *
-   * <p>An admin may use the till as well as the portal, so the owner can cover
-   * the counter without a second account — which is what actually happens in a
-   * shop this size when the cashier is off.
+   * <p>Each role has exactly one door: an admin is refused at the till and a
+   * cashier at the portal. {@link StaffRole} carries the rule and the reasoning;
+   * this method only asks it, so the two portals cannot drift apart.
+   *
+   * <p>A refusal here is reported as an ordinary failed sign-in — same message,
+   * same status as a wrong password. Telling somebody "that password is right
+   * but you are the wrong sort of account" confirms both that the username
+   * exists and what it is for.
    */
   private boolean mayUsePortal(StaffRole role, String portal) {
     return switch (portal) {

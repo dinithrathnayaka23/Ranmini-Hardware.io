@@ -97,23 +97,30 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/profile/**")
                     .authenticated()
 
-                    // The till: read the catalogue, ring up a sale.
+                    // The till: read the catalogue, ring up a sale. Cashiers
+                    // only — an admin has no till to use, so a token of theirs
+                    // arriving here is either a mistake or somebody probing.
                     .requestMatchers("/api/v1/pos/**")
+                    .hasRole("CASHIER")
+
+                    // Product photographs. A cashier needs them: they are the
+                    // tiles on the till. Listed before the administrator-only
+                    // block below, which would otherwise swallow this path and
+                    // leave every product on the counter showing a grey square.
+                    .requestMatchers(HttpMethod.GET, "/api/v1/inventory/products/*/image")
                     .hasAnyRole("CASHIER", "ADMIN")
 
                     // A cashier needs the category chips to filter the grid.
                     .requestMatchers(HttpMethod.GET, "/api/v1/categories")
                     .hasAnyRole("CASHIER", "ADMIN")
 
-                    // Reading back a receipt to reprint it is part of the job.
-                    .requestMatchers(HttpMethod.GET, "/api/v1/sales/by-invoice/**")
-                    .hasAnyRole("CASHIER", "ADMIN")
-
-                    // The shop's name, currency and receipt footer. The till
-                    // prices a basket and prints a receipt with these, and every
-                    // one of them ends up on the customer's copy anyway. The
-                    // full settings document — session policy, lockout
-                    // threshold — stays administrator-only below.
+                    // The shop's name, currency and receipt footer. Both
+                    // sides need these: the till prices a basket and prints a
+                    // receipt with them, and every portal screen formats money
+                    // with the currency symbol. Every one of them ends up on a
+                    // customer's copy anyway. The full settings document —
+                    // session policy, lockout threshold — stays
+                    // administrator-only below.
                     .requestMatchers(
                         HttpMethod.GET,
                         "/api/v1/settings/public",
@@ -123,11 +130,15 @@ public class SecurityConfig {
                         "/api/v1/settings/public/logo")
                     .hasAnyRole("CASHIER", "ADMIN")
 
-                    // Everything else in the management portal. Notifications
-                    // are listed explicitly rather than left to the
-                    // deny-by-default rule: that rule only requires a signed-in
-                    // account, and the feed reports voided sales across every
-                    // cashier — which is the owner's business, not a cashier's.
+                    // Everything else in the management portal, administrator
+                    // only. Every path here is listed explicitly rather than
+                    // left to the deny-by-default rule, because that rule only
+                    // requires a signed-in account — which a cashier is.
+                    //
+                    // `/api/v1/sales/**` covers looking a sale up and voiding
+                    // one. The till never calls it: it prints from the sale it
+                    // has just completed, so a cashier needs no read access to
+                    // the sales history at all.
                     .requestMatchers("/api/v1/inventory/**", "/api/v1/staff/**",
                         "/api/v1/settings/**", "/api/v1/reports/**", "/api/v1/dashboard/**",
                         "/api/v1/sales/**", "/api/v1/categories/**",
