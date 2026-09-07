@@ -1,8 +1,6 @@
-import Link from "next/link";
-
 import { AuthBrandLink } from "@/modules/auth/components/auth-brand-link";
 import { BrandShowcase } from "@/modules/auth/components/brand-showcase";
-import { appConfig, routes } from "@/shared/config/app.config";
+import { appConfig } from "@/shared/config/app.config";
 
 /**
  * Shell shared by every unauthenticated screen — both portals' sign-in pages,
@@ -57,34 +55,20 @@ export default function AuthLayout({
           {children}
         </main>
 
+        {/*
+          The copyright and nothing else.
+
+          It carried Support and Privacy links beside it, both pointing at pages
+          that were never built — so the only two controls on a sign-in screen
+          besides the form itself led to a 404. One line reads as a footer; three
+          items, two of them broken, read as navigation.
+        */}
         <footer className="mx-auto w-full max-w-sm shrink-0 pt-8 sm:pt-10 lg:mx-0 lg:max-w-80 lg:pt-6">
-          <div className="border-t border-line pt-5">
-            <ul className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[0.8rem] text-muted">
-              <li>
-                {/* Fixed year: `new Date()` here would be frozen at build
-                    time on this statically rendered page anyway. */}
-                &copy; {appConfig.copyrightStartYear} {appConfig.legalEntity}
-              </li>
-              <li>
-                <Link
-                  href={routes.support}
-                  prefetch={false}
-                  className="transition-colors hover:text-ink-soft"
-                >
-                  Support
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href={routes.privacy}
-                  prefetch={false}
-                  className="transition-colors hover:text-ink-soft"
-                >
-                  Privacy
-                </Link>
-              </li>
-            </ul>
-          </div>
+          <p className="border-t border-line pt-5 text-[0.8rem] text-muted">
+            {/* Fixed year: `new Date()` here would be frozen at build time on
+                this statically rendered page anyway. */}
+            &copy; {appConfig.copyrightStartYear} {appConfig.legalEntity}
+          </p>
         </footer>
       </div>
 

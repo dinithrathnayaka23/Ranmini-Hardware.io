@@ -65,10 +65,6 @@ export const routes = {
 
   // Cashier till
   cashierPos: "/cashier/pos",
-
-  // Public
-  support: "/support",
-  privacy: "/privacy",
 } as const;
 
 /** Internal BFF endpoints exposed by this Next.js app to its own browser client. */
