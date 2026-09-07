@@ -24,8 +24,8 @@ export interface ReceiptLine {
 export interface ReceiptSale {
   invoiceNumber: string;
   soldAt: string;
-  cashierName: string | null;
-  terminalName: string | null;
+  cashierName?: string | null;
+  terminalName?: string | null;
   lines: ReceiptLine[];
   subtotal: number;
   discountPercent: number;
@@ -34,8 +34,15 @@ export interface ReceiptSale {
   taxAmount: number;
   total: number;
   tender: "CASH" | "CARD";
-  /** Cash handed over; null for a card payment. */
-  amountTendered: number | null;
+  /**
+   * Cash handed over, or absent when none was recorded.
+   *
+   * <p>Optional as well as nullable, and that is not pedantry: the API is
+   * configured to omit null fields rather than send them, so this key is simply
+   * missing on a card sale or on cash paid exactly. Typing it as `number | null`
+   * told every call site it could rely on a null it would never actually see.
+   */
+  amountTendered?: number | null;
   changeDue: number;
   status: "COMPLETED" | "VOIDED";
   /**

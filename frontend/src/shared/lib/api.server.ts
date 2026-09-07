@@ -45,6 +45,17 @@ interface RequestOptions {
 /**
  * Calls the backend and returns the parsed body.
  *
+ * <p><b>A null field arrives as `undefined`, not `null`.</b> The API is
+ * configured with `default-property-inclusion: non_null`, so it omits null
+ * properties from its JSON rather than sending them — the key is simply not
+ * there. Type an optional field as `field?: T | null`, and test it with `??` or
+ * a truthy check rather than `=== null`.
+ *
+ * <p>This is written down because getting it wrong is silent until it is not:
+ * a receipt tested `amountTendered === null`, which is false for undefined, and
+ * printed `amount(undefined)`. That threw, and the thrown error unmounted the
+ * whole till in front of a customer.
+ *
  * @throws {ApiError} with a message already safe to show a user.
  */
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {

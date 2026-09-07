@@ -102,8 +102,10 @@ export interface CompletedSale {
   invoiceNumber: string;
   businessDate: string;
   soldAt: string;
-  cashierName: string | null;
-  terminalName: string | null;
+  // Optional, not just nullable: the API omits null fields rather than
+  // sending them, so an absent value arrives as undefined. See `api.server.ts`.
+  cashierName?: string | null;
+  terminalName?: string | null;
   lines: {
     productId: string;
     sku: string;
@@ -119,7 +121,8 @@ export interface CompletedSale {
   taxAmount: number;
   total: number;
   tender: TenderMethod;
-  amountTendered: number | null;
+  /** Absent when no tender was recorded — a card sale, or cash paid exactly. */
+  amountTendered?: number | null;
   changeDue: number;
   status: "COMPLETED" | "VOIDED";
 }

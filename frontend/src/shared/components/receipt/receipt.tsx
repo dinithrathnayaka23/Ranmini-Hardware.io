@@ -151,11 +151,20 @@ export function Receipt({
           className="text-[13px] font-bold"
         />
 
-        <Row label={sale.tender === "CASH" ? "Cash" : "Card"} value={
-          sale.amountTendered === null
-            ? `${currency} ${amount(sale.total)}`
-            : `${currency} ${amount(sale.amountTendered)}`
-        } />
+        {/*
+          `??`, not a null check. The API omits null fields entirely
+          (`default-property-inclusion: non_null`), so a sale with no tender
+          recorded arrives with no `amountTendered` key at all — undefined, not
+          null. The old `=== null` test missed that and printed
+          `amount(undefined)`, which threw and took the whole till down with it.
+
+          No tender recorded means the customer paid the exact amount, so the
+          total is the honest figure to print.
+        */}
+        <Row
+          label={sale.tender === "CASH" ? "Cash" : "Card"}
+          value={`${currency} ${amount(sale.amountTendered ?? sale.total)}`}
+        />
 
         {sale.changeDue > 0 ? (
           <Row label="Change" value={`${currency} ${amount(sale.changeDue)}`} />
@@ -217,7 +226,21 @@ function Divider() {
  * table, because 72mm of paper does not have room to repeat "Rs." beside every
  * number and the column heading has already said what these are.
  */
-function amount(value: number): string {
+/**
+ * One money figure on the receipt.
+ *
+ * <p>Tolerates a missing value rather than throwing. This is a printed document
+ * rendered with a customer at the counter, and a thrown error here does not
+ * spoil one line — it unmounts the till. A dash says plainly that a figure is
+ * unavailable; printing a zero would be worse, because nobody would question it.
+ *
+ * <p>Every caller should be passing a real number, and the ones that could
+ * legitimately be absent resolve their own fallback before calling. This is the
+ * backstop for the case nobody predicted.
+ */
+function amount(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "\u2014";
+
   return value.toLocaleString("en-LK", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
