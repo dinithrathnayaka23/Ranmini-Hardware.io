@@ -35,6 +35,16 @@ export interface PortalDefinition {
   /** Where the user is sent once the session cookie is set. */
   landingRoute: string;
   /**
+   * The URL prefix this portal owns.
+   *
+   * <p>Used to check where a sign-in is allowed to return somebody. The two
+   * portals are for different people now — an admin cannot use the till and a
+   * cashier cannot use the portal — so a `?next=` pointing at the other side is
+   * either a stale bookmark or somebody experimenting, and following it would
+   * land the user on a screen that immediately bounces them somewhere else.
+   */
+  areaPrefix: string;
+  /**
    * Whether to offer self-service password recovery.
    *
    * Cashier accounts are created and reset by an administrator, so the link is
@@ -52,6 +62,7 @@ export const portals: Record<PortalId, PortalDefinition> = {
     loginRoute: routes.adminLogin,
     apiEndpoint: apiRoutes.loginFor("admin"),
     landingRoute: routes.adminDashboard,
+    areaPrefix: "/admin",
     hasPasswordReset: true,
   },
   cashier: {
@@ -66,6 +77,7 @@ export const portals: Record<PortalId, PortalDefinition> = {
     loginRoute: routes.cashierLogin,
     apiEndpoint: apiRoutes.loginFor("cashier"),
     landingRoute: routes.cashierPos,
+    areaPrefix: "/cashier",
     hasPasswordReset: false,
   },
 };

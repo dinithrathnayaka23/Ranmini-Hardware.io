@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { requireSession } from "@/modules/auth/services/session.server";
+import { requireCashier } from "@/modules/auth/services/session.server";
 import { PosTerminal } from "@/modules/pos/components/pos-terminal";
 import { TERMINAL_NAME } from "@/modules/pos/constants/pos-data";
 import { fetchCategories, fetchProducts } from "@/modules/pos/services/pos.server";
@@ -26,9 +26,11 @@ export const metadata: Metadata = {
 export default async function CashierPosPage() {
   // The middleware already redirected a visitor with no cookie. This is the
   // check that actually holds: it asks the backend who the token belongs to, so
-  // a forged or expired cookie stops here rather than rendering the till.
+  // a forged or expired cookie stops here rather than rendering the till — and
+  // an administrator's, valid though it is, goes back to the dashboard, because
+  // the till belongs to the counter.
   const [user, categories, products, shop] = await Promise.all([
-    requireSession(),
+    requireCashier(),
     fetchCategories(),
     fetchProducts(),
     // The shop's own currency and receipt details, read here rather than in the

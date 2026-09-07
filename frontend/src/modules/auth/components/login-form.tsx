@@ -88,12 +88,20 @@ export function LoginForm({
     // and `replace` keeps the login page out of the browser's back history.
     //
     // If the middleware bounced them here from somewhere else, send them back
-    // there. Only same-origin paths are honoured: an open redirect would let a
-    // crafted link carry a freshly signed-in user to another site.
-    const destination =
-      redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")
-        ? redirectTo
-        : portal.landingRoute;
+    // there — but only to a path inside this portal's own area.
+    //
+    // Same-origin is the first rule: a `//evil.example` would otherwise be a
+    // protocol-relative URL, and a crafted link could carry a freshly signed-in
+    // user to another site. The area prefix is the second: the two portals are
+    // for different people, so a cashier's `?next=/admin/...` is a stale
+    // bookmark at best, and following it would land them on a screen that
+    // immediately bounces them back here.
+    const isOwnArea =
+      redirectTo !== undefined &&
+      redirectTo.startsWith(`${portal.areaPrefix}/`) &&
+      !redirectTo.startsWith("//");
+
+    const destination = isOwnArea ? redirectTo : portal.landingRoute;
 
     router.replace(destination);
     router.refresh();

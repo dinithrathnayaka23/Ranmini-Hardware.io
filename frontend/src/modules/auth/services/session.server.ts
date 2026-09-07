@@ -39,8 +39,10 @@ export const getSession = cache(async (): Promise<UserProfile | null> => {
 /**
  * The signed-in user, or a redirect if there is none.
  *
- * Used by portal pages so each one does not repeat the null check — and so the
- * check cannot be forgotten on a page added later.
+ * <p>Checks only that somebody is signed in, not which role they are. Prefer
+ * {@link requireAdmin} or {@link requireCashier} on a screen that belongs to
+ * one side of the shop — this is the base both are built on, not a guard to
+ * reach for directly.
  */
 export async function requireSession(): Promise<UserProfile> {
   const user = await getSession();
@@ -52,12 +54,31 @@ export async function requireSession(): Promise<UserProfile> {
 /**
  * The signed-in user, required to be an administrator.
  *
- * A cashier who reaches a portal URL is sent to the till rather than to a
+ * <p>A cashier who reaches a portal URL is sent to the till rather than to a
  * sign-in page: they are signed in perfectly well, just not to this. Bouncing
  * them to a login form they would pass and be rejected from again is a loop.
  */
 export async function requireAdmin(): Promise<UserProfile> {
   const user = await requireSession();
   if (user.role !== "ADMIN") redirect(routes.cashierPos);
+  return user;
+}
+
+/**
+ * The signed-in user, required to be a cashier.
+ *
+ * <p>The mirror of {@link requireAdmin}, and the reason it exists: the till used
+ * to accept anybody signed in, because an admin was allowed to cover the
+ * counter. The shop asked for the two to be kept apart, so an administrator who
+ * opens a till URL is now sent back to the dashboard — their own screen, not a
+ * sign-in form they would pass and then be turned away from.
+ *
+ * <p>Like every guard here this is a redirect for the person, not the security
+ * boundary. The backend refuses an admin's token on every `/api/v1/pos/`
+ * endpoint regardless of what the browser was allowed to render.
+ */
+export async function requireCashier(): Promise<UserProfile> {
+  const user = await requireSession();
+  if (user.role !== "CASHIER") redirect(routes.adminDashboard);
   return user;
 }
