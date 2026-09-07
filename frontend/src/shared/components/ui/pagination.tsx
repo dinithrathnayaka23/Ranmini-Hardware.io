@@ -1,17 +1,30 @@
+"use client";
+
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { cn } from "@/shared/lib/cn";
 
 /**
  * Page navigator for server-paged tables.
  *
- * NOT YET WIRED. Paging has to happen on the server — the client only ever
- * holds one page of rows — so until the inventory endpoint accepts a page
- * parameter there is nowhere for these controls to go. Every target other than
- * the current page is therefore genuinely disabled rather than rendered as a
- * live control that silently does nothing.
+ * <p><b>The page number lives in the URL</b>, which is what makes this work at
+ * all: every screen that uses it already reads `?page=` on the server and
+ * fetches that page, so navigating is a link, not a state change. That also
+ * means a particular page can be bookmarked, opened in a new tab with a
+ * middle-click, and reached with the back button — none of which a button
+ * wired to a click handler would give.
  *
- * To activate: pass an `onPageChange` handler and drop the `disabled` guard.
+ * <p>It was previously rendered with every control disabled, on the reasoning
+ * that paging had to happen on the server and the endpoint did not accept a
+ * page parameter yet. It has for some time, and the screens have been passing
+ * real totals in all along — so the effect was a control that displayed the
+ * right number of pages and refused to visit any of them.
+ *
+ * <p>Every caller names its page parameter `page`, so that is not configurable
+ * here. A screen that ever needs two independent lists would need a second
+ * name, and this is the place to add it.
  */
 export function Pagination({
   page,
@@ -22,18 +35,47 @@ export function Pagination({
   totalPages: number;
   className?: string;
 }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // One page is not a choice, so there is nothing to navigate.
   if (totalPages <= 1) return null;
+
+  /**
+   * The address of one page, keeping every other filter the user has set.
+   *
+   * <p>Rebuilt from the current query string rather than assembled from known
+   * keys: the inventory table carries a search term and a status filter, and
+   * paging past either of them would silently widen the result set the user is
+   * looking at.
+   *
+   * <p>Page one drops the parameter instead of writing `?page=1`, so the first
+   * page has one address rather than two.
+   */
+  const hrefFor = (target: number): string => {
+    const params = new URLSearchParams(searchParams);
+
+    if (target <= 1) params.delete("page");
+    else params.set("page", String(target));
+
+    const query = params.toString();
+    return query ? `${pathname}?${query}` : pathname;
+  };
+
+  const entries = buildPageList(page, totalPages);
 
   return (
     <nav
       aria-label="Pagination"
       className={cn("flex items-center gap-1", className)}
     >
-      <PageButton disabled label="Previous page">
-        <ChevronLeft aria-hidden className="size-4" />
-      </PageButton>
+      <Step
+        href={page > 1 ? hrefFor(page - 1) : null}
+        label="Previous page"
+        icon={<ChevronLeft aria-hidden className="size-4" />}
+      />
 
-      {buildPageList(page, totalPages).map((entry, index) =>
+      {entries.map((entry, index) =>
         entry === "gap" ? (
           <span
             key={`gap-${index}`}
@@ -42,52 +84,78 @@ export function Pagination({
           >
             …
           </span>
-        ) : (
-          <PageButton
+        ) : entry === page ? (
+          // The page already being read is not a link to anywhere.
+          <span
             key={entry}
-            isCurrent={entry === page}
-            disabled={entry !== page}
-            label={`Page ${entry}`}
+            aria-current="page"
+            aria-label={`Page ${entry}, current page`}
+            className="inline-flex h-8 min-w-8 items-center justify-center rounded-md bg-brand-600 px-2 text-sm font-medium text-white"
           >
             {entry}
-          </PageButton>
+          </span>
+        ) : (
+          <Link
+            key={entry}
+            href={hrefFor(entry)}
+            aria-label={`Page ${entry}`}
+            className="inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-sm text-muted transition-colors hover:bg-canvas-subtle hover:text-ink"
+          >
+            {entry}
+          </Link>
         ),
       )}
 
-      <PageButton disabled label="Next page">
-        <ChevronRight aria-hidden className="size-4" />
-      </PageButton>
+      <Step
+        href={page < totalPages ? hrefFor(page + 1) : null}
+        label="Next page"
+        icon={<ChevronRight aria-hidden className="size-4" />}
+      />
     </nav>
   );
 }
 
-function PageButton({
-  children,
+/**
+ * Previous or next.
+ *
+ * <p>A link when there is somewhere to go and a disabled button at the ends,
+ * rather than a link to the page you are already on. The two ends of a list are
+ * the places a user clicks fastest, and one that quietly reloads the same rows
+ * reads as the control being broken.
+ */
+function Step({
+  href,
   label,
-  isCurrent = false,
-  disabled = false,
+  icon,
 }: {
-  children: React.ReactNode;
+  href: string | null;
   label: string;
-  isCurrent?: boolean;
-  disabled?: boolean;
+  icon: React.ReactNode;
 }) {
+  const shape =
+    "inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-sm transition-colors";
+
+  if (!href) {
+    return (
+      <button
+        type="button"
+        disabled
+        aria-label={label}
+        className={cn(shape, "cursor-not-allowed text-muted opacity-50")}
+      >
+        {icon}
+      </button>
+    );
+  }
+
   return (
-    <button
-      type="button"
-      disabled={disabled}
+    <Link
+      href={href}
       aria-label={label}
-      aria-current={isCurrent ? "page" : undefined}
-      className={cn(
-        "inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-sm transition-colors",
-        isCurrent
-          ? "bg-brand-600 font-medium text-white"
-          : "text-muted enabled:hover:bg-canvas-subtle enabled:hover:text-ink",
-        disabled && "cursor-not-allowed",
-      )}
+      className={cn(shape, "text-muted hover:bg-canvas-subtle hover:text-ink")}
     >
-      {children}
-    </button>
+      {icon}
+    </Link>
   );
 }
 
