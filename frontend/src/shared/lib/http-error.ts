@@ -22,6 +22,13 @@ export const errorMessages = {
     "This account is temporarily locked. Contact your administrator.",
   accountDeactivated:
     "Your account is currently deactivated. Please contact the shop owner to have it reactivated.",
+  // The right password at the wrong door. Named for the account, not the page,
+  // because the person already knows which page they are on — what they do not
+  // know is that this account does not belong to it.
+  wrongPortalAdminAccount:
+    "That is an administrator account. Please sign in from the admin portal.",
+  wrongPortalCashierAccount:
+    "That is a cashier account. Please sign in at the till.",
   rateLimited: "Too many sign-in attempts. Please wait and try again.",
   network:
     "Unable to reach the server. Check your connection and try again.",
@@ -32,16 +39,19 @@ export const errorMessages = {
  * Backend error codes whose message the sign-in screen may show as it came.
  *
  * An allowlist, not a passthrough. Echoing whatever the API said would let any
- * future backend error leak internals onto a public form; naming the two codes
- * the API is deliberately explicit about keeps everything else generic.
+ * future backend error leak internals onto a public form; naming the handful of
+ * codes the API is deliberately explicit about keeps everything else generic.
  *
- * Both are reachable only by somebody who already typed the right password —
- * the service checks the credentials before it says an account is locked or
- * switched off — so neither can be used to discover whether a username exists.
+ * Every one is reachable only by somebody who already typed the right password
+ * — the service checks the credentials before it says an account is locked,
+ * switched off, or at the wrong door — so none can be used to discover whether
+ * a username exists.
  */
 const EXPLICIT_AUTH_CODES: Record<string, string> = {
   ACCOUNT_DEACTIVATED: errorMessages.accountDeactivated,
   ACCOUNT_LOCKED: errorMessages.accountLocked,
+  WRONG_PORTAL_ADMIN_ACCOUNT: errorMessages.wrongPortalAdminAccount,
+  WRONG_PORTAL_CASHIER_ACCOUNT: errorMessages.wrongPortalCashierAccount,
 };
 
 /**

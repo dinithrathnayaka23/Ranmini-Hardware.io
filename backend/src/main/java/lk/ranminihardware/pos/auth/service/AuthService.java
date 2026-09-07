@@ -108,7 +108,7 @@ public class AuthService {
       // the person is simply at the wrong door. Locking them out for that would
       // punish a cashier who bookmarked the admin page.
       log.info("Rejected {} sign-in for role {}", portal, account.role());
-      throw rejected();
+      throw wrongPortal(account.role());
     }
 
     accounts.recordSuccessfulLogin(account.id());
@@ -191,6 +191,36 @@ public class AuthService {
 
   private ApiException rejected() {
     return new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", REJECTED);
+  }
+
+  /**
+   * The right password, at the wrong door.
+   *
+   * <p><b>Specific, unlike a wrong password</b> — and safe to be, for exactly
+   * the reason {@link #deactivated()} is: this is reachable only by somebody who
+   * has already typed the correct password, so it cannot be used to discover
+   * whether a username exists or what kind of account it is. Anyone who can
+   * reach this message already holds credentials that open the other door.
+   *
+   * <p>The alternative was what the shop actually hit: an owner typing a
+   * password they knew was correct and being told, over and over, that it was
+   * invalid. A sign-in error has to be actionable, and "you are on the wrong
+   * page" is the only useful thing to say here.
+   *
+   * <p>403 rather than 401, matching the deactivated case: the credentials were
+   * accepted, so re-entering them changes nothing and a client that retries a
+   * 401 by asking for the password again would loop.
+   */
+  private ApiException wrongPortal(StaffRole role) {
+    return role == StaffRole.ADMIN
+        ? new ApiException(
+            HttpStatus.FORBIDDEN,
+            "WRONG_PORTAL_ADMIN_ACCOUNT",
+            "That is an administrator account. Please sign in from the admin portal.")
+        : new ApiException(
+            HttpStatus.FORBIDDEN,
+            "WRONG_PORTAL_CASHIER_ACCOUNT",
+            "That is a cashier account. Please sign in at the till.");
   }
 
   /**
