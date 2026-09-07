@@ -90,6 +90,35 @@ export async function POST(
     // dropped there because cookie lifetime is a browser-side concern.
     const session = await authenticateUser(portal, parsed.data);
 
+    /*
+     * Belt and braces: the account the backend just authenticated must actually
+     * belong to the portal it was asked about.
+     *
+     * The backend already refuses this and is the authority. This exists
+     * because of what happens when it does not — which is not hypothetical: a
+     * service still running an older build accepted an administrator at the
+     * till, this route set the cookie, and the browser then landed on a till
+     * page that immediately redirected the owner to the dashboard. Signing in
+     * at the cashier page and arriving at the admin portal is a baffling
+     * outcome, and it happened without a single error anywhere.
+     *
+     * Refusing here means the worst case is a clear message instead of a
+     * session on the wrong side of the shop. Note the ordering: no cookie has
+     * been set at this point, so there is nothing to undo.
+     */
+    if (!portalAccepts(portal, session.user.role)) {
+      console.error(
+        `[auth] Backend authenticated a ${session.user.role} at the ${portal} portal;` +
+          " refusing to open a session. Check that the API is running the current build.",
+      );
+      return jsonError(
+        session.user.role === "ADMIN"
+          ? errorMessages.wrongPortalAdminAccount
+          : errorMessages.wrongPortalCashierAccount,
+        403,
+      );
+    }
+
     // A genuine sign-in clears the throttle so one user's typo streak does not
     // lock them out after they succeed.
     resetRateLimit(throttleKey);
@@ -126,6 +155,17 @@ export async function POST(
     console.error(`[auth] Unhandled error during ${portal} login:`, error);
     return jsonError(errorMessages.unexpected, 500);
   }
+}
+
+/**
+ * Which role each portal is for.
+ *
+ * <p>One role per portal, deliberately: the shop asked for the till and the
+ * management portal kept apart, so an administrator cannot sign in at the
+ * counter and a cashier cannot sign in to the portal.
+ */
+function portalAccepts(portal: PortalId, role: "ADMIN" | "CASHIER"): boolean {
+  return portal === "admin" ? role === "ADMIN" : role === "CASHIER";
 }
 
 /** Uniform error envelope: `{ success: false, message }`, never a stack trace. */
