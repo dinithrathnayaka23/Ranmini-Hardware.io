@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { Alert } from "@/shared/components/ui/alert";
-import { PrintReceiptButton } from "@/shared/components/receipt/print-receipt-button";
 import { PrintReceiptPortal } from "@/shared/components/receipt/print-receipt-portal";
 import { cn } from "@/shared/lib/cn";
 import { formatCurrency } from "@/shared/lib/format";
@@ -22,6 +21,7 @@ import type {
 } from "../types/pos.types";
 
 import { CategoryFilter } from "./category-filter";
+import { PaymentConfirmation } from "./payment-confirmation";
 import { OrderPanel } from "./order-panel";
 import { PosTopbar } from "./pos-topbar";
 import { ProductGrid } from "./product-grid";
@@ -223,6 +223,15 @@ export function PosTerminal({
    */
   const payRef = React.useRef<() => void>(() => {});
 
+  /**
+   * Whether the confirmation screen is up, for the key listener below.
+   *
+   * <p>A ref for the same reason `payRef` is one: the listener is registered
+   * once and must not be rebuilt every time the basket changes.
+   */
+  const completedRef = React.useRef(false);
+  completedRef.current = completed !== null;
+
   // Hotkeys, so a full sale can be rung up without leaving the keyboard: F2
   // returns to the search box from anywhere, F9 selects cash, F10 takes the
   // payment. They are captured on the window because a cashier's focus is
@@ -231,6 +240,11 @@ export function PosTerminal({
   // follows and the first thing a keyboard user tries.
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // The confirmation screen is modal and owns the keyboard while it is up.
+      // Without this, F2 would pull focus to a search box behind the overlay
+      // and the cashier would be typing somewhere they cannot see.
+      if (completedRef.current) return;
+
       if (event.key === "F2") {
         event.preventDefault();
         searchRef.current?.focus();
@@ -357,6 +371,18 @@ export function PosTerminal({
     payRef.current = handlePay;
   });
 
+  /**
+   * Leaving the confirmation screen, ready for the next customer.
+   *
+   * <p>Focus goes back to the search box rather than being left on a button
+   * that has just been unmounted — otherwise the next thing typed lands on the
+   * document body and is lost.
+   */
+  const handleNextSale = React.useCallback(() => {
+    setCompleted(null);
+    searchRef.current?.focus();
+  }, []);
+
   const handlePrinted = React.useCallback(() => {
     setIsPrinting(false);
     // The print dialog took focus; hand it back to the search box so the next
@@ -482,7 +508,7 @@ export function PosTerminal({
       ) : null}
 
       {completed ? (
-        <SaleComplete sale={completed} onDismiss={() => setCompleted(null)} />
+        <PaymentConfirmation sale={completed} onDone={handleNextSale} />
       ) : null}
 
       {completed && isPrinting ? (
@@ -620,90 +646,6 @@ function PaymentFailed({
       >
         Dismiss
       </button>
-    </div>
-  );
-}
-
-/**
- * A completed sale, and the change to hand back.
- *
- * <p><b>The change is the largest thing on this card.</b> It used to be the tail
- * of a sentence — "Sale INV-20260905-0004 completed — Rs 3,247.50, change
- * Rs 1,752.50." — read while counting notes out of a drawer, which is the worst
- * possible moment to be parsing a sentence. It is now the one figure the card
- * is built around, and the invoice number, which matters only if the customer
- * comes back next week, is the small print above it.
- *
- * <p>Dismissed by hand rather than fading out. A cashier reading an amount off
- * the screen must not have it disappear mid-count — and the till behind it is
- * already cleared and ready, so nothing is waiting on the tap.
- */
-function SaleComplete({
-  sale,
-  onDismiss,
-}: {
-  sale: CompletedSale;
-  onDismiss: () => void;
-}) {
-  const currency = useCurrency();
-  const hasChange = sale.changeDue > 0;
-
-  return (
-    <div
-      role="status"
-      className="fixed inset-x-0 bottom-24 z-50 mx-auto w-[min(28rem,calc(100%-2rem))] overflow-hidden rounded-xl border border-success/25 bg-surface shadow-lg md:bottom-6"
-    >
-      <div className="flex items-center gap-2 border-b border-success/20 bg-success-soft px-4 py-2.5 text-sm font-medium text-success">
-        <CircleCheck aria-hidden className="size-4 shrink-0" />
-        <span className="flex-1">Sale complete</span>
-        <span className="font-mono text-xs tabular-nums">{sale.invoiceNumber}</span>
-      </div>
-
-      <div className="px-4 py-4">
-        {hasChange ? (
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-sm font-medium text-ink-soft">Change due</span>
-            <span className="text-3xl font-bold whitespace-nowrap text-success tabular-nums">
-              {formatCurrency(sale.changeDue, currency)}
-            </span>
-          </div>
-        ) : (
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-sm text-ink-soft">
-              Paid by {sale.tender === "CASH" ? "cash" : "card"}
-            </span>
-            <span className="text-xl font-bold whitespace-nowrap text-ink tabular-nums">
-              {formatCurrency(sale.total, currency)}
-            </span>
-          </div>
-        )}
-
-        {/* Shown only when there is change, where it is the check a careful
-            cashier makes before opening the drawer. Without change the total is
-            already the headline above. */}
-        {hasChange ? (
-          <p className="mt-1.5 text-xs text-muted tabular-nums">
-            {formatCurrency(sale.total, currency)} of{" "}
-            {formatCurrency(sale.amountTendered ?? sale.total, currency)} received
-          </p>
-        ) : null}
-
-        <div className="mt-4 flex items-center gap-2">
-          {/* A second copy, for the receipt that jammed or the customer who
-              asks for one after saying they did not want it. */}
-          <PrintReceiptButton sale={sale} label="Print again" />
-          <button
-            type="button"
-            onClick={onDismiss}
-            // h-10 and the same radius as the print button beside it: the pair
-            // are read as one row of controls, and a 2px difference in height
-            // is the sort of thing that makes a screen look unfinished.
-            className="h-10 flex-1 rounded-[10px] bg-brand-600 text-sm font-medium text-white transition-colors duration-150 hover:bg-brand-700"
-          >
-            Done
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
