@@ -15,9 +15,8 @@ import type { ReceiptSale } from "./receipt-sale";
  * A printed receipt.
  *
  * <p>Sized from Settings → Receipts → Paper Size — an 80mm roll by default,
- * with 58mm and A4 offered — and set in a monospaced face so the quantity and
- * price columns line up the way every receipt anybody has ever been handed
- * does. See `paper.ts` for what each setting means in millimetres.
+ * with 58mm and A4 offered. See `paper.ts` for what each setting means in
+ * millimetres.
  *
  * <p><b>Everything on it comes from the sale document</b>, not from the basket
  * that produced it. The server priced the basket, so the total printed here is
@@ -27,6 +26,29 @@ import type { ReceiptSale } from "./receipt-sale";
  *
  * <p>The shop's name, address and footer message come from settings, so the
  * owner changes what is printed without a release.
+ *
+ * <h4>How it is set</h4>
+ *
+ * <p><b>Proportional type, not monospace.</b> The whole receipt used to be set
+ * in a monospaced face, on the reasoning that the figures had to line up. They
+ * do — but `tabular-nums` lines up figures in a proportional face too, and it
+ * does it without making the shop's name and address look like a fax. The
+ * columns are as straight as they were and everything else reads far better.
+ *
+ * <p><b>Every size is relative to the paper's base.</b> Nothing here is a fixed
+ * pixel value, so one number in `paper.ts` scales the whole document from a
+ * 58mm roll to an A4 sheet without a second layout.
+ *
+ * <p><b>Pure black, and hierarchy from weight and size alone.</b> A thermal
+ * printer is a one-bit device: it has no grey, and a grey label dithers into a
+ * muddy speckle that reads worse than the black it was trying to soften. Every
+ * distinction on this receipt is therefore made with size, weight or space.
+ *
+ * <p><b>Three rules, each meaning something different.</b> It used to have five
+ * identical dashed lines, which is enough repetition to stop being punctuation
+ * and start being texture: a solid rule closes the header, a light one opens
+ * the item table, and the one dashed rule sits above the total, where the eye
+ * is meant to stop.
  */
 export function Receipt({
   sale,
@@ -44,14 +66,18 @@ export function Receipt({
   // settings checkbox that changed a stored value nothing read.
   const logo = shop?.showLogo ? shopLogoUrl(shop.logoUpdatedAt) : null;
 
+  // Units, not lines. "3 items" beside a basket holding ten bags of cement is
+  // the sort of thing a customer stops to query at the counter.
+  const units = sale.lines.reduce((running, line) => running + line.quantity, 0);
+
   return (
     <article
-      // The width is a style rather than a class because it comes from a stored
-      // setting: Tailwind generates classes from source at build time and could
-      // not produce one for a value only known at runtime.
-      style={{ width: paper.width }}
+      // Width and base size are styles rather than classes because they come
+      // from a stored setting: Tailwind generates classes from source at build
+      // time and could not produce one for a value only known at runtime.
+      style={{ width: paper.width, fontSize: paper.fontSize }}
       className={cn(
-        "mx-auto max-w-full bg-white px-1 py-2 font-mono text-[11px] leading-[1.45] text-black",
+        "mx-auto max-w-full bg-white px-1 py-2 leading-[1.5] text-black",
         className,
       )}
     >
@@ -65,27 +91,31 @@ export function Receipt({
           <img
             src={logo}
             alt=""
-            className="mx-auto mb-1 max-h-12 w-auto max-w-[60%] object-contain"
+            className="mx-auto mb-[0.6em] max-h-[4.5em] w-auto max-w-[55%] object-contain"
           />
         ) : null}
 
-        <p className="text-[13px] font-bold tracking-tight">
+        <p className="text-[1.45em] leading-tight font-bold tracking-tight">
           {shop?.companyName ?? appConfig.name}
         </p>
+
         {shop?.primaryAddress ? (
-          <p className="whitespace-pre-line">{shop.primaryAddress}</p>
+          <p className="mt-[0.35em] whitespace-pre-line">{shop.primaryAddress}</p>
         ) : null}
         {shop?.contactPhone ? <p>Tel {shop.contactPhone}</p> : null}
       </header>
 
-      <Divider />
+      {/* Solid: this closes the letterhead, and is the only rule on the page
+          that separates two different kinds of thing rather than two sections
+          of the same list. */}
+      <div className="mt-[0.8em] border-t border-black" />
 
-      <dl className="grid grid-cols-[auto_1fr] gap-x-2">
+      <dl className="mt-[0.6em] grid grid-cols-[auto_1fr] gap-x-3 gap-y-[0.15em]">
         <dt>Invoice</dt>
-        <dd className="text-right font-bold">{sale.invoiceNumber}</dd>
+        <dd className="text-right font-semibold tabular-nums">{sale.invoiceNumber}</dd>
 
         <dt>Date</dt>
-        <dd className="text-right">{formatStamp(sale.soldAt)}</dd>
+        <dd className="text-right tabular-nums">{formatStamp(sale.soldAt)}</dd>
 
         {sale.cashierName ? (
           <>
@@ -102,7 +132,15 @@ export function Receipt({
         ) : null}
       </dl>
 
-      <Divider />
+      {/*
+        A heading for the item table. It costs one line and buys the thing a
+        receipt is read for: knowing, without working it out, which column is
+        the unit price and which is what you were charged.
+      */}
+      <div className="mt-[0.9em] flex justify-between border-y border-black py-[0.25em] text-[0.85em] font-semibold tracking-[0.08em] uppercase">
+        <span>Item</span>
+        <span>Amount</span>
+      </div>
 
       {/*
         Each line is two rows: the name on its own, then quantity, unit price and
@@ -110,23 +148,25 @@ export function Receipt({
         beside three figures in 72mm, and truncating the one thing the customer
         is checking would make the receipt useless for the only purpose it has.
       */}
-      <ul>
+      <ul className="mt-[0.5em] space-y-[0.55em]">
         {sale.lines.map((line) => (
-          <li key={line.productId + line.sku} className="mb-1">
+          <li key={line.productId + line.sku}>
             <p className="break-words">{line.name}</p>
-            <div className="flex justify-between tabular-nums">
-              <span>
+            <div className="flex justify-between gap-3 tabular-nums">
+              {/* Indented, so the eye reads it as belonging to the name above
+                  rather than as another product. */}
+              <span className="pl-[1em] text-[0.92em]">
                 {line.quantity} × {amount(line.unitPrice)}
               </span>
-              <span>{amount(line.lineTotal)}</span>
+              <span className="font-medium">{amount(line.lineTotal)}</span>
             </div>
           </li>
         ))}
       </ul>
 
-      <Divider />
+      <div className="mt-[0.8em] border-t border-black" />
 
-      <dl className="grid grid-cols-[1fr_auto] gap-x-2 tabular-nums">
+      <dl className="mt-[0.6em] grid grid-cols-[1fr_auto] gap-x-3 gap-y-[0.15em] tabular-nums">
         <Row label="Subtotal" value={`${currency} ${amount(sale.subtotal)}`} />
 
         {sale.discountAmount > 0 ? (
@@ -143,12 +183,14 @@ export function Receipt({
           />
         ) : null}
 
-        <div className="col-span-2 my-1 border-t border-dashed border-black" />
+        {/* The one dashed rule on the receipt, and the only place the eye is
+            meant to stop. */}
+        <div className="col-span-2 my-[0.45em] border-t border-dashed border-black" />
 
         <Row
           label="TOTAL"
           value={`${currency} ${amount(sale.total)}`}
-          className="text-[13px] font-bold"
+          className="text-[1.35em] leading-tight font-bold"
         />
 
         {/*
@@ -161,13 +203,19 @@ export function Receipt({
           No tender recorded means the customer paid the exact amount, so the
           total is the honest figure to print.
         */}
+        <div className="col-span-2 mt-[0.5em]" />
+
         <Row
           label={sale.tender === "CASH" ? "Cash" : "Card"}
           value={`${currency} ${amount(sale.amountTendered ?? sale.total)}`}
         />
 
         {sale.changeDue > 0 ? (
-          <Row label="Change" value={`${currency} ${amount(sale.changeDue)}`} />
+          <Row
+            label="Change"
+            value={`${currency} ${amount(sale.changeDue)}`}
+            className="font-semibold"
+          />
         ) : null}
       </dl>
 
@@ -177,22 +225,25 @@ export function Receipt({
         is how a refund gets claimed twice.
       */}
       {sale.status === "VOIDED" ? (
-        <>
-          <Divider />
-          <p className="text-center text-[15px] font-bold tracking-widest">VOIDED</p>
+        <div className="mt-[0.9em] border-y-2 border-black py-[0.4em] text-center">
+          <p className="text-[1.5em] leading-tight font-bold tracking-[0.15em]">
+            VOIDED
+          </p>
           {sale.voidReason ? (
-            <p className="text-center break-words">{sale.voidReason}</p>
+            <p className="mt-[0.2em] break-words">{sale.voidReason}</p>
           ) : null}
-        </>
+        </div>
       ) : null}
 
-      <Divider />
+      <footer className="mt-[1em] border-t border-black pt-[0.6em] text-center">
+        <p className="tabular-nums">
+          {units} {units === 1 ? "item" : "items"}
+          {sale.lines.length !== units ? ` on ${sale.lines.length} lines` : ""}
+        </p>
 
-      <footer className="text-center">
         {shop?.footerMessage ? (
-          <p className="break-words">{shop.footerMessage}</p>
+          <p className="mt-[0.4em] break-words">{shop.footerMessage}</p>
         ) : null}
-        <p className="mt-1">{sale.lines.length} item{sale.lines.length === 1 ? "" : "s"}</p>
       </footer>
     </article>
   );
@@ -215,19 +266,12 @@ function Row({
   );
 }
 
-function Divider() {
-  return <div className="my-1.5 border-t border-dashed border-black" />;
-}
-
-/**
- * An amount with two decimals and thousands separators, and no symbol.
- *
- * <p>The symbol is printed once per row rather than per figure in the line
- * table, because 72mm of paper does not have room to repeat "Rs." beside every
- * number and the column heading has already said what these are.
- */
 /**
  * One money figure on the receipt.
+ *
+ * <p>Printed without a symbol in the item table, because the paper does not
+ * have room to repeat "Rs." beside every number and the column heading has
+ * already said what these are. The totals below do carry it.
  *
  * <p>Tolerates a missing value rather than throwing. This is a printed document
  * rendered with a customer at the counter, and a thrown error here does not
@@ -239,7 +283,7 @@ function Divider() {
  * backstop for the case nobody predicted.
  */
 function amount(value: number | null | undefined): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "\u2014";
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
 
   return value.toLocaleString("en-LK", {
     minimumFractionDigits: 2,

@@ -12,6 +12,16 @@ export interface Paper {
   /** CSS width for the receipt body. */
   width: string;
   /**
+   * Base type size for the whole receipt.
+   *
+   * <p>Everything on the receipt is sized in `em` against this, so one number
+   * scales the whole document. A 58mm roll needs smaller type to fit a product
+   * name on one line; an A4 sheet read at arm's length needs larger, and
+   * printing till-slip type on a full sheet is most of what made the A4 option
+   * look like a mistake.
+   */
+  fontSize: string;
+  /**
    * The `@page` descriptor used while this receipt is printing.
    *
    * <p>Both halves matter. `size` tells the printer what it is feeding, which
@@ -38,16 +48,19 @@ export function paperFor(size: string | null | undefined): Paper {
       return {
         // 58mm roll, ~50mm printable once the feed margins are taken off.
         width: "50mm",
+        fontSize: "9px",
         page: "size: 58mm auto; margin: 3mm;",
         label: "58mm roll",
       };
 
     case "A4":
       return {
-        // Not the full 210mm. A receipt is a column of short lines, and setting
-        // it the width of the sheet would stretch "Wire Nails 2in 1kg" across
-        // eight inches of white space. This is a readable column on a sheet.
-        width: "120mm",
+        // Not the full 210mm, but a proper document column rather than the
+        // 120mm strip this used to be — a till slip magnified onto a sheet is
+        // what made this option look broken. 150mm inside 15mm margins reads
+        // as a bill, and the larger base type below is half of that.
+        width: "150mm",
+        fontSize: "11.5px",
         page: "size: A4; margin: 15mm;",
         label: "A4 sheet",
       };
@@ -58,6 +71,7 @@ export function paperFor(size: string | null | undefined): Paper {
         // 80mm roll, ~72mm printable. The commonest counter printer, and the
         // fallback for anything unrecognised.
         width: "72mm",
+        fontSize: "10.5px",
         page: "size: 80mm auto; margin: 3mm;",
         label: "80mm roll",
       };
