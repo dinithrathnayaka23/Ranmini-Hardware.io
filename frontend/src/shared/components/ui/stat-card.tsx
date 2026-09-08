@@ -100,7 +100,14 @@ export function StatCard({ stat }: { stat: StatCardModel }) {
             className={cn(
               // `tabular-nums` so four cards in a row do not jitter their digits
               // against each other when the figures refresh.
-              "mt-2.5 text-[1.8rem] leading-none font-bold tracking-tight tabular-nums",
+              //
+              // It wraps rather than truncates, and the size steps down on the
+              // narrowest screens. A full day's takings is formatted in full
+              // ("Rs. 1,234,567.00"), and at `xl` four cards across leave each
+              // figure about 130px — so this *will* run out of room on a good
+              // day. Two lines is the right answer there; an ellipsis through
+              // the middle of a revenue figure is not.
+              "mt-2.5 text-[1.5rem] leading-tight font-bold tracking-tight break-words tabular-nums sm:text-[1.8rem]",
               stat.valueAccent ? accentText[stat.valueAccent] : "text-ink",
             )}
           >
