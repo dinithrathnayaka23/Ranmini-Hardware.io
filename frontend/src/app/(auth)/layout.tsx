@@ -1,4 +1,5 @@
 import { AuthBrandLink } from "@/modules/auth/components/auth-brand-link";
+import { AuthThemeToggle } from "@/modules/auth/components/auth-theme-toggle";
 import { BrandShowcase } from "@/modules/auth/components/brand-showcase";
 import { appConfig } from "@/shared/config/app.config";
 
@@ -31,18 +32,38 @@ import { appConfig } from "@/shared/config/app.config";
  * Below `lg` the height is a *minimum*, not a cap, and the page scrolls
  * normally — a phone keyboard can take half the screen, and locking the
  * viewport there would trap the user.
+ *
+ * WHERE THE CARD COMES AND GOES
+ *
+ * Below `lg` the form sits on a card: a raised white panel on a tinted ground,
+ * the same treatment the portal gives every other panel. That range is the one
+ * that needed it — with the photograph dropped, the form was previously a
+ * column of controls floating in the middle of an otherwise empty white page,
+ * with nothing to say where the screen's content began or ended.
+ *
+ * From `lg` the card dissolves and the form goes back to sitting directly on
+ * the column. It is not needed there, because the split against the photograph
+ * already frames it — and it would not fit comfortably anyway: at 1024px the
+ * form column is about 410px wide, so a bordered, padded panel inside it would
+ * leave the inputs narrower than they are today. Structure at the size that
+ * lacks it, nothing at the size that already has it.
  */
 export default function AuthLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="grid min-h-dvh lg:h-dvh lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    // The tinted ground is what makes the card below `lg` read as raised. From
+    // `lg` the card is gone, so the column goes back to the plain canvas.
+    <div className="grid min-h-dvh bg-canvas-subtle lg:h-dvh lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:bg-canvas">
       {/* ---------------------------- Form column ---------------------------- */}
       {/* Padding eases off between lg and xl: at 1024px the form column is only
           ~410px wide, and wider gutters would squeeze the footer onto two lines. */}
       <div className="flex flex-col px-6 py-6 sm:px-10 sm:py-10 lg:overflow-y-auto lg:px-10 lg:py-8 xl:px-24">
-        <header className="mx-auto w-full max-w-sm shrink-0 lg:mx-0 lg:max-w-80">
+        <header className="mx-auto flex w-full max-w-sm shrink-0 items-center justify-between gap-4 lg:mx-0 lg:max-w-80">
           <AuthBrandLink />
+
+          {/* Administrators only, and absent on the till — see the component. */}
+          <AuthThemeToggle />
         </header>
 
         {/* `flex-1` absorbs the leftover height and centres the form in it;
@@ -52,7 +73,12 @@ export default function AuthLayout({
           className="mx-auto flex w-full max-w-sm flex-1 shrink-0 flex-col justify-center
                      py-6 sm:py-10 lg:mx-0 lg:max-w-80 lg:py-8"
         >
-          {children}
+          <div
+            className="rounded-2xl border border-line bg-surface p-6 shadow-card sm:p-8
+                       lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none"
+          >
+            {children}
+          </div>
         </main>
 
         {/*
