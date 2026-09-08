@@ -22,7 +22,16 @@ export function Sidebar({
 }) {
   return (
     <div
-      className={cn("flex h-full w-64 flex-col bg-rail", className)}
+      // The hairline on the trailing edge is there for the dark theme. The page
+      // ground sits just below the rail in lightness there — deliberately, so
+      // the two read as one family — which leaves barely any edge between them
+      // where the page shows through beside a card. In the light theme the rail
+      // is a dark slab against a near-white page and the border is invisible,
+      // so it costs that theme nothing.
+      className={cn(
+        "flex h-full w-64 flex-col border-r border-rail-line bg-rail",
+        className,
+      )}
       {...props}
     >
       {/* ------------------------------- Brand ------------------------------- */}
