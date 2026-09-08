@@ -42,20 +42,30 @@ export function DailySummary({ rows }: { rows: DailySummaryRow[] }) {
       {rows.length === 0 ? (
         <ReportEmpty message="Daily figures appear here once there are sales in the selected range." />
       ) : (
+        /* Columns drop as the width goes, rather than the whole table
+           scrolling sideways. The date, what came in and which way it moved are
+           what this panel is read for; the transaction count is the one figure
+           that is never the first question. */
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[36rem] border-collapse text-sm">
+          <table className="w-full min-w-[18rem] border-collapse text-sm">
             <thead>
               <tr className="border-b border-line bg-canvas-subtle text-left text-xs text-muted">
                 <th scope="col" className="px-5 py-2.5 font-medium">
                   Date
                 </th>
-                <th scope="col" className="px-3 py-2.5 text-right font-medium">
+                <th
+                  scope="col"
+                  className="hidden px-3 py-2.5 text-right font-medium lg:table-cell"
+                >
                   Transactions
                 </th>
                 <th scope="col" className="px-3 py-2.5 text-right font-medium">
                   Revenue
                 </th>
-                <th scope="col" className="px-3 py-2.5 text-right font-medium">
+                <th
+                  scope="col"
+                  className="hidden px-3 py-2.5 text-right font-medium sm:table-cell"
+                >
                   Profit
                 </th>
                 <th scope="col" className="px-5 py-2.5 text-right font-medium">
@@ -88,13 +98,13 @@ export function DailySummary({ rows }: { rows: DailySummaryRow[] }) {
                         {row.label}
                       </Link>
                     </th>
-                    <td className="px-3 py-3 text-right text-ink-soft tabular-nums">
+                    <td className="hidden px-3 py-3 text-right text-ink-soft tabular-nums lg:table-cell">
                       {formatCount(row.transactions)}
                     </td>
                     <td className="px-3 py-3 text-right whitespace-nowrap text-ink-soft tabular-nums">
                       {formatCurrency(row.revenue, currency)}
                     </td>
-                    <td className="px-3 py-3 text-right whitespace-nowrap text-ink-soft tabular-nums">
+                    <td className="hidden px-3 py-3 text-right whitespace-nowrap text-ink-soft tabular-nums sm:table-cell">
                       {formatCurrency(row.profit, currency)}
                     </td>
                     <td className="px-5 py-3">
