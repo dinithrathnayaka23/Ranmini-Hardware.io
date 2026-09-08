@@ -6,10 +6,23 @@
  * Single source of truth for the admin portal's visual language. Components
  * reference these semantic names (bg-brand-600, text-ink, border-line) rather
  * than raw hex values, so a rebrand is a change in this file alone.
+ *
+ * TWO PALETTES, ONE SET OF NAMES
+ *
+ * The block below declares the light palette; the `:root[data-theme="dark"]`
+ * block further down re-declares the same names with dark values. Tailwind
+ * compiles every colour utility to `var(--color-…)`, so overriding the variable
+ * under a selector re-themes the entire portal without a single `dark:` variant
+ * in any component. That is the whole reason dark mode was affordable here: the
+ * screens were already written against semantic tokens.
+ *
+ * The consequence for anyone adding a component: never reach for a raw palette
+ * class (`bg-slate-800`, `text-white`) on a themed surface. It will look right
+ * in one theme and wrong in the other, because it cannot follow the cascade.
  * ------------------------------------------------------------------------- */
 @theme {
   /* Brand blue — primary actions, links, focus rings, the logo mark. */
-  --color-brand-50: #eff4ff;
+  --color-brand-50: #eef3ff;
   --color-brand-100: #dbe6ff;
   --color-brand-200: #bfd2ff;
   --color-brand-300: #93b2ff;
@@ -20,15 +33,32 @@
   --color-brand-800: #17368c;
   --color-brand-900: #18326f;
 
-  /* Neutrals — text, surfaces and hairlines. */
-  --color-ink: #0d0f14;          /* Headings and primary text            */
-  --color-ink-soft: #3f4753;     /* Body copy                            */
-  --color-muted: #6b7482;        /* Secondary/help text                  */
-  --color-placeholder: #9aa3b0;  /* Input placeholders and inert icons   */
-  --color-line: #dfe3e9;         /* Borders and dividers                 */
-  --color-line-strong: #c8ced8;  /* Hover state for borders              */
+  /* Foreground for anything filled with an accent colour.
+     A token rather than a literal `text-white`, because in the dark theme the
+     accents are light and their label has to become dark. A hardcoded white
+     label on a pale blue button is the most common single way a dark theme
+     ends up unreadable. */
+  --color-on-brand: #ffffff;
+  --color-on-danger: #ffffff;
+
+  /* Neutrals — text, surfaces and hairlines.
+     Tinted toward the navigation rail's navy rather than neutral grey, so the
+     page and the sidebar read as one palette instead of two that happen to be
+     adjacent. */
+  --color-ink: #0c1522;          /* Headings and primary text            */
+  --color-ink-soft: #3b4859;     /* Body copy                            */
+  --color-muted: #636f85;        /* Secondary/help text                  */
+  --color-placeholder: #78869c;  /* Input placeholders and inert icons   */
+  --color-line: #dee4ed;         /* Borders and dividers                 */
+  --color-line-strong: #c5cede;  /* Hover state for borders              */
   --color-surface: #ffffff;      /* Cards and inputs                     */
   --color-canvas: #ffffff;       /* Page background                      */
+
+  /* Overlay behind the mobile navigation drawer.
+     Its own token, carrying its own alpha, because the obvious spelling
+     (`bg-ink/50`) inverts in the dark theme: ink is nearly white there, and a
+     white sheet over a dark page is a flashbang. */
+  --color-scrim: rgb(12 21 34 / 0.55);
 
   /* Feedback — each pairs a strong colour for text/icons with a soft tint
      used as a background fill, so the two always stay in step. */
@@ -48,15 +78,19 @@
   --color-pay-strong: #9a3412;
 
   /* Dark navigation rail. Kept separate from the neutral ramp because these
-     are surface colours for a permanently dark region, not text shades. */
+     are surface colours for a permanently dark region, not text shades — and
+     deliberately absent from the dark-theme override below, because the rail is
+     already dark and looks identical in both themes. It is the one fixed point
+     the eye can navigate by while the rest of the page changes. */
   --color-rail: #0b2239;         /* Sidebar background                   */
   --color-rail-raised: #14304e;  /* Hover / active nav row               */
-  --color-rail-line: #1c3a5c;      /* Dividers on the rail                 */
+  --color-rail-line: #1c3a5c;    /* Dividers on the rail                 */
   --color-rail-muted: #93a4b8;   /* Secondary text on the rail           */
+  --color-rail-danger: #f4908f;  /* Sign-out hover — on the rail only    */
 
   /* Application chrome behind cards — a hair off white so white cards read
      as raised surfaces rather than dissolving into the page. */
-  --color-canvas-subtle: #f5f7fb;
+  --color-canvas-subtle: #f4f7fb;
 
   /* ---------------------------------------------------------------------
      Categorical data-visualisation palette.
@@ -74,8 +108,167 @@
   /* Recessive hairline for gridlines and axes — one step off the surface. */
   --color-chart-grid: #e7eaf0;
 
+  /* ---------------------------------------------------------------------
+     Elevation.
+
+     Two steps, and deliberately no more. A card at rest is a hairline border
+     plus barely a shadow; the raised step is for the few things that genuinely
+     float above the page — menus, popovers, the card under the pointer.
+     Anything beyond that starts to look like a consumer app, which this is not.
+
+     Tinted with the rail navy rather than pure black, so a shadow reads as part
+     of the palette instead of a grey smudge over it.
+
+     THE INDIRECTION THROUGH `--shadow-tint-*` IS NOT DECORATION.
+
+     Tailwind treats colour tokens and shadow tokens differently: a colour
+     utility compiles to `var(--color-…)` and so follows the cascade, but a
+     shadow utility compiles the token's *value* straight into the rule. A
+     `--shadow-card` redeclared under the dark theme would therefore be dead
+     code — the utility would still carry the light value, and cards would keep
+     a navy-tinted shadow on a near-black page.
+
+     Writing the colours as variables sidesteps that: the inlined value contains
+     `var(--shadow-tint-soft)`, which resolves where it is used rather than
+     where it was compiled, so redeclaring the tints below does reach it.
+     --------------------------------------------------------------------- */
+  --shadow-card: 0 1px 2px 0 var(--shadow-tint-soft),
+    0 1px 3px 0 var(--shadow-tint-softer);
+  --shadow-raised: 0 4px 14px -3px var(--shadow-tint-strong),
+    0 2px 5px -2px var(--shadow-tint-medium);
+
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, sans-serif;
+}
+
+/* ---------------------------------------------------------------------------
+ * Dark theme
+ *
+ * Applied when `<html>` carries `data-theme="dark"`, which the pre-paint script
+ * in `theme-script.tsx` writes from the stored preference before the first
+ * frame is drawn.
+ *
+ * NOT a `prefers-color-scheme` media query, and that is a deliberate choice.
+ * This same stylesheet serves the cashier's till, which is a shared machine at
+ * a counter — however the shop's Windows install happens to be configured
+ * should not decide what the till looks like mid-shift. Dark is opt-in, stored
+ * per browser, from the toggle in the portal's top bar.
+ *
+ * `@layer base` is what guarantees these win: Tailwind emits its theme
+ * variables into the earlier `theme` layer, so a later layer beats them
+ * regardless of selector specificity or source order.
+ *
+ * HOW THE DARK VALUES WERE CHOSEN
+ *
+ * THE SIDEBAR IS THE ANCHOR, AND EVERY NEUTRAL IS MEASURED AGAINST IT.
+ *
+ * The rail is hsl(210, 68%, 13%) and never changes between themes, so in dark
+ * mode it is the one colour on screen that is not up for negotiation. The
+ * neutrals below are therefore built as one family around it — hue pinned to
+ * 210, saturation held in the 56–62% band just under the rail's own.
+ *
+ * The first attempt got this wrong in a way worth recording, because it looks
+ * fine in a swatch list and bad on screen. Cards were set to hsl(214, 47%, 13%)
+ * — the *identical lightness* to the rail, at 21 points less saturation. Two
+ * large regions side by side at the same brightness invite the eye to compare
+ * them directly, and the only difference left to find was that one was rich
+ * navy and the other dusty grey-blue. The lesson is that harmony between
+ * neighbouring surfaces is governed by saturation and hue; lightness is what
+ * separates them, and matching it removes the separation that would have let
+ * the mismatch pass unnoticed.
+ *
+ * So the ladder now steps in lightness while holding the family: page at 8–11%
+ * (just under the rail, so the rail reads as a gentle continuation of the page
+ * rather than a slab dropped onto it), cards at 17.5% (clearly above the rail,
+ * so content floats over chrome exactly as it does in the light theme), and
+ * hairlines above that again.
+ *
+ * The accents are lightened, because a colour chosen to read on white is far
+ * too dark to read on navy — and that inversion is exactly why `--color-on-*`
+ * has to flip to near-black here. Every text pair below was checked to clear
+ * 4.5:1 against the surface it actually sits on.
+ * ------------------------------------------------------------------------- */
+@layer base {
+  :root {
+    /* Tells the browser to draw its own furniture — scrollbars, form controls,
+       the text caret — to match. Without it a dark page keeps light scrollbars
+       and the seam is immediately obvious. */
+    color-scheme: light;
+
+    /* The colours inside `--shadow-card` and `--shadow-raised`. Ordinary custom
+       properties rather than `@theme` tokens, precisely because they must stay
+       resolvable at use time — see the note beside those two tokens. */
+    --shadow-tint-soft: rgb(11 34 57 / 0.05);
+    --shadow-tint-softer: rgb(11 34 57 / 0.04);
+    --shadow-tint-medium: rgb(11 34 57 / 0.07);
+    --shadow-tint-strong: rgb(11 34 57 / 0.12);
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+
+    /* Brand, inverted in lightness. The ramp still runs light-to-dark by
+       number, so `hover:bg-brand-700` still means "one step further from
+       rest" — it simply steps brighter here, which is the correct direction
+       of travel on a dark surface.
+
+       Held a few degrees off the neutrals' hue (217 against their 210) so the
+       brand still reads as an accent rather than as another shade of chrome.
+       On a navy page an accent at the chrome's exact hue stops being an accent. */
+    --color-brand-50: #1b3155;
+    --color-brand-100: #243f6b;
+    --color-brand-200: #305288;
+    --color-brand-300: #3b68b0;
+    --color-brand-400: #5184d6;
+    --color-brand-500: #6c9eef;
+    --color-brand-600: #79a9f6;
+    --color-brand-700: #98befb;
+    --color-brand-800: #b9d3fd;
+    --color-brand-900: #d7e6fe;
+
+    --color-on-brand: #08121e;
+    --color-on-danger: #2a0d0d;
+
+    --color-ink: #e6edf4;
+    --color-ink-soft: #b8c7d5;
+    --color-muted: #97a8ba;
+    --color-placeholder: #8496a9;
+    --color-line: #28425d;
+    --color-line-strong: #3e5c79;
+    --color-surface: #142d46;
+    --color-canvas: #081421;
+    --color-canvas-subtle: #0b1b2b;
+
+    --color-scrim: rgb(2 6 12 / 0.72);
+
+    /* The soft tints are lifted above the card surface rather than sunk below
+       it. They were picked against the older, darker surface, and once the
+       cards moved up they would have read as holes punched in the card instead
+       of as a tinted patch on it. */
+    --color-danger: #f18383;
+    --color-danger-soft: #472424;
+    --color-success: #49ca94;
+    --color-success-soft: #1f3d30;
+    --color-warning: #e2a550;
+    --color-warning-soft: #43341e;
+
+    --color-pay: #f18650;
+    --color-pay-strong: #da682f;
+
+    --color-chart-1: #79a9f6;
+    --color-chart-2: #f18650;
+    --color-chart-3: #33cc99;
+    --color-chart-grid: #233b52;
+
+    /* Pure black and much heavier. A navy-tinted shadow is invisible against a
+       navy page, so the tint that made the light theme feel considered would
+       simply erase the elevation here. Most of the separation still comes from
+       the surface being lighter than the page; these deepen the edge under it. */
+    --shadow-tint-soft: rgb(0 0 0 / 0.35);
+    --shadow-tint-softer: rgb(0 0 0 / 0.25);
+    --shadow-tint-medium: rgb(0 0 0 / 0.4);
+    --shadow-tint-strong: rgb(0 0 0 / 0.55);
+  }
 }
 
 /* ---------------------------------------------------------------------------
