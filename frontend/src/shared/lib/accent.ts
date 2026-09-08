@@ -25,6 +25,22 @@ export const accentChip: Record<Accent, string> = {
   neutral: "bg-canvas-subtle text-muted",
 };
 
+/**
+ * Solid fill, for the hairline that runs along the top edge of a stat card.
+ *
+ * <p>Full strength rather than a tint: it is two pixels tall, and a tinted
+ * two-pixel line against a card border is indistinguishable from a rendering
+ * artefact. Because it carries no text it is free to be the strongest use of
+ * the accent on the card.
+ */
+export const accentBar: Record<Accent, string> = {
+  brand: "bg-brand-600",
+  success: "bg-success",
+  warning: "bg-warning",
+  danger: "bg-danger",
+  neutral: "bg-line-strong",
+};
+
 /** Border colour, for cards that need to draw the eye. */
 export const accentBorder: Record<Accent, string> = {
   brand: "border-brand-600/35",
