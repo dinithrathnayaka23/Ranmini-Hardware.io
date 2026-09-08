@@ -90,7 +90,7 @@ export function Pagination({
             key={entry}
             aria-current="page"
             aria-label={`Page ${entry}, current page`}
-            className="inline-flex h-8 min-w-8 items-center justify-center rounded-md bg-brand-600 px-2 text-sm font-medium text-white"
+            className="inline-flex h-8 min-w-8 items-center justify-center rounded-md bg-brand-600 px-2 text-sm font-medium text-on-brand"
           >
             {entry}
           </span>

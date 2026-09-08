@@ -87,7 +87,7 @@ export function PortalShell({
             type="button"
             aria-label="Close navigation menu"
             onClick={closeNav}
-            className="absolute inset-0 bg-ink/50"
+            className="absolute inset-0 bg-scrim"
           />
 
           <div

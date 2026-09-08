@@ -62,7 +62,7 @@ function ActivityRow({
         className={cn(
           "absolute left-0 flex size-8 items-center justify-center rounded-full lg:left-1/2 lg:-translate-x-1/2",
           tone === "brand"
-            ? "bg-brand-600 text-white"
+            ? "bg-brand-600 text-on-brand"
             : "bg-brand-100 text-brand-700",
         )}
       >

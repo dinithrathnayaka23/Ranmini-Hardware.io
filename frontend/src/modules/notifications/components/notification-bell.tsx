@@ -109,7 +109,7 @@ export function NotificationBell({ initialFeed }: { initialFeed: NotificationFee
         {unread > 0 ? (
           <span
             aria-hidden
-            className="absolute top-1.5 right-1.5 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] leading-4 font-semibold text-white"
+            className="absolute top-1.5 right-1.5 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] leading-4 font-semibold text-on-danger"
           >
             {unread > 9 ? "9+" : unread}
           </span>

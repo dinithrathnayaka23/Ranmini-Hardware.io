@@ -35,7 +35,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
           <Check
             aria-hidden
             strokeWidth={3}
-            className="pointer-events-none absolute inset-0 m-auto size-3 text-white opacity-0 transition-opacity peer-checked:opacity-100"
+            className="pointer-events-none absolute inset-0 m-auto size-3 text-on-brand opacity-0 transition-opacity peer-checked:opacity-100"
           />
         </span>
         <label

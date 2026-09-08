@@ -165,7 +165,7 @@ export function InventoryTable({
           */}
           <a
             href={exportHref}
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-surface px-3.5 text-sm font-medium text-ink-soft transition-colors duration-150 hover:bg-canvas-subtle focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 focus-visible:outline-none"
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-surface px-3.5 text-sm font-medium text-ink-soft transition-colors duration-150 hover:bg-canvas-subtle focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 focus-visible:ring-offset-surface focus-visible:outline-none"
           >
             <FileDown aria-hidden className="size-4" />
             Export PDF
@@ -190,7 +190,7 @@ export function InventoryTable({
               className={cn(
                 "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
                 status === option.value
-                  ? "border-brand-600 bg-brand-600 text-white"
+                  ? "border-brand-600 bg-brand-600 text-on-brand"
                   : "border-line bg-surface text-ink-soft hover:border-line-strong",
               )}
             >
