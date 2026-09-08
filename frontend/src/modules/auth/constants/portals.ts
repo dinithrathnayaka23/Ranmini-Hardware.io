@@ -68,11 +68,14 @@ export const portals: Record<PortalId, PortalDefinition> = {
   cashier: {
     id: "cashier",
     title: "Cashier Sign In",
-    // NOTE FOR REVIEW: the supplied design uses the admin wording ("management
-    // portal") on this screen too. Reproduced verbatim rather than silently
-    // reworded — confirm with the client whether it should read "point of sale"
-    // before launch.
-    subtitle: "Enter your credentials to securely access the management portal.",
+    // The supplied design carried the admin wording ("management portal") on
+    // this screen too, and it was reproduced verbatim at the time rather than
+    // silently reworded. Changed now because the question it was waiting on has
+    // since been answered by the code: the portals reject each other's accounts,
+    // so a cashier cannot reach the management portal at all. Telling them at
+    // the door that this is the way into it is no longer a wording preference,
+    // it is wrong. Revert if the client wants the original line back.
+    subtitle: "Enter your credentials to securely access the point of sale.",
     usernamePlaceholder: "cashier123",
     loginRoute: routes.cashierLogin,
     apiEndpoint: apiRoutes.loginFor("cashier"),
