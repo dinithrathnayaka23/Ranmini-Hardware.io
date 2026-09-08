@@ -6,6 +6,7 @@ import { AdminMenu } from "@/modules/auth/components/admin-menu";
 import type { UserProfile } from "@/modules/auth/types/auth.types";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
 import type { NotificationFeed } from "@/modules/notifications/types/notifications.types";
+import { ThemeToggle } from "@/shared/components/theme/theme-toggle";
 
 import { Breadcrumbs } from "./breadcrumbs";
 
@@ -55,8 +56,17 @@ export function Topbar({
           than push the account menu off the bar. */}
       <Breadcrumbs className="flex-1" />
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
+        {/* Before the bell rather than after: the two icon buttons read as a
+            pair, and the account menu stays the last thing on the bar, which
+            is where every other admin tool puts it. */}
+        <ThemeToggle />
         <NotificationBell initialFeed={notifications} />
+
+        {/* A hairline between the utilities and the account, so three circles
+            in a row do not read as one undifferentiated group. */}
+        <span aria-hidden className="mx-1 hidden h-6 w-px bg-line sm:block" />
+
         <AdminMenu admin={user} />
       </div>
     </header>
