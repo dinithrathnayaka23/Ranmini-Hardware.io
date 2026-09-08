@@ -81,7 +81,13 @@ export function BrandShowcase({ className }: { className?: string }) {
           </p>
         </div>
 
-        <div className="mt-12 flex items-center justify-center gap-2.5">
+        {/*
+          Left-aligned, under the caption rather than centred beneath it. The
+          headline, the description and the indicators are one block of content
+          against the left edge of the panel; a centred row of dots read as
+          belonging to the photograph instead of to the words above it.
+        */}
+        <div className="mt-12 flex items-center gap-2">
           {showcaseSlides.map((slide, index) => (
             <button
               key={slide.id}
@@ -89,13 +95,25 @@ export function BrandShowcase({ className }: { className?: string }) {
               onClick={() => setActiveIndex(index)}
               aria-label={`Show highlight ${index + 1} of ${showcaseSlides.length}`}
               aria-current={index === activeIndex}
-              className={cn(
-                "size-2.5 rounded-full transition-colors duration-300",
-                index === activeIndex
-                  ? "bg-white"
-                  : "bg-white/40 hover:bg-white/70",
-              )}
-            />
+              // Each control keeps a 40px touch area regardless of how small the
+              // mark inside it is — `p-2` around a 2.5-unit bar gets there
+              // without the bar itself having to grow.
+              className="group -m-2 p-2"
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  // The current slide is a wider bar rather than a brighter dot.
+                  // Length survives a bright photograph behind it, where the
+                  // difference between white and 40% white does not — and it
+                  // also gives the indicator a second channel besides tone.
+                  "block h-1.5 rounded-full transition-all duration-300",
+                  index === activeIndex
+                    ? "w-7 bg-white"
+                    : "w-1.5 bg-white/50 group-hover:bg-white/80",
+                )}
+              />
+            </button>
           ))}
         </div>
       </div>
