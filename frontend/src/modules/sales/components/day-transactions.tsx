@@ -80,8 +80,81 @@ export function DayTransactions({
         </p>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[48rem] border-collapse text-sm">
+      {/*
+        ------------------------------ Card list ------------------------------
+        Below `md`. Seven columns of sales history do not fit a phone, and this
+        is a screen an owner opens on one — checking the day's takings from
+        somewhere other than the office is most of why it exists.
+      */}
+      <ul className="divide-y divide-line md:hidden">
+        {page.sales.map((sale) => {
+          const isOpen = openId === sale.id;
+          const isVoided = sale.status === "VOIDED";
+          const units = sale.lines.reduce((total, line) => total + line.quantity, 0);
+
+          return (
+            <li key={sale.id} className={cn(isVoided && "bg-danger-soft/40")}>
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium break-all text-ink">
+                      {sale.invoiceNumber}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted">
+                      {formatTime(sale.soldAt)} ·{" "}
+                      {sale.tender === "CASH" ? "Cash" : "Card"} ·{" "}
+                      {formatCount(units)} {units === 1 ? "item" : "items"}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted">
+                      {sale.cashierName ?? "—"}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 text-right">
+                    <p
+                      className={cn(
+                        "font-semibold whitespace-nowrap tabular-nums",
+                        isVoided ? "text-muted line-through" : "text-ink",
+                      )}
+                    >
+                      {formatCurrency(sale.total, currency)}
+                    </p>
+                    {isVoided ? (
+                      <span className="mt-1 inline-block">
+                        <Badge label="Voided" accent="danger" />
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  aria-expanded={isOpen}
+                  onClick={() => setOpenId(isOpen ? null : sale.id)}
+                  className="mt-3 w-full"
+                >
+                  <ReceiptIcon aria-hidden className="size-4" />
+                  {isOpen ? "Close receipt" : "Open receipt"}
+                </Button>
+              </div>
+
+              {isOpen ? <SaleDetail sale={sale} /> : null}
+            </li>
+          );
+        })}
+      </ul>
+
+      {/*
+        ------------------------------- Table --------------------------------
+        From `md`, with the columns that answer the first question always
+        present and the rest arriving with the width to hold them. Time, invoice
+        and total are what the day is read for; who served it and how it was
+        paid are follow-up questions.
+      */}
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[28rem] border-collapse text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs tracking-wide text-muted uppercase">
               <th scope="col" className="px-5 py-3 font-medium">
@@ -90,13 +163,16 @@ export function DayTransactions({
               <th scope="col" className="px-3 py-3 font-medium">
                 Invoice
               </th>
-              <th scope="col" className="px-3 py-3 font-medium">
+              <th scope="col" className="hidden px-3 py-3 font-medium xl:table-cell">
                 Cashier
               </th>
-              <th scope="col" className="px-3 py-3 text-right font-medium">
+              <th
+                scope="col"
+                className="hidden px-3 py-3 text-right font-medium lg:table-cell"
+              >
                 Items
               </th>
-              <th scope="col" className="px-3 py-3 font-medium">
+              <th scope="col" className="hidden px-3 py-3 font-medium lg:table-cell">
                 Paid by
               </th>
               <th scope="col" className="px-3 py-3 text-right font-medium">
@@ -138,13 +214,13 @@ export function DayTransactions({
                       ) : null}
                     </th>
 
-                    <td className="px-3 py-3.5 text-muted">
+                    <td className="hidden px-3 py-3.5 text-muted xl:table-cell">
                       {sale.cashierName ?? "—"}
                     </td>
-                    <td className="px-3 py-3.5 text-right text-ink-soft tabular-nums">
+                    <td className="hidden px-3 py-3.5 text-right text-ink-soft tabular-nums lg:table-cell">
                       {formatCount(units)}
                     </td>
-                    <td className="px-3 py-3.5 text-muted">
+                    <td className="hidden px-3 py-3.5 text-muted lg:table-cell">
                       {sale.tender === "CASH" ? "Cash" : "Card"}
                     </td>
 
