@@ -2,12 +2,11 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, KeyRound } from "lucide-react";
-import Link from "next/link";
 import * as React from "react";
 import { useForm } from "react-hook-form";
 
 import { Alert } from "@/shared/components/ui/alert";
-import { Button } from "@/shared/components/ui/button";
+import { Button, ButtonLink } from "@/shared/components/ui/button";
 import { PasswordField } from "@/shared/components/ui/password-field";
 import { routes } from "@/shared/config/app.config";
 
@@ -74,14 +73,12 @@ export function ResetPasswordForm({ token }: { token: string }) {
           message="Your password has been changed. Sign in with your new one."
         />
 
-        <Link
-          href={routes.adminLogin}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-brand-600 px-4 py-2.5
-                     text-sm font-medium text-white transition-colors hover:bg-brand-700"
-        >
+        {/* The shared button, so the last step of the reset flow looks like the
+            Sign In button it is about to hand the user back to. */}
+        <ButtonLink href={routes.adminLogin} className="w-full">
           Go to Sign In
           <ArrowRight aria-hidden className="size-4" />
-        </Link>
+        </ButtonLink>
       </div>
     );
   }
