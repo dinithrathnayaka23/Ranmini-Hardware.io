@@ -1,5 +1,7 @@
+import { KeyRound } from "lucide-react";
 import type { Metadata } from "next";
 
+import { AuthHeading } from "@/modules/auth/components/auth-heading";
 import { ForgotPasswordForm } from "@/modules/auth/components/forgot-password-form";
 
 export const metadata: Metadata = {
@@ -19,15 +21,13 @@ export const metadata: Metadata = {
 export default function ForgotPasswordPage() {
   return (
     <div>
-      <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-ink sm:text-[2rem]">
-        Forgot Your Password?
-      </h1>
-      <p className="mt-3 text-[0.95rem] leading-relaxed text-muted">
-        Enter the email address on your account and we will send you a link to
-        choose a new password.
-      </p>
+      <AuthHeading
+        badge={{ icon: KeyRound, label: "Account Recovery" }}
+        title="Forgot Your Password?"
+        description="Enter the email address on your account and we will send you a link to choose a new password."
+      />
 
-      <div className="mt-8 sm:mt-12">
+      <div className="mt-8 sm:mt-10">
         <ForgotPasswordForm />
       </div>
     </div>

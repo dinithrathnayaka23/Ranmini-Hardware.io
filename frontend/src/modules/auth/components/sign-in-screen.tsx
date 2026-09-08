@@ -1,9 +1,26 @@
-import type { PortalDefinition } from "../constants/portals";
+import type { LucideIcon } from "lucide-react";
+import { ScanLine, ShieldCheck } from "lucide-react";
 
+import type { PortalDefinition, PortalId } from "../constants/portals";
+
+import { AuthHeading } from "./auth-heading";
 import { LoginForm } from "./login-form";
 
 /**
- * The body of a sign-in screen: heading, supporting line, and the form.
+ * Which door this is, said plainly above the heading.
+ *
+ * <p>Kept here rather than in `portals.ts` deliberately. That file is imported
+ * by the Route Handler that receives credentials, and it is worth something
+ * that a module on that path stays free of React components — a badge icon has
+ * no business being reachable from the code that talks to the auth API.
+ */
+const portalBadges: Record<PortalId, { icon: LucideIcon; label: string }> = {
+  admin: { icon: ShieldCheck, label: "Management Portal" },
+  cashier: { icon: ScanLine, label: "Point of Sale" },
+};
+
+/**
+ * The body of a sign-in screen: badge, heading, supporting line, and the form.
  *
  * A Server Component — only the form beneath it runs on the client. The
  * surrounding brand header, showcase panel and legal footer come from the
@@ -20,14 +37,13 @@ export function SignInScreen({
 }) {
   return (
     <div>
-      <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-ink sm:text-[2rem]">
-        {portal.title}
-      </h1>
-      <p className="mt-3 text-[0.95rem] leading-relaxed text-muted">
-        {portal.subtitle}
-      </p>
+      <AuthHeading
+        badge={portalBadges[portal.id]}
+        title={portal.title}
+        description={portal.subtitle}
+      />
 
-      <div className="mt-8 sm:mt-12">
+      <div className="mt-8 sm:mt-10">
         <LoginForm portal={portal} redirectTo={redirectTo} />
       </div>
     </div>

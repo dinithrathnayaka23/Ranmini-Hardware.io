@@ -1,9 +1,11 @@
+import { KeyRound, LinkIcon } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 
+import { AuthHeading } from "@/modules/auth/components/auth-heading";
 import { ResetPasswordForm } from "@/modules/auth/components/reset-password-form";
 import { isResetTokenValid } from "@/modules/auth/services/password-reset.server";
 import { Alert } from "@/shared/components/ui/alert";
+import { ButtonLink } from "@/shared/components/ui/button";
 import { routes } from "@/shared/config/app.config";
 
 export const metadata: Metadata = {
@@ -31,9 +33,10 @@ export default async function ResetPasswordPage({
   if (!valid || !token) {
     return (
       <div>
-        <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-ink sm:text-[2rem]">
-          This Link Has Expired
-        </h1>
+        <AuthHeading
+          badge={{ icon: LinkIcon, label: "Expired Link" }}
+          title="This Link Has Expired"
+        />
 
         <div className="mt-8 space-y-6">
           <Alert message="Reset links work once and only for a short while. This one has been used already, or it has run out." />
@@ -42,13 +45,13 @@ export default async function ResetPasswordPage({
             Ask for a fresh one and it will be in your inbox in a moment.
           </p>
 
-          <Link
-            href={routes.forgotPassword}
-            className="inline-flex w-full items-center justify-center rounded-[10px] bg-brand-600 px-4 py-2.5
-                       text-sm font-medium text-white transition-colors hover:bg-brand-700"
-          >
+          {/* The shared button rather than a hand-rolled link with the same
+              colours spelled out again. It was the odd one out on these screens:
+              a size and radius that matched nothing else, and one more place a
+              change to the primary action would have had to be remembered. */}
+          <ButtonLink href={routes.forgotPassword} className="w-full">
             Request a New Link
-          </Link>
+          </ButtonLink>
         </div>
       </div>
     );
@@ -56,15 +59,13 @@ export default async function ResetPasswordPage({
 
   return (
     <div>
-      <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-ink sm:text-[2rem]">
-        Set a New Password
-      </h1>
-      <p className="mt-3 text-[0.95rem] leading-relaxed text-muted">
-        Choose a password you have not used here before. You will use it the next
-        time you sign in.
-      </p>
+      <AuthHeading
+        badge={{ icon: KeyRound, label: "Account Recovery" }}
+        title="Set a New Password"
+        description="Choose a password you have not used here before. You will use it the next time you sign in."
+      />
 
-      <div className="mt-8 sm:mt-12">
+      <div className="mt-8 sm:mt-10">
         <ResetPasswordForm token={token} />
       </div>
     </div>
