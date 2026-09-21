@@ -6,7 +6,12 @@ import { apiFetch } from "@/shared/lib/api.server";
 import { routes } from "@/shared/config/app.config";
 import { ApiError, errorMessages } from "@/shared/lib/http-error";
 
-import type { CheckoutResult, CompletedSale, TenderMethod } from "./types/pos.types";
+import type {
+  CheckoutResult,
+  CompletedSale,
+  TenderMethod,
+  TillAlertFeed,
+} from "./types/pos.types";
 
 /**
  * Completing a sale, from the till.
@@ -76,5 +81,28 @@ export async function completeSale(input: {
       return { success: false, message: error.message };
     }
     return { success: false, message: errorMessages.unexpected };
+  }
+}
+
+/**
+ * Marks the till's notifications as read, and returns the feed it marked.
+ *
+ * <p>One request does both. The API stamps the feed it has just built and hands
+ * it back, so the badge clears and the rows lose their unread dots together —
+ * two requests would show the panel changing twice while a customer waits.
+ *
+ * <p>Returns null on failure rather than throwing. Not being able to mark a
+ * notification read is the least important thing that can go wrong at a till,
+ * and it must not produce an error in front of a customer: the panel simply
+ * keeps showing what it already had.
+ */
+export async function markTillAlertsRead(): Promise<TillAlertFeed | null> {
+  try {
+    return await apiFetch<TillAlertFeed>("/api/v1/pos/notifications/read", {
+      method: "POST",
+      session: "cashier",
+    });
+  } catch {
+    return null;
   }
 }

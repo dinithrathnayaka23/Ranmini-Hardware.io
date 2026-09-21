@@ -125,6 +125,81 @@ export interface CompletedSale {
   amountTendered?: number | null;
   changeDue: number;
   status: "COMPLETED" | "VOIDED";
+  /**
+   * Lines this sale pushed to or below their reorder level.
+   *
+   * Only ever populated on the response to a checkout, and only for lines the
+   * sale actually *changed* — see {@link StockNotice}. A receipt read back
+   * later carries none, because a stock level from last Tuesday is not news.
+   *
+   * Optional rather than required, and read defensively at every use. The API
+   * omits null fields rather than sending them, and a till that renders
+   * `notices.length` against an absent field throws — which on this screen
+   * would unmount the confirmation in front of a paying customer. See the note
+   * on `apiFetch` about exactly that failure.
+   */
+  stockNotices?: StockNotice[] | null;
+}
+
+/**
+ * A warning the till shows the moment a sale crosses a stock threshold.
+ *
+ * <p>This is the till's most useful notification, and the reason it is worth
+ * more than the standing list in the bell: it arrives at the one moment the
+ * cashier can act on it — while they are still holding the stock, with the
+ * customer in front of them who might want the rest of it.
+ *
+ * <p>Raised only on the crossing, never on the state. A sale that takes a line
+ * from six to five warns; the next sale, from five to four, does not. A shop
+ * that is short of several things would otherwise put a warning on every single
+ * transaction, and a warning on every transaction is one a cashier taps past
+ * without reading.
+ */
+export interface StockNotice {
+  productId: string;
+  sku: string;
+  name: string;
+  /** "bags", "pcs" — so the message counts in the shop's own words. */
+  unit: string;
+  /** Units left after this sale. */
+  remaining: number;
+  reorderLevel: number;
+  /** Nothing left at all, which is a different message and a different colour. */
+  soldOut: boolean;
+}
+
+/**
+ * The till's own notification feed.
+ *
+ * <p>Declared here rather than imported from the notifications module: feature
+ * modules do not import from one another, and the two feeds are not the same
+ * thing. The portal's carries voided sales and everything the owner oversees;
+ * this one carries only what the person at the counter can act on.
+ */
+export type TillAlertKind = "OUT_OF_STOCK" | "LOW_STOCK";
+
+export interface TillAlert {
+  id: string;
+  kind: TillAlertKind;
+  severity: "CRITICAL" | "WARNING" | "INFO";
+  title: string;
+  detail: string;
+  occurredAt: string;
+  /** Whether it changed since this cashier last opened the panel. */
+  unread: boolean;
+  entityType: "PRODUCT" | "SALE";
+  entityId: string;
+}
+
+export interface TillAlertFeed {
+  items: TillAlert[];
+  /**
+   * The badge on the bell, sent by the API rather than counted from the rows:
+   * the panel shows a capped list, and counting what is on screen would
+   * under-report the moment the cap bites.
+   */
+  unreadCount: number;
+  generatedAt: string;
 }
 
 /**
