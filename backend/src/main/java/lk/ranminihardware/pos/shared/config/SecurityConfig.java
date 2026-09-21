@@ -32,8 +32,11 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  *
  * <ul>
  *   <li><b>Open:</b> sign-in and health. Nothing else.
- *   <li><b>Till:</b> the catalogue read and checkout, for CASHIER or ADMIN, so
- *       the owner can cover the counter without a second account.
+ *   <li><b>Till:</b> the catalogue read and checkout, for CASHIER only. An
+ *       admin used to be allowed here so the owner could cover the counter;
+ *       the shop asked for the two sides kept apart instead, so an owner who
+ *       serves customers needs a cashier account of their own. See
+ *       {@code StaffRole} for the reasoning.
  *   <li><b>Portal:</b> everything else — inventory, staff, settings, reports —
  *       ADMIN only.
  * </ul>
