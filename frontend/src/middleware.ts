@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { cookieNames } from "@/shared/config/cookie-names";
+import { sessionCookies } from "@/shared/config/cookie-names";
 import { routes } from "@/shared/config/app.config";
 
 /**
@@ -23,11 +23,19 @@ import { routes } from "@/shared/config/app.config";
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const hasSession = Boolean(request.cookies.get(cookieNames.accessToken)?.value);
+  const isTill = pathname.startsWith("/cashier");
+
+  // Each portal looks only at its own cookie. They are separate sessions, so a
+  // browser signed in to the management portal is not signed in at the till —
+  // and sending somebody to the till because the owner happened to be signed in
+  // on that machine is how a cashier ends up ringing up a sale as the owner.
+  const portal = isTill ? "cashier" : "admin";
+  const hasSession = Boolean(
+    request.cookies.get(sessionCookies[portal].access)?.value,
+  );
 
   if (hasSession) return NextResponse.next();
 
-  const isTill = pathname.startsWith("/cashier");
   const signInUrl = new URL(isTill ? routes.cashierLogin : routes.adminLogin, request.url);
 
   // Remember where they were headed so sign-in can return them there rather

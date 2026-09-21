@@ -29,7 +29,7 @@ export function LogoutButton({ onNavigate }: { onNavigate?: () => void }) {
     setIsPending(true);
     setHasFailed(false);
 
-    const succeeded = await logout();
+    const succeeded = await logout("admin");
 
     if (!succeeded) {
       setHasFailed(true);

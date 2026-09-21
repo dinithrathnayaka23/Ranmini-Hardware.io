@@ -78,5 +78,11 @@ export const apiRoutes = {
    * module — the caller supplies an already-validated `PortalId`.
    */
   loginFor: (portal: string) => `/api/auth/${portal}/login`,
-  logout: "/api/auth/logout",
+  /**
+   * Signing out is scoped by portal for the same reason signing in is: the two
+   * sessions are separate cookies, and ending one must not end the other. An
+   * owner closing the portal on the counter machine should leave the till
+   * signed in and mid-sale.
+   */
+  logoutFor: (portal: string) => `/api/auth/${portal}/logout`,
 } as const;

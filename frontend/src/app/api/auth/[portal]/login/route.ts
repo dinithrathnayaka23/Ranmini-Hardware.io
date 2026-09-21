@@ -8,7 +8,7 @@ import {
   REMEMBERED_SESSION_SECONDS,
   authCookieMaxAge,
   baseAuthCookieOptions,
-  cookieNames,
+  sessionCookies,
 } from "@/shared/config/cookies";
 import { ApiError, errorMessages } from "@/shared/lib/http-error";
 import {
@@ -126,15 +126,32 @@ export async function POST(
     const outcome: LoginOutcome = { success: true, user: session.user };
     const response = NextResponse.json(outcome, { status: 200 });
 
+    /*
+     * Into this portal's own cookies, never a shared pair.
+     *
+     * The two portals are one origin, so a single pair of cookies meant that
+     * signing in here replaced whatever session the other door had open — in
+     * place, and silently, because the page already rendered carried on as if
+     * nothing had happened. What it looked like in the shop: a cashier halfway
+     * through a customer, the owner opening the portal on the same machine, and
+     * the till then refusing the payment, because the sale was being posted
+     * with the owner's token.
+     *
+     * Writing only this portal's cookies is what makes the two sessions
+     * independent. Nothing here touches the other portal's, so an owner signing
+     * in cannot disturb a till that is mid-sale.
+     */
+    const cookiesForPortal = sessionCookies[portal];
+
     // The access cookie tracks the backend-issued lifetime; "Remember Me" only
     // decides whether the cookie survives the browser being closed.
-    response.cookies.set(cookieNames.accessToken, session.accessToken, {
+    response.cookies.set(cookiesForPortal.access, session.accessToken, {
       ...baseAuthCookieOptions,
       maxAge: rememberMe ? session.expiresIn : undefined,
     });
 
     if (session.refreshToken) {
-      response.cookies.set(cookieNames.refreshToken, session.refreshToken, {
+      response.cookies.set(cookiesForPortal.refresh, session.refreshToken, {
         ...baseAuthCookieOptions,
         maxAge: authCookieMaxAge(rememberMe, REMEMBERED_SESSION_SECONDS),
       });

@@ -25,7 +25,7 @@ export function PosSignOut() {
     setIsPending(true);
     setHasFailed(false);
 
-    if (!(await logout())) {
+    if (!(await logout("cashier"))) {
       setHasFailed(true);
       setIsPending(false);
       return;

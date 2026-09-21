@@ -1,7 +1,7 @@
 import { apiRoutes } from "@/shared/config/app.config";
 import { errorMessages } from "@/shared/lib/http-error";
 
-import type { PortalDefinition } from "../constants/portals";
+import type { PortalDefinition, PortalId } from "../constants/portals";
 import type { LoginFormValues } from "../schemas/login.schema";
 import type { LoginOutcome } from "../types/auth.types";
 
@@ -51,16 +51,20 @@ export async function login(
 }
 
 /**
- * Ends the session by asking the BFF to expire the auth cookies.
+ * Ends the session at one portal by asking the BFF to expire its cookies.
  *
  * The cookies are httpOnly, so the browser cannot clear them itself — only the
  * server that set them can. Returns whether the clearing actually succeeded,
  * because navigating away from a session that is still live would look like a
  * sign-out without being one.
+ *
+ * @param portal which session to end. Required, and not inferred from the page:
+ *     the two portals keep separate sessions, and signing the till out from the
+ *     management portal would end a sale somebody is halfway through.
  */
-export async function logout(): Promise<boolean> {
+export async function logout(portal: PortalId): Promise<boolean> {
   try {
-    const response = await fetch(apiRoutes.logout, {
+    const response = await fetch(apiRoutes.logoutFor(portal), {
       method: "POST",
       credentials: "same-origin",
     });
