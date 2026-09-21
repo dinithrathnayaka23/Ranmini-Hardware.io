@@ -66,7 +66,7 @@ export async function fetchDashboard(): Promise<DashboardView> {
   });
   // The shop's own symbol, not a build-time constant: Settings → Business
   // Logic owns this choice, and the dashboard was ignoring it.
-  const symbol = await getCurrencySymbol();
+  const symbol = await getCurrencySymbol("admin");
 
   return {
     stats: [

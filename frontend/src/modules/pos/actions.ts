@@ -43,6 +43,7 @@ export async function completeSale(input: {
   try {
     const sale = await apiFetch<CompletedSale>("/api/v1/pos/sales", {
       method: "POST",
+      session: "cashier",
       body: {
         // No cashier is sent. The backend takes who rang this up from the
         // verified session, so a till cannot attribute a sale to somebody else.

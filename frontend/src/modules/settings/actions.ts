@@ -58,7 +58,11 @@ async function save(
   successMessage: string,
 ): Promise<SettingsActionResult> {
   try {
-    await apiFetch(`/api/v1/settings/${section}`, { method: "PATCH", body });
+    await apiFetch(`/api/v1/settings/${section}`, {
+      method: "PATCH",
+      body,
+      session: "admin",
+    });
 
     await refreshSettings();
 
@@ -110,7 +114,7 @@ export async function saveSecurity(values: unknown): Promise<SettingsActionResul
  */
 export async function uploadShopLogo(data: FormData): Promise<SettingsActionResult> {
   try {
-    await apiFetchMultipart("/api/v1/settings/logo", data);
+    await apiFetchMultipart("/api/v1/settings/logo", data, "admin");
     await refreshSettings();
     return { success: true, message: "Logo saved. It will appear on new receipts." };
   } catch (error) {
@@ -121,7 +125,7 @@ export async function uploadShopLogo(data: FormData): Promise<SettingsActionResu
 
 export async function removeShopLogo(): Promise<SettingsActionResult> {
   try {
-    await apiFetch("/api/v1/settings/logo", { method: "DELETE" });
+    await apiFetch("/api/v1/settings/logo", { method: "DELETE", session: "admin" });
     await refreshSettings();
     return { success: true, message: "Logo removed." };
   } catch (error) {

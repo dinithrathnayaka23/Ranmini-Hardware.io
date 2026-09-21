@@ -45,7 +45,7 @@ export default async function PortalLayout({
   // a request every few seconds all night to learn that nothing had changed.
   const [user, shop, notifications] = await guardedLoad(
     requireAdmin(),
-    getShopSettings(),
+    getShopSettings("admin"),
     fetchNotifications(),
   );
 

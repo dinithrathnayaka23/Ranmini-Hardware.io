@@ -58,6 +58,7 @@ export async function createProduct(values: unknown): Promise<InventoryActionRes
   try {
     const created = await apiFetch<ProductWriteResponse>("/api/v1/inventory/products", {
       method: "POST",
+      session: "admin",
       body: toRequestBody(product),
     });
 
@@ -96,6 +97,7 @@ export async function updateProduct(
   try {
     await apiFetch(`/api/v1/inventory/products/${encodeURIComponent(id)}`, {
       method: "PUT",
+      session: "admin",
       body: toRequestBody(product),
     });
 
@@ -119,7 +121,7 @@ export async function deactivateProduct(id: string): Promise<InventoryActionResu
   try {
     const product = await apiFetch<ProductWriteResponse>(
       `/api/v1/inventory/products/${encodeURIComponent(id)}`,
-      { method: "DELETE" },
+      { method: "DELETE", session: "admin" },
     );
 
     await refreshCatalogue(id);
@@ -136,7 +138,7 @@ export async function reactivateProduct(id: string): Promise<InventoryActionResu
   try {
     const product = await apiFetch<ProductWriteResponse>(
       `/api/v1/inventory/products/${encodeURIComponent(id)}/reactivate`,
-      { method: "POST" },
+      { method: "POST", session: "admin" },
     );
 
     await refreshCatalogue(id);
@@ -174,6 +176,7 @@ export async function adjustStock(
       `/api/v1/inventory/products/${encodeURIComponent(id)}/stock`,
       {
         method: "POST",
+        session: "admin",
         // Null rather than undefined: the API takes an explicit absence to mean
         // "this movement was not a purchase, leave the cost alone".
         body: { delta, reason, unitCost: unitCost ?? null },
@@ -207,6 +210,7 @@ export async function uploadProductImage(
     await apiFetchMultipart(
       `/api/v1/inventory/products/${encodeURIComponent(id)}/image`,
       data,
+      "admin",
     );
 
     await refreshCatalogue(id);
@@ -220,6 +224,7 @@ export async function removeProductImage(id: string): Promise<InventoryActionRes
   try {
     await apiFetch(`/api/v1/inventory/products/${encodeURIComponent(id)}/image`, {
       method: "DELETE",
+      session: "admin",
     });
 
     await refreshCatalogue(id);

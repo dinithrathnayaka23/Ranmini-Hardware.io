@@ -65,6 +65,7 @@ export async function createCategory(values: unknown): Promise<CategoryActionRes
 
     await apiFetch("/api/v1/categories", {
       method: "POST",
+      session: "admin",
       body: { name: parsed.data, displayOrder: existing.length },
     });
 
@@ -97,6 +98,7 @@ export async function renameCategory(
   try {
     await apiFetch(`/api/v1/categories/${encodeURIComponent(id)}`, {
       method: "PATCH",
+      session: "admin",
       body: { name: parsed.data },
     });
 
@@ -157,6 +159,7 @@ export async function moveCategory(
       writes.map(({ category, position }) =>
         apiFetch(`/api/v1/categories/${encodeURIComponent(category.id)}/order`, {
           method: "PATCH",
+          session: "admin",
           body: { displayOrder: position },
         }),
       ),
@@ -188,7 +191,7 @@ export async function deactivateCategory(
   if (!id) return notFound();
 
   try {
-    await apiFetch(`/api/v1/categories/${encodeURIComponent(id)}`, { method: "DELETE" });
+    await apiFetch(`/api/v1/categories/${encodeURIComponent(id)}`, { method: "DELETE", session: "admin" });
 
     revalidateCategoryViews();
     return {

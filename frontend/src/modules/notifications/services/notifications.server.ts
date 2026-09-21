@@ -27,6 +27,7 @@ import type { NotificationFeed } from "../types/notifications.types";
 export async function fetchNotifications(): Promise<NotificationFeed> {
   try {
     return await apiFetch<NotificationFeed>("/api/v1/notifications", {
+      session: "admin",
       cache: "no-store",
     });
   } catch {

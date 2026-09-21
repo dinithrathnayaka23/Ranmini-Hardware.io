@@ -51,6 +51,7 @@ export async function createStaffMember(
   try {
     await apiFetch("/api/v1/staff", {
       method: "POST",
+      session: "admin",
       body: { fullName, username, role, password: initialPassword },
     });
 
@@ -82,6 +83,7 @@ export async function changeStaffPassword(
   try {
     await apiFetch(`/api/v1/staff/${staffId}/password`, {
       method: "POST",
+      session: "admin",
       body: { password },
     });
     revalidatePath(routes.adminStaff);
@@ -106,7 +108,7 @@ export async function setStaffActive(
   try {
     await apiFetch(
       active ? `/api/v1/staff/${staffId}/reactivate` : `/api/v1/staff/${staffId}`,
-      { method: active ? "POST" : "DELETE" },
+      { method: active ? "POST" : "DELETE", session: "admin" },
     );
     revalidatePath(routes.adminStaff);
     return {

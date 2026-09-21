@@ -121,7 +121,7 @@ export async function fetchProduct(id: string): Promise<Product> {
 export async function fetchInventoryStats(): Promise<StatCardModel[]> {
   // Settings → Business Logic owns the currency; this used to print the
   // build-time default whatever the shop had chosen.
-  const currency = await getCurrencySymbol();
+  const currency = await getCurrencySymbol("admin");
   const summary = await adminFetch<SummaryResponse>("/api/v1/inventory/summary", {
     // The endpoint sends `Cache-Control: private, max-age=30` because these are
     // aggregates over the whole catalogue and are expensive relative to how

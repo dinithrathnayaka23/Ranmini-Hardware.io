@@ -36,7 +36,7 @@ export async function voidSale(
   try {
     const sale = await apiFetch<Sale>(
       `/api/v1/sales/${encodeURIComponent(id)}/void`,
-      { method: "POST", body: { reason: parsed.data.reason } },
+      { method: "POST", body: { reason: parsed.data.reason }, session: "admin" },
     );
 
     // A void moves stock, the day's revenue and the notification feed all at

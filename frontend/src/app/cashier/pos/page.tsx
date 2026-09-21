@@ -45,7 +45,7 @@ export default async function CashierPosPage() {
     // components that print them: a client component cannot reach the API, and
     // fetching after the first paint would show a basket priced in the wrong
     // symbol for a moment.
-    getShopSettings(),
+    getShopSettings("cashier"),
   );
 
   return (

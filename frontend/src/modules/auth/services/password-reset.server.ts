@@ -19,7 +19,8 @@ export async function isResetTokenValid(token: string | undefined): Promise<bool
   try {
     const response = await apiFetch<{ valid: boolean }>(
       `/api/v1/auth/password-reset/validate?token=${encodeURIComponent(token)}`,
-      { authenticated: false },
+      // Checked before anyone is signed in, so no session is offered.
+      { session: "public" },
     );
     return response.valid;
   } catch {

@@ -46,7 +46,9 @@ export async function requestPasswordReset(
   try {
     const response = await apiFetch<{ message: string }>(
       "/api/v1/auth/password-reset/request",
-      { method: "POST", body: { email: parsed.data.email }, authenticated: false },
+      // Nobody is signed in here by definition: this is the endpoint for
+      // somebody who cannot get in.
+      { method: "POST", body: { email: parsed.data.email }, session: "public" },
     );
 
     return { success: true, message: response.message };
@@ -71,7 +73,7 @@ export async function confirmPasswordReset(
       {
         method: "POST",
         body: { token: parsed.data.token, password: parsed.data.password },
-        authenticated: false,
+        session: "public",
       },
     );
 

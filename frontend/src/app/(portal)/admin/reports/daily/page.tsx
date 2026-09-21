@@ -62,7 +62,7 @@ export default async function DailyDetailsPage({
   const [totals, sales, currency, foundSale] = await Promise.all([
     fetchDayTotals(date),
     fetchSalesForDay(date, page),
-    getCurrencySymbol(),
+    getCurrencySymbol("admin"),
     invoice ? fetchSaleByInvoice(invoice) : Promise.resolve(undefined),
   ]);
 

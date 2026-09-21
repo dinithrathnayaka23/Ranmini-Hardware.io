@@ -30,7 +30,7 @@ export default async function AddProductPage() {
   // and awaiting them in sequence would add a round trip for nothing.
   const [categories, shop] = await Promise.all([
     fetchCategories(),
-    getShopSettings(),
+    getShopSettings("admin"),
   ]);
 
   return (

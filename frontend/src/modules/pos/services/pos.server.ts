@@ -49,6 +49,10 @@ const CATALOGUE_PAGE_SIZE = 100;
 
 export async function fetchCategories(): Promise<PosCategory[]> {
   const categories = await apiFetch<CategoryResponse[]>("/api/v1/categories", {
+    // The till's own session. Both roles may read the category list, but the
+    // cashier is the one asking, and a call made with whoever else happens to
+    // be signed in on this machine is the mix-up the split sessions removed.
+    session: "cashier",
     // Categories change perhaps twice a year, so a short revalidation window
     // saves a request on every till load without risking a stale filter row.
     revalidate: 300,

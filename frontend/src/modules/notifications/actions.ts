@@ -20,6 +20,7 @@ export async function markNotificationsRead(): Promise<NotificationFeed | null> 
   try {
     return await apiFetch<NotificationFeed>("/api/v1/notifications/read", {
       method: "POST",
+      session: "admin",
     });
   } catch {
     // The panel keeps showing what it already had. Failing to record that

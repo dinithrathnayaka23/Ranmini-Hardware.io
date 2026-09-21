@@ -45,6 +45,7 @@ export async function saveProfileDetails(
   try {
     await apiFetch("/api/v1/profile", {
       method: "PATCH",
+      session: "admin",
       body: {
         fullName: parsed.data.fullName,
         // An empty field means "no value", not "the empty string" — the API
@@ -73,6 +74,7 @@ export async function changeMyPassword(
   try {
     await apiFetch("/api/v1/profile/password", {
       method: "POST",
+      session: "admin",
       body: {
         currentPassword: parsed.data.currentPassword,
         newPassword: parsed.data.newPassword,
@@ -116,7 +118,7 @@ export async function uploadAvatar(formData: FormData): Promise<ProfileActionRes
     const upload = new FormData();
     upload.append("file", file, file.name || "avatar");
 
-    await apiFetchMultipart("/api/v1/profile/avatar", upload);
+    await apiFetchMultipart("/api/v1/profile/avatar", upload, "admin");
 
     AFFECTED_PATHS.forEach((path) => revalidatePath(path));
     return { success: true, message: "Your picture has been updated." };
@@ -128,7 +130,7 @@ export async function uploadAvatar(formData: FormData): Promise<ProfileActionRes
 
 export async function removeAvatar(): Promise<ProfileActionResult> {
   try {
-    await apiFetch("/api/v1/profile/avatar", { method: "DELETE" });
+    await apiFetch("/api/v1/profile/avatar", { method: "DELETE", session: "admin" });
 
     AFFECTED_PATHS.forEach((path) => revalidatePath(path));
     return { success: true, message: "Your picture has been removed." };
