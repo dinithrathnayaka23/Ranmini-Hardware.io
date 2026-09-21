@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 
 import { appConfig } from "@/shared/config/app.config";
+import type { PortalId } from "@/modules/auth/constants/portals";
 import { apiFetch } from "@/shared/lib/api.server";
 
 /**
@@ -77,10 +78,20 @@ const FALLBACK: ShopSettings = {
  * leaves the dashboard open on the counter from re-asking every few seconds for
  * a value that changes twice a year — while still being short enough that
  * changing the currency does not need a sign-out to take effect.
+ *
+ * <p><b>Takes the portal because both make this call.</b> The endpoint serves
+ * either role — everything in it is printed on a customer's receipt anyway —
+ * but the call still has to be made with somebody's token, and on a counter
+ * machine where the owner is also signed in there are two to choose from.
+ * Naming the portal means the till reads the shop's details as the cashier and
+ * the portal reads them as the owner, rather than whichever session was found
+ * first. `cache` keys on the argument, so the two do not share an entry.
  */
-export const getShopSettings = cache(async (): Promise<ShopSettings> => {
+export const getShopSettings = cache(
+  async (portal: PortalId): Promise<ShopSettings> => {
   try {
     return await apiFetch<ShopSettings>("/api/v1/settings/public", {
+      session: portal,
       revalidate: 60,
       tags: ["shop-settings"],
     });
@@ -90,9 +101,10 @@ export const getShopSettings = cache(async (): Promise<ShopSettings> => {
     // that was going to render perfectly well with the defaults.
     return FALLBACK;
   }
-});
+  },
+);
 
 /** Just the symbol, for the server-side modules that only format money. */
-export async function getCurrencySymbol(): Promise<string> {
-  return (await getShopSettings()).currencySymbol;
+export async function getCurrencySymbol(portal: PortalId): Promise<string> {
+  return (await getShopSettings(portal)).currencySymbol;
 }
