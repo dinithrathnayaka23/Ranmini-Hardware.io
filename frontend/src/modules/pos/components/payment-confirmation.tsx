@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleCheck, ShoppingBag } from "lucide-react";
+import { CircleCheck, PackageX, ShoppingBag, TriangleAlert } from "lucide-react";
 import * as React from "react";
 
 import { PrintReceiptButton } from "@/shared/components/receipt/print-receipt-button";
@@ -8,7 +8,7 @@ import { useCurrency } from "@/shared/components/shop-provider";
 import { cn } from "@/shared/lib/cn";
 import { formatAmount, formatCurrency } from "@/shared/lib/format";
 
-import type { CompletedSale } from "../types/pos.types";
+import type { CompletedSale, StockNotice } from "../types/pos.types";
 
 /**
  * The screen a cashier sees the moment a sale goes through.
@@ -29,6 +29,12 @@ import type { CompletedSale } from "../types/pos.types";
  * <p><b>It lists what was sold.</b> "What am I paying for?" is asked at the
  * counter constantly, and the answer used to require reprinting the receipt or
  * looking the sale up in the back office. The lines are right here.
+ *
+ * <p><b>It is also where a stock warning belongs.</b> When the sale just rung
+ * up takes a line to its reorder level or empties it, that is said here rather
+ * than in the bell alone — this screen already has the cashier's full attention
+ * for the next thirty seconds, and it is the last moment before the next
+ * customer when the information is still about something they just did.
  *
  * <p>It never dismisses itself. A cashier reading an amount off the screen must
  * not have it vanish mid-count, and the till behind it is already cleared and
@@ -97,6 +103,8 @@ export function PaymentConfirmation({
           </p>
         </div>
       </header>
+
+      <StockWarnings notices={sale.stockNotices} />
 
       {/*
         Two columns from `lg`, where there is room for the money and the basket
@@ -259,6 +267,61 @@ function itemCount(sale: CompletedSale): number {
 /** "15%" rather than "15.00%" — trailing zeroes are noise on a summary. */
 function trimPercent(rate: number): string {
   return String(Number(rate.toFixed(2)));
+}
+
+/**
+ * What this sale did to the shelf.
+ *
+ * <p>Shown only when the sale <em>changed</em> something — a line that reached
+ * its reorder level, or ran out entirely. A basket full of things that were
+ * already low says nothing, which is what keeps this worth reading: a banner
+ * that appeared on every sale would be part of the furniture within a week.
+ *
+ * <p>Deliberately below the green header rather than inside it. The sale
+ * succeeded and that must be the first thing read; this is the second thing,
+ * and making it compete with the confirmation would muddle both.
+ */
+function StockWarnings({ notices }: { notices?: StockNotice[] | null }) {
+  if (!notices || notices.length === 0) return null;
+
+  return (
+    <section
+      aria-label="Stock warnings"
+      className="shrink-0 border-b border-warning/25 bg-warning-soft px-4 py-3 sm:px-6"
+    >
+      <ul className="space-y-1.5">
+        {notices.map((notice) => (
+          <li key={notice.productId} className="flex items-start gap-2.5">
+            {notice.soldOut ? (
+              <PackageX aria-hidden className="mt-0.5 size-4 shrink-0 text-danger" />
+            ) : (
+              <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
+            )}
+
+            <p className="min-w-0 flex-1 text-sm leading-relaxed text-ink">
+              <span className="font-semibold">{notice.name}</span>{" "}
+              <span className="text-ink-soft">({notice.sku})</span>{" "}
+              {notice.soldOut ? (
+                <span className="font-medium text-danger">
+                  is now out of stock.
+                </span>
+              ) : (
+                <>
+                  is down to{" "}
+                  <span className="font-medium tabular-nums">
+                    {notice.remaining} {notice.unit}
+                  </span>
+                  , at its reorder level of{" "}
+                  <span className="tabular-nums">{notice.reorderLevel}</span>.
+                </>
+              )}{" "}
+              <span className="text-muted">Let the owner know.</span>
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 function formatStamp(iso: string): string {
