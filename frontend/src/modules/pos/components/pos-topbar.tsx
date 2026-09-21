@@ -1,8 +1,11 @@
 import { Logo } from "@/shared/components/brand/logo";
 import { appConfig } from "@/shared/config/app.config";
 
+import type { TillAlertFeed } from "../types/pos.types";
+
 import { PosClock } from "./pos-clock";
 import { PosSignOut } from "./pos-sign-out";
+import { TillAlertBell } from "./till-alert-bell";
 
 /**
  * The till's own chrome: who is signed in, which terminal this is, and the way
@@ -11,13 +14,20 @@ import { PosSignOut } from "./pos-sign-out";
  * Distinct from the admin portal's top bar because a cashier has no navigation
  * — there is exactly one screen — so the bar carries identity rather than
  * wayfinding.
+ *
+ * The one exception is the stock-alert bell, which earns its place here because
+ * it is the only thing on the till that is about something other than the sale
+ * in progress, and the cashier needs to be able to reach it between customers
+ * rather than only when a sale happens to raise it.
  */
 export function PosTopbar({
   terminalName,
   cashierName,
+  alerts,
 }: {
   terminalName: string;
   cashierName: string;
+  alerts: TillAlertFeed;
 }) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-3 sm:h-16 sm:px-6">
@@ -49,6 +59,7 @@ export function PosTopbar({
           </p>
         </div>
 
+        <TillAlertBell feed={alerts} />
         <PosSignOut />
       </div>
     </header>

@@ -3,7 +3,11 @@ import type { Metadata } from "next";
 import { requireCashier } from "@/modules/auth/services/session.server";
 import { PosTerminal } from "@/modules/pos/components/pos-terminal";
 import { TERMINAL_NAME } from "@/modules/pos/constants/pos-data";
-import { fetchCategories, fetchProducts } from "@/modules/pos/services/pos.server";
+import {
+  fetchCategories,
+  fetchProducts,
+  fetchTillAlerts,
+} from "@/modules/pos/services/pos.server";
 import { ShopProvider } from "@/shared/components/shop-provider";
 import { guardedLoad } from "@/shared/lib/guarded-load";
 import { getShopSettings } from "@/shared/lib/shop.server";
@@ -37,7 +41,7 @@ export default async function CashierPosPage() {
   // them showed the owner a 403 error page about half the time instead of
   // sending them to their dashboard. The guard's verdict has to outrank
   // anything the data says.
-  const [user, categories, products, shop] = await guardedLoad(
+  const [user, categories, products, shop, alerts] = await guardedLoad(
     requireCashier(),
     fetchCategories(),
     fetchProducts(),
@@ -46,6 +50,11 @@ export default async function CashierPosPage() {
     // fetching after the first paint would show a basket priced in the wrong
     // symbol for a moment.
     getShopSettings("cashier"),
+    // The stock alerts for the bell. Read here with everything else, and read
+    // again by `router.refresh()` after each sale, which is what makes a line
+    // that has just gone low appear in the panel without the till polling for
+    // it all night.
+    fetchTillAlerts(),
   );
 
   return (
@@ -55,6 +64,7 @@ export default async function CashierPosPage() {
         categories={categories}
         terminalName={TERMINAL_NAME}
         cashierName={user.fullName}
+        alerts={alerts}
       />
     </ShopProvider>
   );

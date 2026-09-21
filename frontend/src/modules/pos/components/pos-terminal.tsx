@@ -18,6 +18,7 @@ import type {
   PosCategory,
   PosProduct,
   TenderMethod,
+  TillAlertFeed,
 } from "../types/pos.types";
 
 import { CategoryFilter } from "./category-filter";
@@ -72,11 +73,14 @@ export function PosTerminal({
   categories,
   terminalName,
   cashierName,
+  alerts,
 }: {
   products: PosProduct[];
   categories: PosCategory[];
   terminalName: string;
   cashierName: string;
+  /** Lines that are low or out, for the bell. Re-read after every sale. */
+  alerts: TillAlertFeed;
 }) {
   const taxRate = useTaxRate();
   const cart = useCart(taxRate);
@@ -406,7 +410,11 @@ export function PosTerminal({
 
   return (
     <div data-pos-shell className="flex min-h-dvh flex-col overflow-hidden">
-      <PosTopbar terminalName={terminalName} cashierName={cashierName} />
+      <PosTopbar
+        terminalName={terminalName}
+        cashierName={cashierName}
+        alerts={alerts}
+      />
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         {/* ---------------------------- Catalogue ---------------------------- */}
