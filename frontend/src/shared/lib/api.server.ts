@@ -2,7 +2,8 @@ import "server-only";
 
 import { cookies } from "next/headers";
 
-import { cookieNames } from "@/shared/config/cookies";
+import type { PortalId } from "@/modules/auth/constants/portals";
+import { sessionCookies } from "@/shared/config/cookies";
 import { ApiError, errorMessages, messageForStatus } from "@/shared/lib/http-error";
 
 import { getServerEnv } from "./env";
@@ -22,19 +23,51 @@ import { getServerEnv } from "./env";
  */
 
 /**
+ * Which of the two sessions a call is made with.
+ *
+ * <p>There is no default and no inference, on purpose. The two portals hold
+ * separate cookies (see `cookie-names.ts` for the failure that taught us why),
+ * so "the signed-in user" is not a question this module can answer on its own —
+ * on a machine where the owner has the portal open beside the till, there are
+ * two signed-in users. Every call therefore says whose session it is making,
+ * and the compiler will not let a new one be added without saying.
+ *
+ * <p>`"admin"` and `"cashier"` send that portal's token, or none if it is
+ * absent; a token from the other portal is never substituted, since presenting
+ * the owner's credentials for a till operation is exactly the bug this
+ * replaced. `"public"` sends no token at all — signing in, and resetting a
+ * forgotten password.
+ *
+ * <p>There is deliberately no "whichever is signed in" option. A caller that
+ * genuinely serves both sides — the product-image proxy, say — resolves the
+ * session with `getActiveSession()` and passes back the portal it got, so the
+ * token and the user it identified can never come from different sessions.
+ */
+export type ApiSession = PortalId | "public";
+
+/**
+ * The bearer token for a session, or undefined when there is none to send.
+ *
+ * <p>An absent token is not an error here. The backend decides what an
+ * unauthenticated request means for the endpoint being called, and letting it
+ * answer is what keeps the public endpoints from being special cases.
+ */
+async function tokenFor(session: ApiSession): Promise<string | undefined> {
+  if (session === "public") return undefined;
+  return (await cookies()).get(sessionCookies[session].access)?.value;
+}
+
+/**
  * Exported so the audience-scoped wrappers in the auth module can take exactly
  * the same options without restating them — see `guarded-fetch.server.ts`.
  */
 export interface RequestOptions {
+  /** Whose session this call is made with. Required — see {@link ApiSession}. */
+  session: ApiSession;
   /** HTTP method. Defaults to GET. */
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   /** JSON body, serialised for you. */
   body?: unknown;
-  /**
-   * Attach the signed-in user's token. Defaults to true, because nearly every
-   * endpoint needs it and forgetting it fails loudly rather than silently.
-   */
-  authenticated?: boolean;
   /**
    * Next.js cache behaviour. Defaults to no-store: this is a point-of-sale
    * system, and a cached stock level is a wrong stock level.
@@ -62,17 +95,15 @@ export interface RequestOptions {
  *
  * @throws {ApiError} with a message already safe to show a user.
  */
-export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
+export async function apiFetch<T>(path: string, options: RequestOptions): Promise<T> {
   const { API_BASE_URL, API_TIMEOUT_MS } = getServerEnv();
-  const { method = "GET", body, authenticated = true, cache, revalidate, tags } = options;
+  const { method = "GET", body, session, cache, revalidate, tags } = options;
 
   const headers: Record<string, string> = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
-  if (authenticated) {
-    const token = (await cookies()).get(cookieNames.accessToken)?.value;
-    if (token) headers.Authorization = `Bearer ${token}`;
-  }
+  const token = await tokenFor(session);
+  if (token) headers.Authorization = `Bearer ${token}`;
 
   // An unbounded fetch lets a stalled backend hold a Next.js request open and
   // exhaust the server's connection pool.
@@ -114,7 +145,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
  */
 export async function apiFetchOrNull<T>(
   path: string,
-  options: RequestOptions = {},
+  options: RequestOptions,
 ): Promise<T | null> {
   try {
     return await apiFetch<T>(path, options);
@@ -155,11 +186,11 @@ async function readMessage(response: Response): Promise<string> {
  * the caller needs the status, the content type and the body as they came.
  * Everything else should use {@link apiFetch}, which parses and maps errors.
  */
-export async function apiFetchRaw(path: string): Promise<Response> {
+export async function apiFetchRaw(path: string, session: ApiSession): Promise<Response> {
   const { API_BASE_URL, API_TIMEOUT_MS } = getServerEnv();
 
   const headers: Record<string, string> = {};
-  const token = (await cookies()).get(cookieNames.accessToken)?.value;
+  const token = await tokenFor(session);
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const controller = new AbortController();
@@ -186,11 +217,15 @@ export async function apiFetchRaw(path: string): Promise<Response> {
  * type without it produces a request the server cannot parse. Letting fetch
  * derive the header is the only way to get it right.
  */
-export async function apiFetchMultipart<T>(path: string, body: FormData): Promise<T> {
+export async function apiFetchMultipart<T>(
+  path: string,
+  body: FormData,
+  session: ApiSession,
+): Promise<T> {
   const { API_BASE_URL, API_TIMEOUT_MS } = getServerEnv();
 
   const headers: Record<string, string> = { Accept: "application/json" };
-  const token = (await cookies()).get(cookieNames.accessToken)?.value;
+  const token = await tokenFor(session);
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const controller = new AbortController();

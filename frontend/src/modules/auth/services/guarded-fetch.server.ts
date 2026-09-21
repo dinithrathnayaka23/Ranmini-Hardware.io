@@ -7,7 +7,7 @@ import {
 } from "@/shared/lib/api.server";
 import { guardedLoad } from "@/shared/lib/guarded-load";
 
-import { requireAdmin, requireCashier, requireSession } from "./session.server";
+import { requireAdmin, requireCashier } from "./session.server";
 
 /**
  * Reads that state which side of the shop they belong to.
@@ -37,6 +37,12 @@ import { requireAdmin, requireCashier, requireSession } from "./session.server";
  * is redirected to their own screen, deterministically, and the refused response
  * that arrives a moment later is discarded rather than raced against.
  *
+ * <p><b>Each also picks the session it belongs to.</b> The two portals hold
+ * separate cookies, so "the signed-in user" is ambiguous on a machine where the
+ * owner has the portal open beside the till. These wrappers resolve that by
+ * construction: an administrator read is made with the administrator's token
+ * and a till read with the cashier's, and neither can borrow the other's.
+ *
  * <p><b>These are for reads that render a page, not for Server Actions.</b> An
  * action catches `ApiError` and returns a message for the form to show,
  * which is the right behaviour for a submitted form — and a `catch` around a
@@ -45,12 +51,15 @@ import { requireAdmin, requireCashier, requireSession } from "./session.server";
  * refuses them regardless of what the browser believes.
  */
 
-/** A read from the management portal: administrators only. */
+/** A read from the management portal: the admin session, and an administrator. */
 export async function adminFetch<T>(
   path: string,
-  options?: RequestOptions,
+  options?: Omit<RequestOptions, "session">,
 ): Promise<T> {
-  const [, data] = await guardedLoad(requireAdmin(), apiFetch<T>(path, options));
+  const [, data] = await guardedLoad(
+    requireAdmin(),
+    apiFetch<T>(path, { ...options, session: "admin" }),
+  );
   return data;
 }
 
@@ -63,43 +72,23 @@ export async function adminFetch<T>(
  */
 export async function adminFetchOrNull<T>(
   path: string,
-  options?: RequestOptions,
+  options?: Omit<RequestOptions, "session">,
 ): Promise<T | null> {
   const [, data] = await guardedLoad(
     requireAdmin(),
-    apiFetchOrNull<T>(path, options),
+    apiFetchOrNull<T>(path, { ...options, session: "admin" }),
   );
   return data;
 }
 
-/** A read from the till: cashiers only. */
+/** A read from the till: the till session, and a cashier. */
 export async function cashierFetch<T>(
   path: string,
-  options?: RequestOptions,
+  options?: Omit<RequestOptions, "session">,
 ): Promise<T> {
   const [, data] = await guardedLoad(
     requireCashier(),
-    apiFetch<T>(path, options),
-  );
-  return data;
-}
-
-/**
- * A read either side of the shop may make, of their own account.
- *
- * <p>Distinct from {@link adminFetch} on purpose: `/api/v1/profile/**` acts on
- * whoever the token belongs to, so a cashier owns their name and their password
- * exactly as an administrator does. Guarding it as administrator-only would be
- * a lie about who the endpoint is for, and would have to be undone the moment
- * the till grows a profile screen.
- */
-export async function signedInFetch<T>(
-  path: string,
-  options?: RequestOptions,
-): Promise<T> {
-  const [, data] = await guardedLoad(
-    requireSession(),
-    apiFetch<T>(path, options),
+    apiFetch<T>(path, { ...options, session: "cashier" }),
   );
   return data;
 }
