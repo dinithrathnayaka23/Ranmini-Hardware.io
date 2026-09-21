@@ -2,7 +2,7 @@ import "server-only";
 
 // Names live in their own module so the middleware, which runs in a different
 // runtime, can read them without pulling in this server-only file.
-export { cookieNames } from "./cookie-names";
+export { sessionCookies, allSessionCookieNames } from "./cookie-names";
 
 /**
  * Baseline attributes for every auth cookie.
