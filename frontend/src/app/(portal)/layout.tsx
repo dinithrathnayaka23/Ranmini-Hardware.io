@@ -2,6 +2,7 @@ import { requireAdmin } from "@/modules/auth/services/session.server";
 import { fetchNotifications } from "@/modules/notifications/services/notifications.server";
 import { PortalShell } from "@/shared/components/layout/portal-shell";
 import { ShopProvider } from "@/shared/components/shop-provider";
+import { guardedLoad } from "@/shared/lib/guarded-load";
 import { getShopSettings } from "@/shared/lib/shop.server";
 
 /**
@@ -31,17 +32,22 @@ export default async function PortalLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   // All three in parallel: none depends on another, and the session check is a
-  // round trip the other two should not have to queue behind.
+  // round trip the other two should not have to queue behind. `guardedLoad`
+  // keeps that overlap while making sure `requireAdmin` is the only thing that
+  // can decide the outcome — a cashier who opens a portal URL must be sent to
+  // the till, not shown whatever error the administrator-only feed below
+  // happens to return first. See the note in guarded-load.ts; the till had
+  // exactly this bug.
   //
   // The notification feed is read here, on every navigation, rather than polled
   // from the browser. A portal somebody is using navigates often enough to keep
   // the badge current, and a poll on a screen left open on the counter would be
   // a request every few seconds all night to learn that nothing had changed.
-  const [user, shop, notifications] = await Promise.all([
+  const [user, shop, notifications] = await guardedLoad(
     requireAdmin(),
     getShopSettings(),
     fetchNotifications(),
-  ]);
+  );
 
   return (
     <ShopProvider settings={shop}>

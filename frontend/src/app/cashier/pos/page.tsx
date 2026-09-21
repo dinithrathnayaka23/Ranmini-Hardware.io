@@ -5,6 +5,7 @@ import { PosTerminal } from "@/modules/pos/components/pos-terminal";
 import { TERMINAL_NAME } from "@/modules/pos/constants/pos-data";
 import { fetchCategories, fetchProducts } from "@/modules/pos/services/pos.server";
 import { ShopProvider } from "@/shared/components/shop-provider";
+import { guardedLoad } from "@/shared/lib/guarded-load";
 import { getShopSettings } from "@/shared/lib/shop.server";
 
 export const metadata: Metadata = {
@@ -29,7 +30,14 @@ export default async function CashierPosPage() {
   // a forged or expired cookie stops here rather than rendering the till — and
   // an administrator's, valid though it is, goes back to the dashboard, because
   // the till belongs to the counter.
-  const [user, categories, products, shop] = await Promise.all([
+  //
+  // `guardedLoad` rather than a plain `Promise.all`, and this page is exactly
+  // why: the catalogue below is a cashier-only endpoint, so an administrator
+  // opening this URL fails the guard and the fetch at the same moment. Racing
+  // them showed the owner a 403 error page about half the time instead of
+  // sending them to their dashboard. The guard's verdict has to outrank
+  // anything the data says.
+  const [user, categories, products, shop] = await guardedLoad(
     requireCashier(),
     fetchCategories(),
     fetchProducts(),
@@ -38,7 +46,7 @@ export default async function CashierPosPage() {
     // fetching after the first paint would show a basket priced in the wrong
     // symbol for a moment.
     getShopSettings(),
-  ]);
+  );
 
   return (
     <ShopProvider settings={shop}>
