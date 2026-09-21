@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { UserRole } from "@/modules/auth/types/auth.types";
-import { apiFetch } from "@/shared/lib/api.server";
+import { signedInFetch } from "@/modules/auth/services/guarded-fetch.server";
 
 /**
  * The signed-in person's own account.
@@ -24,7 +24,7 @@ export interface MyProfile {
 }
 
 export async function fetchMyProfile(): Promise<MyProfile> {
-  const profile = await apiFetch<MyProfile>("/api/v1/profile");
+  const profile = await signedInFetch<MyProfile>("/api/v1/profile");
 
   // The API omits null fields, so absent and null arrive differently. Normalised
   // here so every form below can treat them the same way.

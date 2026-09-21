@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cashierFetch } from "@/modules/auth/services/guarded-fetch.server";
 import { apiFetch, type PageResponse } from "@/shared/lib/api.server";
 
 import { ALL_CATEGORIES } from "../constants/pos-data";
@@ -64,7 +65,7 @@ export async function fetchCategories(): Promise<PosCategory[]> {
 }
 
 export async function fetchProducts(): Promise<PosProduct[]> {
-  const page = await apiFetch<PageResponse<PosProductResponse>>(
+  const page = await cashierFetch<PageResponse<PosProductResponse>>(
     `/api/v1/pos/products?size=${CATALOGUE_PAGE_SIZE}`,
     {
       // Never cached: this carries stock levels, and a cached stock level is a
