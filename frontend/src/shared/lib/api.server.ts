@@ -21,7 +21,11 @@ import { getServerEnv } from "./env";
  * service that does not need one.
  */
 
-interface RequestOptions {
+/**
+ * Exported so the audience-scoped wrappers in the auth module can take exactly
+ * the same options without restating them — see `guarded-fetch.server.ts`.
+ */
+export interface RequestOptions {
   /** HTTP method. Defaults to GET. */
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   /** JSON body, serialised for you. */
