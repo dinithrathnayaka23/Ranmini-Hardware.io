@@ -21,7 +21,8 @@ export const dynamic = "force-dynamic";
 const FORWARDED = ["from", "to"] as const;
 
 export async function GET(request: Request) {
-  const user = await getSession();
+  // A management-portal download, so the portal's session and no other.
+  const user = await getSession("admin");
   if (!user) {
     return NextResponse.json({ message: "Not signed in." }, { status: 401 });
   }
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
   const query = forwarded.toString();
   const response = await apiFetchRaw(
     `/api/v1/reports/export${query ? `?${query}` : ""}`,
+    "admin",
   );
 
   if (!response.ok) {

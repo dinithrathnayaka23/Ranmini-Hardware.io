@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getSession } from "@/modules/auth/services/session.server";
+import { getActiveSession } from "@/modules/auth/services/session.server";
 import { apiFetchRaw } from "@/shared/lib/api.server";
 
 /**
@@ -25,15 +25,21 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const user = await getSession();
-  if (!user) {
+  // Whichever portal this browser is signed in to — and the request upstream is
+  // then made with that same session. Taking the id from one and the token from
+  // the other would ask for one person's picture with somebody else's
+  // credentials.
+  const session = await getActiveSession();
+  if (!session) {
     return NextResponse.json({ message: "Not signed in." }, { status: 401 });
   }
 
   const upstream =
-    id === user.id ? "/api/v1/profile/avatar" : `/api/v1/staff/${encodeURIComponent(id)}/avatar`;
+    id === session.user.id
+      ? "/api/v1/profile/avatar"
+      : `/api/v1/staff/${encodeURIComponent(id)}/avatar`;
 
-  const response = await apiFetchRaw(upstream);
+  const response = await apiFetchRaw(upstream, session.portal);
 
   // No picture is an ordinary state, not a failure: the Avatar component falls
   // back to initials, and it needs a plain 404 to do that.

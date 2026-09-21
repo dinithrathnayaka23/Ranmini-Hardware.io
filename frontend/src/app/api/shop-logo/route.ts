@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getSession } from "@/modules/auth/services/session.server";
+import { getActiveSession } from "@/modules/auth/services/session.server";
 import { apiFetchRaw } from "@/shared/lib/api.server";
 
 /**
@@ -22,12 +22,13 @@ import { apiFetchRaw } from "@/shared/lib/api.server";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const user = await getSession();
-  if (!user) {
+  // Either portal: the till prints this at the top of a receipt.
+  const session = await getActiveSession();
+  if (!session) {
     return NextResponse.json({ message: "Not signed in." }, { status: 401 });
   }
 
-  const response = await apiFetchRaw("/api/v1/settings/public/logo");
+  const response = await apiFetchRaw("/api/v1/settings/public/logo", session.portal);
 
   // No logo is an ordinary state, not a failure: the settings screen shows its
   // empty tile and the receipt simply prints without one.

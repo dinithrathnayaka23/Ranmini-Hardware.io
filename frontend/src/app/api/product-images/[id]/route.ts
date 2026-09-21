@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getSession } from "@/modules/auth/services/session.server";
+import { getActiveSession } from "@/modules/auth/services/session.server";
 import { apiFetchRaw } from "@/shared/lib/api.server";
 
 /**
@@ -24,13 +24,16 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const user = await getSession();
-  if (!user) {
+  // Either portal: a cashier needs product pictures because they are the tiles
+  // on the till, and an administrator needs them on the inventory screen.
+  const session = await getActiveSession();
+  if (!session) {
     return NextResponse.json({ message: "Not signed in." }, { status: 401 });
   }
 
   const response = await apiFetchRaw(
     `/api/v1/inventory/products/${encodeURIComponent(id)}/image`,
+    session.portal,
   );
 
   // No photograph is an ordinary state, not a failure: the card renders its own
