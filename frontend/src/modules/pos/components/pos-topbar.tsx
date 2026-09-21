@@ -50,6 +50,13 @@ export function PosTopbar({
       </div>
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-5">
+        {/* Ahead of the cashier's name, not after it. The name and the clock are
+            standing information — read once at the start of a shift and never
+            again — while the bell is the one control here that changes during
+            one. Putting it first keeps it away from the sign-out button too,
+            which is the neighbour you least want a thumb to miss. */}
+        <TillAlertBell feed={alerts} />
+
         {/* Hidden on the narrowest screens: on a phone the logout control is
             what matters, and the name would crowd it off the bar. */}
         <div className="hidden text-right text-sm leading-tight sm:block">
@@ -59,7 +66,6 @@ export function PosTopbar({
           </p>
         </div>
 
-        <TillAlertBell feed={alerts} />
         <PosSignOut />
       </div>
     </header>
