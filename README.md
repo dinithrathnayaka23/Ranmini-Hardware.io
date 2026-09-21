@@ -199,7 +199,7 @@ hard-codes a path string.
 | `/admin/settings/security` | `(portal)` | `app/(portal)/admin/settings/security/page.tsx` | Built |
 | `/cashier/pos`      | —           | `app/cashier/pos/page.tsx`                  | Built |
 | `/api/auth/{portal}/login` | —    | `app/api/auth/[portal]/login/route.ts`      | BFF endpoint (both portals) |
-| `/api/auth/logout`  | —           | `app/api/auth/logout/route.ts`              | BFF endpoint |
+| `/api/auth/{portal}/logout` | —    | `app/api/auth/[portal]/logout/route.ts`     | BFF endpoint (one portal at a time) |
 | `/api/avatars/{id}` | —           | `app/api/avatars/[id]/route.ts`             | Image proxy |
 | `/api/product-images/{id}` | —    | `app/api/product-images/[id]/route.ts`      | Image proxy |
 | `/api/shop-logo`    | —           | `app/api/shop-logo/route.ts`                | Image proxy |
@@ -226,17 +226,29 @@ Nested routes keep their parent section highlighted in the sidebar, so
 `/admin/inventory/new` still shows Inventory as current.
 
 **How the portal is guarded.** Two layers doing different jobs. `middleware.ts`
-checks only that a session cookie exists and redirects to the right sign-in page
-if not — it cannot verify a token without a network call on every navigation,
-and it is not trying to. What it buys is that a signed-out visitor lands on the
-sign-in page immediately rather than watching a portal shell render and vanish.
+checks only that *that portal's* session cookie exists and redirects to the
+right sign-in page if not — it cannot verify a token without a network call on
+every navigation, and it is not trying to. What it buys is that a signed-out
+visitor lands on the sign-in page immediately rather than watching a portal
+shell render and vanish.
 
-The check that actually holds is `requireAdmin()` in the `(portal)` layout,
-which asks the backend who the token belongs to. A forged or expired cookie
-stops there. Doing it in the layout rather than each page means a screen added
-later is protected by default. A signed-in cashier who opens a portal URL is
-sent to the till, not to a login form they would pass and be rejected from
-again.
+The check that actually holds is on the **read**, not on the page or the layout.
+`adminFetch` and `cashierFetch` in `modules/auth/services/guarded-fetch.server.ts`
+pair every server-side read with the guard and the session it belongs to, so a
+screen added later is protected because it asks for protected data rather than
+because its author remembered to guard it.
+
+That is deliberate and was learned the hard way. **A Next.js layout does not
+block the page inside it — the two render in parallel**, so `requireAdmin()` in
+the `(portal)` layout does nothing to stop the page beneath from fetching
+administrator-only data at the same instant. When a cashier opened a portal URL,
+the redirect and the backend's 403 raced, and whichever answered first won: the
+same URL with the same session would redirect on one load and show an error page
+on the next. The guards still run in the layout, for the layout's own data, but
+they are no longer what protects the pages.
+
+A signed-in cashier who opens a portal URL is sent to the till, not to a login
+form they would pass and be rejected from again.
 
 ## Data
 
@@ -304,9 +316,11 @@ bytes by the API and served through `/api/avatars/{id}`; `shared/lib/avatar-url.
 builds that address from the account's id and version stamp.
 
 The navigation rail ends with **Log out**, and it is real — it posts to
-`/api/auth/logout`, which expires the httpOnly cookies server-side. A
-client-only sign-out is not possible: the browser cannot clear an httpOnly
-cookie, only the server that set it can.
+`/api/auth/admin/logout`, which expires that portal's httpOnly cookies
+server-side. A client-only sign-out is not possible: the browser cannot clear an
+httpOnly cookie, only the server that set it can. It ends the portal's session
+and only the portal's: signing out here leaves a till signed in and mid-sale
+exactly as it was.
 
 **If that request fails the user is kept where they are, with an error**, rather
 than sent to the sign-in screen. Navigating away from a session that is still
@@ -572,6 +586,14 @@ These are enforced in code, not just by convention:
   Client Component breaks the build rather than shipping quietly.
 - **Session tokens are `httpOnly`, `Secure`, `SameSite=Strict`** and carry the
   `__Host-` prefix in production. An XSS payload cannot read them.
+- **Each portal keeps its own session cookies**, so the two coexist in one
+  browser. They used to share a pair, which meant signing in at either door
+  silently replaced the other's session in place — an owner opening the portal
+  on the counter machine would leave the till still rendering a cashier's screen
+  while posting its next sale with the owner's token, refused by the API with
+  "Your account does not have access to that" and nothing in any log. Every
+  server-side call now names the session it is making, and the compiler will not
+  let a new one be added without saying.
 - **Input is validated on both sides** with the same Zod schema. The server
   never trusts the client's copy.
 - **Errors are mapped, not echoed.** Backend failures become vetted user-facing
