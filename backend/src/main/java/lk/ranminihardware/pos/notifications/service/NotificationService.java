@@ -54,6 +54,16 @@ public class NotificationService {
    */
   private static final int STOCK_ALERT_LIMIT = 12;
 
+  /**
+   * How many stock alerts the <em>till</em> carries.
+   *
+   * <p>Smaller than the portal's on purpose. The owner is working through a
+   * list; the cashier is glancing at one between customers, and a panel they
+   * have to scroll is a panel they will not read. The most urgent handful is
+   * the whole of what is useful at a counter.
+   */
+  private static final int TILL_ALERT_LIMIT = 8;
+
   /** How many recent voids to show, and how far back to look for them. */
   private static final int VOID_LIMIT = 6;
 
@@ -94,6 +104,44 @@ public class NotificationService {
   }
 
   /**
+   * The feed as the till needs it: stock, and nothing else.
+   *
+   * <p><b>What is left out is the point of this method.</b> The portal's feed
+   * also carries voided sales, and a shop that shows a cashier every void is a
+   * shop where a cashier reads their own corrections back as an accusation —
+   * that row exists for the owner's oversight of the counter, which makes it
+   * exactly the wrong thing to put on the counter's own screen. Takings,
+   * staffing and settings changes are equally none of the till's business.
+   *
+   * <p>What is left is the two things a cashier can genuinely act on: a product
+   * that has run out, so they stop promising it, and a product at or below its
+   * reorder level, so they can tell the owner while it still matters. Both are
+   * about the shelf in front of them.
+   *
+   * @param readAt when this cashier last opened the panel, or null if never
+   */
+  public NotificationDtos.Feed tillFeedFor(Instant readAt) {
+    Instant now = Instant.now(clock);
+
+    List<NotificationDtos.Item> items = new ArrayList<>(stockAlerts(readAt, TILL_ALERT_LIMIT));
+
+    // Empty shelves first, then whatever is closest to being one. A cashier
+    // reading only the top row should be reading the most urgent one.
+    items.sort(
+        Comparator.comparingInt(
+                (NotificationDtos.Item item) -> item.severity().ordinal())
+            .thenComparing(NotificationDtos.Item::occurredAt, Comparator.reverseOrder()));
+
+    int unread = (int) items.stream().filter(NotificationDtos.Item::unread).count();
+    return new NotificationDtos.Feed(List.copyOf(items), unread, now);
+  }
+
+  /** The till's feed with every row already marked read. See {@link #feedAllRead()}. */
+  public NotificationDtos.Feed tillFeedAllRead() {
+    return allRead(tillFeedFor(null));
+  }
+
+  /**
    * The feed as it stands, with every row already marked read.
    *
    * <p>Built in one pass rather than by re-reading the feed after stamping the
@@ -103,8 +151,11 @@ public class NotificationService {
    * actually shown.
    */
   public NotificationDtos.Feed feedAllRead() {
-    NotificationDtos.Feed feed = feedFor(null);
+    return allRead(feedFor(null));
+  }
 
+  /** Stamps every row of a freshly built feed as seen, in one pass. */
+  private static NotificationDtos.Feed allRead(NotificationDtos.Feed feed) {
     List<NotificationDtos.Item> read =
         feed.items().stream()
             .map(
@@ -132,7 +183,11 @@ public class NotificationService {
    * levels of urgency: an empty shelf loses sales today, a low one next week.
    */
   private List<NotificationDtos.Item> stockAlerts(Instant readAt) {
-    return products.lowStock(STOCK_ALERT_LIMIT).stream()
+    return stockAlerts(readAt, STOCK_ALERT_LIMIT);
+  }
+
+  private List<NotificationDtos.Item> stockAlerts(Instant readAt, int limit) {
+    return products.lowStock(limit).stream()
         .map(product -> stockAlert(product, readAt))
         .toList();
   }

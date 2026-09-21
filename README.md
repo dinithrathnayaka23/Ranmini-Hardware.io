@@ -414,6 +414,24 @@ found by typing or by tapping a card. **There is no barcode scanner** — the sh
 does not have one, so nothing in the till assumes a code can be read off a
 label faster than it can be typed.
 
+**Stock alerts.** The till has a notification centre of its own, and it is
+deliberately narrower than the owner's. It carries two things: a line that has
+run out, so the cashier stops promising it, and a line at or below the level the
+shop reorders at, so they can tell the owner while it still matters. It does
+**not** carry voided sales, takings, staffing or settings changes — the portal's
+feed exists for the owner's oversight of the counter, which makes it exactly the
+wrong thing to show at the counter.
+
+The part that earns the feature is not the bell but the moment. When a sale
+takes a line **to or below its reorder level**, or empties it, the payment
+confirmation says so straight away, while the cashier is still holding the stock
+and the customer who might want the rest of it is still standing there. That
+warning fires on the **crossing, not the state**: a sale that takes a line from
+six to five warns, and the next sale, from five to four, does not. In a shop
+short of several lines, warning on state would put a banner on every single
+transaction, and a banner on every transaction is one nobody reads. The rule is
+pinned by tests in `CheckoutServiceIT`.
+
 **Keyboard.** A full sale can be rung up without leaving the keyboard. The
 search field is autofocused on load and refocused by **F2** from anywhere. Enter
 adds an exact shelf-code match straight away; failing that, a search narrowed to

@@ -38,15 +38,9 @@ export interface Product {
   /** The level at or below which this line counts as low. */
   reorderLevel: number;
   status: StockStatus;
-  /** A photograph bundled with the build, or null. */
-  imageUrl: string | null;
-  /**
-   * When an uploaded photograph last changed, or null when there is none.
-   *
-   * <p>An upload takes precedence over {@link imageUrl}; see
-   * `productImageUrl()`, which is the one place that decides between them.
-   */
-  imageVersion: string | null;
+  // No photograph fields. The management screens do not show product pictures —
+  // this is a stock ledger, and a hardware shop's owner identifies a line by its
+  // SKU. The till still shows them: see `modules/pos/types/pos.types.ts`.
   /**
    * Whether the product is on sale.
    *

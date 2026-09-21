@@ -85,16 +85,17 @@ public class CheckoutService {
     this.clock = clock;
   }
 
-  public Sale checkout(CheckoutCommand command) {
+  public CheckoutOutcome checkout(CheckoutCommand command) {
     validateShape(command);
 
     // A retry of a sale that already succeeded returns the original rather than
-    // charging the customer again.
+    // charging the customer again — and quietly, because the stock it moved was
+    // announced when the first attempt succeeded.
     if (command.idempotencyKey() != null) {
       var existing = sales.findByIdempotencyKey(command.idempotencyKey());
       if (existing.isPresent()) {
         log.info("Returning existing sale for idempotency key {}", command.idempotencyKey());
-        return existing.get();
+        return CheckoutOutcome.quiet(existing.get());
       }
     }
 
@@ -113,7 +114,8 @@ public class CheckoutService {
     // Stock is taken before the sale is written. If the write fails afterwards
     // the stock is put back, whereas the reverse order could hand a customer a
     // receipt for goods that were never deducted.
-    List<SaleLine> lines = takeStock(saleId, quantities, catalogued, costs);
+    List<StockNotice> notices = new ArrayList<>();
+    List<SaleLine> lines = takeStock(saleId, quantities, catalogued, costs, notices);
 
     try {
       Sale sale = buildSale(saleId, command, lines, now, businessDate);
@@ -122,7 +124,11 @@ public class CheckoutService {
       // The summary is derived data: a failure to update it must not fail a sale
       // that has already been paid for and had its stock taken.
       dailySummary.record(saved);
-      return saved;
+
+      // Only lines this sale pushed over a threshold. See StockNotice for why
+      // it is the crossing and not the state that is worth interrupting a
+      // cashier for.
+      return CheckoutOutcome.of(saved, notices);
 
     } catch (RuntimeException ex) {
       restoreStock(saleId, lines);
@@ -186,7 +192,8 @@ public class CheckoutService {
       String saleId,
       Map<String, Integer> quantities,
       Map<String, ProductSnapshot> catalogued,
-      Map<String, BigDecimal> costs) {
+      Map<String, BigDecimal> costs,
+      List<StockNotice> notices) {
 
     List<SaleLine> lines = new ArrayList<>(quantities.size());
     StockReference reference = StockReference.forSale(saleId);
@@ -196,12 +203,32 @@ public class CheckoutService {
       int quantity = entry.getValue();
       ProductSnapshot product = catalogued.get(productId);
 
-      if (catalog.reserveStock(productId, quantity, reference).isEmpty()) {
-        // Put back whatever this sale already took before refusing it.
-        restoreStock(saleId, lines);
-        throw ApiException.unprocessable(
-            "INSUFFICIENT_STOCK",
-            "There is not enough %s in stock to complete this sale.".formatted(product.name()));
+      // The snapshot that comes back is the product *after* the decrement, which
+      // is what makes the threshold check below both exact and free of a second
+      // read that could race this very sale.
+      ProductSnapshot remaining =
+          catalog
+              .reserveStock(productId, quantity, reference)
+              .orElseGet(
+                  () -> {
+                    // Put back whatever this sale already took before refusing it.
+                    restoreStock(saleId, lines);
+                    throw ApiException.unprocessable(
+                        "INSUFFICIENT_STOCK",
+                        "There is not enough %s in stock to complete this sale."
+                            .formatted(product.name()));
+                  });
+
+      if (remaining.reachedReorderLevelBySelling(quantity)) {
+        notices.add(
+            new StockNotice(
+                remaining.id(),
+                remaining.sku(),
+                remaining.name(),
+                remaining.unit() == null ? "units" : remaining.unit(),
+                remaining.stock(),
+                remaining.reorderLevel(),
+                remaining.soldOut()));
       }
 
       lines.add(toLine(product, quantity, costs.get(productId)));

@@ -15,6 +15,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import lk.ranminihardware.pos.sales.domain.Sale;
+import lk.ranminihardware.pos.sales.service.CheckoutOutcome;
+import lk.ranminihardware.pos.sales.service.StockNotice;
 import lk.ranminihardware.pos.sales.domain.SaleLine;
 import lk.ranminihardware.pos.sales.domain.SaleStatus;
 import lk.ranminihardware.pos.sales.domain.TenderMethod;
@@ -91,9 +93,30 @@ public final class SaleDtos {
       BigDecimal amountTendered,
       BigDecimal changeDue,
       SaleStatus status,
-      String voidReason) {
+      String voidReason,
+      /**
+       * Lines this sale pushed to or below their reorder level, for the till to
+       * show the cashier at once.
+       *
+       * <p>Always empty except on the response to a checkout. Reading a receipt
+       * back describes a transaction that happened; it must not re-announce a
+       * stock level from last Tuesday that has been restocked twice since.
+       */
+      List<StockNoticeResponse> stockNotices) {
 
+    /** A sale being read back, which never carries stock warnings. */
     public static Response from(Sale sale) {
+      return from(sale, List.of());
+    }
+
+    /** The response to a checkout, which may. */
+    public static Response from(CheckoutOutcome outcome) {
+      return from(
+          outcome.sale(),
+          outcome.notices().stream().map(StockNoticeResponse::from).toList());
+    }
+
+    private static Response from(Sale sale, List<StockNoticeResponse> stockNotices) {
       return new Response(
           sale.getId(),
           sale.getInvoiceNumber(),
@@ -112,7 +135,35 @@ public final class SaleDtos {
           sale.getAmountTendered(),
           sale.getChangeDue(),
           sale.getStatus(),
-          sale.getVoidReason());
+          sale.getVoidReason(),
+          stockNotices);
+    }
+  }
+
+  /**
+   * One stock warning raised by the sale just completed.
+   *
+   * <p>Carries the numbers rather than a finished sentence, so the till can say
+   * it in the shop's own words and in the size the counter screen needs.
+   */
+  public record StockNoticeResponse(
+      String productId,
+      String sku,
+      String name,
+      String unit,
+      int remaining,
+      int reorderLevel,
+      boolean soldOut) {
+
+    static StockNoticeResponse from(StockNotice notice) {
+      return new StockNoticeResponse(
+          notice.productId(),
+          notice.sku(),
+          notice.name(),
+          notice.unit(),
+          notice.remaining(),
+          notice.reorderLevel(),
+          notice.soldOut());
     }
   }
 

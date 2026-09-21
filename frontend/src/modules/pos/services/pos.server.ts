@@ -4,7 +4,7 @@ import { cashierFetch } from "@/modules/auth/services/guarded-fetch.server";
 import { apiFetch, type PageResponse } from "@/shared/lib/api.server";
 
 import { ALL_CATEGORIES } from "../constants/pos-data";
-import type { PosCategory, PosProduct } from "../types/pos.types";
+import type { PosCategory, PosProduct, TillAlertFeed } from "../types/pos.types";
 
 /**
  * Reads the till needs before it can render.
@@ -89,4 +89,30 @@ export async function fetchProducts(): Promise<PosProduct[]> {
     imageUrl: product.imageUrl,
     imageVersion: product.imageVersion,
   }));
+}
+
+/**
+ * The till's notification feed.
+ *
+ * <p>Read on the server with the page, like everything else the till needs, so
+ * the bell arrives already knowing whether it has anything to say. It is also
+ * re-read by `router.refresh()` after each sale, which is what makes a line
+ * that has just gone low appear in the panel without polling.
+ *
+ * <p>Never cached: this is a warning about a shelf, and a warning that is
+ * thirty seconds stale is a warning about a shelf the last customer already
+ * emptied.
+ *
+ * <p>A failure is swallowed into an empty feed rather than thrown. The bell is
+ * chrome on a screen whose job is to take money — a notification outage must
+ * not be able to stop a shop serving customers.
+ */
+export async function fetchTillAlerts(): Promise<TillAlertFeed> {
+  try {
+    return await cashierFetch<TillAlertFeed>("/api/v1/pos/notifications", {
+      cache: "no-store",
+    });
+  } catch {
+    return { items: [], unreadCount: 0, generatedAt: new Date().toISOString() };
+  }
 }

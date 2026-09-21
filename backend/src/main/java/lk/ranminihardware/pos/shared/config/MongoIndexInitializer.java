@@ -7,6 +7,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.Index;
+import org.springframework.data.mongodb.core.index.PartialIndexFilter;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.schema.JsonSchemaObject;
 import org.springframework.data.mongodb.core.index.IndexOperations;
 import org.springframework.data.mongodb.core.index.TextIndexDefinition;
 import org.springframework.stereotype.Component;
@@ -242,11 +245,69 @@ public class MongoIndexInitializer {
     IndexOperations ops = mongo.indexOps("staff");
     ops.createIndex(
         new Index().on("username", Sort.Direction.ASC).unique().named("uk_staff_username"));
-    ops.createIndex(new Index().on("email", Sort.Direction.ASC).unique().named("uk_staff_email"));
+
+    /*
+     * Unique only among the accounts that actually have an email address.
+     *
+     * A plain unique index here looks right and is not. The Staff screen creates
+     * a cashier from four fields — name, username, role, password — and no email
+     * at all, because the owner hands the credentials over in person. A unique
+     * index treats every document missing the field as carrying the same (null)
+     * value, so the first such cashier saved and the SECOND WAS REJECTED as a
+     * duplicate: the owner was told "That record already exists" about an
+     * account whose username was unique and whose email did not exist.
+     *
+     * The partial filter indexes only documents whose email is a string, so two
+     * accounts without one no longer collide while two accounts *with* the same
+     * one still do. `$type` is used rather than `$exists`, because a filter of
+     * `exists: true` would still index a field explicitly set to null, and the
+     * operators a partial filter accepts do not include `$ne`.
+     */
+    createOrReplace(
+        ops,
+        "uk_staff_email",
+        new Index()
+            .on("email", Sort.Direction.ASC)
+            .unique()
+            .partial(
+                PartialIndexFilter.of(
+                    Criteria.where("email").type(JsonSchemaObject.Type.stringType())))
+            .named("uk_staff_email"));
+
     ops.createIndex(
         new Index()
             .on("status", Sort.Direction.ASC)
             .on("fullName", Sort.Direction.ASC)
             .named("ix_staff_status_name"));
+  }
+
+  /**
+   * Creates an index, replacing one of the same name built to older options.
+   *
+   * <p>Mongo refuses a create that reuses a name with different options, which
+   * is the right default — it stops a redeploy silently changing the guarantees
+   * a collection is under. But it also means a definition corrected in code
+   * would never reach a database that already has the old one, and the fix
+   * would work on every fresh install and on none of the real ones.
+   *
+   * <p>So the conflict is caught and the old index dropped first. Safe here
+   * because it runs at startup, before the service accepts traffic, and on
+   * collections small enough that the rebuild is immediate. It is deliberately
+   * not the default path: an index is only dropped when Mongo has said, in so
+   * many words, that the existing one does not match what the code asks for.
+   */
+  private void createOrReplace(IndexOperations ops, String name, Index index) {
+    try {
+      ops.createIndex(index);
+    } catch (RuntimeException ex) {
+      log.warn("Rebuilding index {} — the existing one was built to older options", name);
+      try {
+        ops.dropIndex(name);
+      } catch (RuntimeException ignored) {
+        // Nothing to drop, so the original failure was something else and the
+        // retry below will surface it rather than hiding it behind this.
+      }
+      ops.createIndex(index);
+    }
   }
 }

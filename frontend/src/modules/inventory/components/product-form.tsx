@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Boxes, Camera, PackagePlus, Save, Tags, Wallet } from "lucide-react";
+import { Boxes, PackagePlus, Save, Tags, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -21,13 +21,11 @@ import { useCurrency } from "@/shared/components/shop-provider";
 import { routes } from "@/shared/config/app.config";
 import { cn } from "@/shared/lib/cn";
 import { formatCurrency, formatPercent } from "@/shared/lib/format";
-import { productImageUrl } from "@/shared/lib/product-image-url";
 
-import { createProduct, updateProduct, uploadProductImage } from "../actions";
+import { createProduct, updateProduct } from "../actions";
 import { productSchema, type ProductFormValues } from "../schemas/product.schema";
 import type { Product } from "../types/inventory.types";
 
-import { ProductImageField } from "./product-image-field";
 
 /**
  * Units a hardware shop actually sells by.
@@ -127,7 +125,6 @@ export function ProductForm({
    * the picker owns its own preview — and re-rendering the whole form on every
    * file choice would be work for nothing.
    */
-  const pendingImage = React.useRef<File | null>(null);
 
   const categoryOptions: SelectOption[] = React.useMemo(
     () => [
@@ -202,23 +199,7 @@ export function ProductForm({
       return;
     }
 
-    // The product exists now, so the photograph chosen earlier has something to
-    // attach to. Reported separately on failure: the product was still created,
-    // and saying "could not save" would send somebody back to add it twice.
-    let message = result.message;
-
-    if (pendingImage.current && result.productId) {
-      const data = new FormData();
-      data.append("file", pendingImage.current);
-      const upload = await uploadProductImage(result.productId, data);
-
-      if (!upload.success) {
-        message = `${result.message} The photograph could not be saved — ${upload.message}`;
-      }
-      pendingImage.current = null;
-    }
-
-    setNotice({ tone: "success", message });
+    setNotice({ tone: "success", message: result.message });
 
     // The category and the unit are carried over deliberately. Products arrive
     // by the box from one supplier, so the next entry is nearly always the same
@@ -336,26 +317,6 @@ export function ProductForm({
               <option key={unit} value={unit} />
             ))}
           </datalist>
-        </CardBody>
-      </Card>
-
-      {/* --------------------------- Photograph ----------------------------- */}
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <Camera aria-hidden className="size-[18px] text-brand-600" />
-            Photograph
-          </CardTitle>
-        </CardHeader>
-
-        <CardBody>
-          <ProductImageField
-            productId={product?.id ?? null}
-            storedUrl={product ? productImageUrl(product) : null}
-            onFileChange={(file) => {
-              pendingImage.current = file;
-            }}
-          />
         </CardBody>
       </Card>
 
@@ -511,7 +472,6 @@ export function ProductForm({
             disabled={!isDirty || isSubmitting}
             onClick={() => {
               reset(blank);
-              pendingImage.current = null;
               setNotice(null);
             }}
           >

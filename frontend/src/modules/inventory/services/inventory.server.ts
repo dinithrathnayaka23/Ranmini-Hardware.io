@@ -36,8 +36,10 @@ interface ProductResponse {
   stock: number;
   reorderLevel: number;
   status: Product["status"];
-  imageUrl: string | null;
-  imageVersion: string | null;
+  // The API also returns imageUrl and imageVersion. They are deliberately not
+  // listed, and so not carried into `Product`: nothing in the management
+  // screens shows a product photograph. The till reads them from its own
+  // endpoint, which is the only place they are wanted.
   active: boolean;
 }
 
@@ -185,8 +187,6 @@ function toProduct(response: ProductResponse): Product {
     stock: response.stock,
     reorderLevel: response.reorderLevel,
     status: response.status,
-    imageUrl: response.imageUrl,
-    imageVersion: response.imageVersion,
     active: response.active,
   };
 }

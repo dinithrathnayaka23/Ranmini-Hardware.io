@@ -3,7 +3,7 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 
 import { routes } from "@/shared/config/app.config";
-import { apiFetch, apiFetchMultipart } from "@/shared/lib/api.server";
+import { apiFetch } from "@/shared/lib/api.server";
 import { ApiError, errorMessages } from "@/shared/lib/http-error";
 
 import { productSchema, stockAdjustmentSchema } from "./schemas/product.schema";
@@ -189,46 +189,6 @@ export async function adjustStock(
       success: true,
       message: `${product.name} is now at ${product.stock} in stock.`,
     };
-  } catch (error) {
-    return failure(error);
-  }
-}
-
-/**
- * Attaches a photograph to a product.
- *
- * <p>Takes {@link FormData} rather than bytes: the file never has to be read
- * into this action's memory or re-encoded, it is simply forwarded. The API
- * checks the declared type against an allowlist and the bytes against the magic
- * number that type implies, which is the check that actually decides.
- */
-export async function uploadProductImage(
-  id: string,
-  data: FormData,
-): Promise<InventoryActionResult> {
-  try {
-    await apiFetchMultipart(
-      `/api/v1/inventory/products/${encodeURIComponent(id)}/image`,
-      data,
-      "admin",
-    );
-
-    await refreshCatalogue(id);
-    return { success: true, message: "Photograph saved.", productId: id };
-  } catch (error) {
-    return failure(error);
-  }
-}
-
-export async function removeProductImage(id: string): Promise<InventoryActionResult> {
-  try {
-    await apiFetch(`/api/v1/inventory/products/${encodeURIComponent(id)}/image`, {
-      method: "DELETE",
-      session: "admin",
-    });
-
-    await refreshCatalogue(id);
-    return { success: true, message: "Photograph removed." };
   } catch (error) {
     return failure(error);
   }

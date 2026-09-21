@@ -1,7 +1,6 @@
 "use client";
 
-import { FileDown, ListFilter, Package, Pencil, PackageSearch, Trash2 } from "lucide-react";
-import Image from "next/image";
+import { FileDown, ListFilter, Pencil, PackageSearch, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
@@ -16,7 +15,6 @@ import { routes } from "@/shared/config/app.config";
 import { accentRow, accentText } from "@/shared/lib/accent";
 import { cn } from "@/shared/lib/cn";
 import { formatAmount, formatCount } from "@/shared/lib/format";
-import { productImageUrl } from "@/shared/lib/product-image-url";
 
 import {
   stockStatusPresentation,
@@ -360,32 +358,29 @@ function ProductRow({
         </th>
 
         <td className="px-5 py-3.5 lg:px-3">
-          <div className="flex items-center gap-3">
-            <Thumbnail product={product} />
-            <div className="min-w-0">
-              <p className="font-medium text-ink">{product.name}</p>
-              {/*
-                Below `lg` the SKU has no column of its own, so it joins the
-                meta line here rather than disappearing — it is how stock is
-                called out loud in the shop, and losing it would make the
-                narrow table harder to work from than the phone card.
-              */}
-              <p className="text-xs text-muted">
-                <span className="lg:hidden">{product.sku}</span>
-                {product.brand ? (
-                  <>
-                    <span className="lg:hidden"> · </span>
-                    {product.brand}
-                  </>
-                ) : null}
-                {!product.active ? (
-                  <>
-                    {product.brand ? " · " : <span className="lg:hidden"> · </span>}
-                    Withdrawn from sale
-                  </>
-                ) : null}
-              </p>
-            </div>
+          <div className="min-w-0">
+            <p className="font-medium text-ink">{product.name}</p>
+            {/*
+              Below `lg` the SKU has no column of its own, so it joins the
+              meta line here rather than disappearing — it is how stock is
+              called out loud in the shop, and losing it would make the
+              narrow table harder to work from than the phone card.
+            */}
+            <p className="text-xs text-muted">
+              <span className="lg:hidden">{product.sku}</span>
+              {product.brand ? (
+                <>
+                  <span className="lg:hidden"> · </span>
+                  {product.brand}
+                </>
+              ) : null}
+              {!product.active ? (
+                <>
+                  {product.brand ? " · " : <span className="lg:hidden"> · </span>}
+                  Withdrawn from sale
+                </>
+              ) : null}
+            </p>
           </div>
         </td>
 
@@ -500,8 +495,6 @@ function ProductCard({
     >
       <div className="p-4">
         <div className="flex items-start gap-3">
-          <Thumbnail product={product} />
-
           <div className="min-w-0 flex-1">
             {/* `break-words`, not `truncate`: on a 320px screen a long product
                 name is the thing being looked for, and clipping it defeats the
@@ -635,39 +628,6 @@ function CardAction({
       <Icon aria-hidden className="size-4 shrink-0" />
       {label}
     </button>
-  );
-}
-
-/**
- * The product photograph at row size.
- *
- * <p>A real catalogue is never fully photographed, so the neutral tile is the
- * ordinary case rather than an error state. A failed load falls back to it too:
- * a broken image icon in an admin table reads as a system fault.
- */
-function Thumbnail({ product }: { product: Product }) {
-  const [hasFailed, setHasFailed] = React.useState(false);
-  const url = productImageUrl(product);
-
-  if (!url || hasFailed) {
-    return (
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-line bg-canvas-subtle text-placeholder">
-        <Package aria-hidden className="size-4" />
-      </span>
-    );
-  }
-
-  return (
-    <span className="relative size-9 shrink-0 overflow-hidden rounded-md border border-line bg-canvas-subtle">
-      <Image
-        src={url}
-        alt=""
-        fill
-        sizes="36px"
-        onError={() => setHasFailed(true)}
-        className="object-cover"
-      />
-    </span>
   );
 }
 

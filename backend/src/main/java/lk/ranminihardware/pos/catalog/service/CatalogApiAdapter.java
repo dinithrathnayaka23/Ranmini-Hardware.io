@@ -115,6 +115,7 @@ public class CatalogApiAdapter implements CatalogApi {
         product.getCategoryName(),
         product.getSellingPrice(),
         product.getStock(),
-        product.getUnit());
+        product.getUnit(),
+        product.getReorderLevel());
   }
 }
