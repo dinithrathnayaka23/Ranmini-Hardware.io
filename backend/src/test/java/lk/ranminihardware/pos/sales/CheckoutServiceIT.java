@@ -128,6 +128,33 @@ class CheckoutServiceIT extends MongoIntegrationTest {
   }
 
   @Test
+  @DisplayName("a line at its reorder level still sells, all the way down to zero")
+  void sellsRightDownToZero() {
+    // Down to exactly the reorder level of 5. Being "low" is a thing the shop
+    // is told about, never a thing that stops a customer being served.
+    checkout.checkout(command(5, null));
+    assertThat(products.findById(productId).orElseThrow().getStatus().name())
+        .isEqualTo("LOW_STOCK");
+
+    // And on past it, in ones, to the last unit on the shelf.
+    for (int i = 0; i < 5; i++) {
+      checkout.checkout(command(1, null));
+    }
+
+    Product empty = products.findById(productId).orElseThrow();
+    assertThat(empty.getStock()).isZero();
+    assertThat(empty.getStatus().name()).isEqualTo("OUT_OF_STOCK");
+    assertThat(sales.count()).isEqualTo(6);
+
+    // Zero is the floor. Everything above it was sellable; nothing below it is.
+    assertThatThrownBy(() -> checkout.checkout(command(1, null)))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("not enough");
+
+    assertThat(products.findById(productId).orElseThrow().getStock()).isZero();
+  }
+
+  @Test
   @DisplayName("concurrent tills cannot sell the same last units twice")
   void concurrentSalesCannotOversell() throws Exception {
     // Ten units on the shelf, twenty tills each asking for one.
