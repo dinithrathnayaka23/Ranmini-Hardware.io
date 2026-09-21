@@ -18,6 +18,7 @@ import lk.ranminihardware.pos.sales.domain.Sale;
 import lk.ranminihardware.pos.sales.domain.TenderMethod;
 import lk.ranminihardware.pos.sales.repository.SaleRepository;
 import lk.ranminihardware.pos.sales.service.CheckoutCommand;
+import lk.ranminihardware.pos.sales.service.CheckoutOutcome;
 import lk.ranminihardware.pos.sales.service.CheckoutService;
 import lk.ranminihardware.pos.settings.domain.ShopSettings;
 import lk.ranminihardware.pos.settings.repository.ShopSettingsRepository;
@@ -90,7 +91,7 @@ class CheckoutServiceIT extends MongoIntegrationTest {
   @Test
   @DisplayName("the server prices the basket from the catalogue, not from the request")
   void serverPricesTheBasket() {
-    Sale sale = checkout.checkout(command(2, new BigDecimal("10")));
+    Sale sale = checkout.checkout(command(2, new BigDecimal("10"))).sale();
 
     // 2 x 2450 = 4900, less 10% = 4410, plus 15% tax = 5071.50.
     assertThat(sale.getSubtotal()).isEqualByComparingTo("4900.00");
@@ -164,8 +165,9 @@ class CheckoutServiceIT extends MongoIntegrationTest {
   @DisplayName("a retried checkout returns the original sale instead of charging twice")
   void retryIsIdempotent() {
     CheckoutCommand first = command(2, null).withIdempotencyKey("till-1-retry");
-    Sale original = checkout.checkout(first);
-    Sale retried = checkout.checkout(first);
+    Sale original = checkout.checkout(first).sale();
+    CheckoutOutcome retry = checkout.checkout(first);
+    Sale retried = retry.sale();
 
     assertThat(retried.getId()).isEqualTo(original.getId());
     assertThat(retried.getInvoiceNumber()).isEqualTo(original.getInvoiceNumber());
@@ -173,13 +175,18 @@ class CheckoutServiceIT extends MongoIntegrationTest {
 
     // The decisive assertion: the stock moved once, not twice.
     assertThat(products.findById(productId).orElseThrow().getStock()).isEqualTo(8);
+
+    // And the retry says nothing about stock. The threshold, if one had been
+    // crossed, was crossed by the attempt this one is repeating — warning the
+    // cashier again would be a second alarm for a single event.
+    assertThat(retry.notices()).isEmpty();
   }
 
   @Test
   @DisplayName("invoice numbers are sequential and unique")
   void invoiceNumbersAreSequential() {
-    Sale first = checkout.checkout(command(1, null));
-    Sale second = checkout.checkout(command(1, null));
+    Sale first = checkout.checkout(command(1, null)).sale();
+    Sale second = checkout.checkout(command(1, null)).sale();
 
     assertThat(first.getInvoiceNumber()).endsWith("-0001");
     assertThat(second.getInvoiceNumber()).endsWith("-0002");
@@ -215,6 +222,69 @@ class CheckoutServiceIT extends MongoIntegrationTest {
         new CheckoutCommand(List.of(), null, TenderMethod.CASH, null, null, null, null, null);
 
     assertThatThrownBy(() -> checkout.checkout(empty)).isInstanceOf(ApiException.class);
+  }
+
+  // ---------------------------------------------------------------------
+  // What the till tells the cashier about the shelf.
+  //
+  // The fixture holds 10 bags with a reorder level of 5, so "crossing" means
+  // taking the stock from 6-or-more down to 5-or-fewer.
+  // ---------------------------------------------------------------------
+
+  @Test
+  @DisplayName("the sale that reaches the reorder level warns the cashier")
+  void warnsWhenTheSaleReachesTheReorderLevel() {
+    // 10 - 5 = 5, which is exactly the reorder level.
+    CheckoutOutcome outcome = checkout.checkout(command(5, null));
+
+    assertThat(outcome.notices()).hasSize(1);
+
+    var notice = outcome.notices().get(0);
+    assertThat(notice.sku()).isEqualTo("CEM-001");
+    assertThat(notice.remaining()).isEqualTo(5);
+    assertThat(notice.reorderLevel()).isEqualTo(5);
+    assertThat(notice.soldOut()).isFalse();
+  }
+
+  @Test
+  @DisplayName("a sale that leaves the line comfortably stocked says nothing")
+  void staysQuietWellAboveTheReorderLevel() {
+    // 10 - 2 = 8, which is above the reorder level of 5.
+    assertThat(checkout.checkout(command(2, null)).notices()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("a line that was already low does not warn again on every sale")
+  void doesNotRepeatTheWarningOnceLow() {
+    // First sale crosses; that one is worth an interruption.
+    assertThat(checkout.checkout(command(5, null)).notices()).hasSize(1);
+
+    // The next sale leaves it lower still, but the cashier has already been
+    // told. This is the assertion that keeps the feature useful: a warning on
+    // every subsequent transaction is a warning nobody reads.
+    assertThat(checkout.checkout(command(1, null)).notices()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("emptying the shelf warns, and says so as sold out")
+  void warnsWhenTheShelfIsEmptied() {
+    CheckoutOutcome outcome = checkout.checkout(command(10, null));
+
+    assertThat(outcome.notices()).hasSize(1);
+    assertThat(outcome.notices().get(0).remaining()).isZero();
+    assertThat(outcome.notices().get(0).soldOut()).isTrue();
+  }
+
+  @Test
+  @DisplayName("going from low straight to empty warns a second time")
+  void warnsAgainWhenLowBecomesEmpty() {
+    // Low is a warning; empty is a different fact and a different message — the
+    // cashier can no longer sell the line at all, and must stop offering it.
+    assertThat(checkout.checkout(command(5, null)).notices()).hasSize(1);
+
+    CheckoutOutcome emptied = checkout.checkout(command(5, null));
+    assertThat(emptied.notices()).hasSize(1);
+    assertThat(emptied.notices().get(0).soldOut()).isTrue();
   }
 
   private CheckoutCommand command(int quantity, BigDecimal discountPercent) {
