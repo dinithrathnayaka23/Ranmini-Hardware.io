@@ -1,6 +1,6 @@
 import "server-only";
 
-import { apiFetch } from "@/shared/lib/api.server";
+import { adminFetch } from "@/modules/auth/services/guarded-fetch.server";
 
 import type {
   CategoryShare,
@@ -78,7 +78,7 @@ export async function fetchReports(from?: string, to?: string): Promise<ReportsV
   if (to) params.set("to", to);
 
   const query = params.toString();
-  const bundle = await apiFetch<ReportBundle>(
+  const bundle = await adminFetch<ReportBundle>(
     `/api/v1/reports${query ? `?${query}` : ""}`,
   );
 

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { apiFetch } from "@/shared/lib/api.server";
+import { adminFetch } from "@/modules/auth/services/guarded-fetch.server";
 
 import type { Category } from "../types/category.types";
 
@@ -32,7 +32,7 @@ interface CategoryResponse {
  * shelf names by design, and the till has to render all of them in one row.
  */
 export async function fetchCategories(): Promise<Category[]> {
-  const response = await apiFetch<CategoryResponse[]>("/api/v1/categories", {
+  const response = await adminFetch<CategoryResponse[]>("/api/v1/categories", {
     cache: "no-store",
   });
 

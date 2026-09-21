@@ -1,6 +1,6 @@
 import "server-only";
 
-import { apiFetch } from "@/shared/lib/api.server";
+import { adminFetch } from "@/modules/auth/services/guarded-fetch.server";
 
 import type {
   BusinessLogicValues,
@@ -52,7 +52,7 @@ export interface SettingsView {
 }
 
 export async function fetchSettings(): Promise<SettingsView> {
-  const settings = await apiFetch<SettingsResponse>("/api/v1/settings", {
+  const settings = await adminFetch<SettingsResponse>("/api/v1/settings", {
     // Read on nearly every settings page load and changed perhaps twice a year.
     revalidate: 60,
     tags: ["settings"],

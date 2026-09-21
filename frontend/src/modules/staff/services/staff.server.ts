@@ -1,6 +1,7 @@
 import "server-only";
 
-import { apiFetch, type PageResponse } from "@/shared/lib/api.server";
+import { adminFetch } from "@/modules/auth/services/guarded-fetch.server";
+import { type PageResponse } from "@/shared/lib/api.server";
 
 import type { StaffRole } from "../constants/staff-roles";
 import type { StaffMember, StaffStatus } from "../types/staff.types";
@@ -28,7 +29,7 @@ interface StaffResponse {
 }
 
 export async function fetchStaff(): Promise<StaffMember[]> {
-  const page = await apiFetch<PageResponse<StaffResponse>>("/api/v1/staff?size=50");
+  const page = await adminFetch<PageResponse<StaffResponse>>("/api/v1/staff?size=50");
   return page.content.map(toStaffMember);
 }
 

@@ -1,6 +1,7 @@
 import "server-only";
 
-import { apiFetch, type PageResponse } from "@/shared/lib/api.server";
+import { adminFetch } from "@/modules/auth/services/guarded-fetch.server";
+import { type PageResponse } from "@/shared/lib/api.server";
 
 import type { AuditEntry, AuditPage } from "../types/audit.types";
 
@@ -18,7 +19,7 @@ export async function fetchAuditLog(page: number, size = 20): Promise<AuditPage>
   const params = new URLSearchParams({ page: String(page), size: String(size) });
 
   try {
-    const response = await apiFetch<PageResponse<AuditEntry>>(
+    const response = await adminFetch<PageResponse<AuditEntry>>(
       `/api/v1/audit?${params}`,
       { cache: "no-store" },
     );

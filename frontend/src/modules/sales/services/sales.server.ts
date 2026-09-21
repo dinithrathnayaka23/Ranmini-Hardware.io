@@ -1,6 +1,10 @@
 import "server-only";
 
-import { apiFetch, apiFetchOrNull, type PageResponse } from "@/shared/lib/api.server";
+import {
+  adminFetch,
+  adminFetchOrNull,
+} from "@/modules/auth/services/guarded-fetch.server";
+import { type PageResponse } from "@/shared/lib/api.server";
 
 import type { DayTotals, Sale, SalesPage } from "../types/sales.types";
 
@@ -31,7 +35,7 @@ export async function fetchSalesForDay(date: string, page: number): Promise<Sale
     size: String(PAGE_SIZE),
   });
 
-  const response = await apiFetch<PageResponse<Sale>>(`/api/v1/sales?${params}`, {
+  const response = await adminFetch<PageResponse<Sale>>(`/api/v1/sales?${params}`, {
     // Never cached. A voided sale has to disappear from this list the moment it
     // is voided, and somebody reconciling a till at closing time is asking what
     // is true right now.
@@ -55,7 +59,7 @@ export async function fetchSalesForDay(date: string, page: number): Promise<Sale
  * render as "no sale with that number" rather than as an error page.
  */
 export async function fetchSaleByInvoice(invoiceNumber: string): Promise<Sale | null> {
-  return apiFetchOrNull<Sale>(
+  return adminFetchOrNull<Sale>(
     `/api/v1/sales/by-invoice/${encodeURIComponent(invoiceNumber)}`,
     { cache: "no-store" },
   );
@@ -74,7 +78,7 @@ export async function fetchSaleByInvoice(invoiceNumber: string): Promise<Sale | 
 export async function fetchDayTotals(date: string): Promise<DayTotals | null> {
   const params = new URLSearchParams({ from: date, to: date });
 
-  const days = await apiFetch<DayTotals[]>(`/api/v1/reports/daily?${params}`, {
+  const days = await adminFetch<DayTotals[]>(`/api/v1/reports/daily?${params}`, {
     cache: "no-store",
   });
 

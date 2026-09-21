@@ -11,7 +11,7 @@ import {
 
 import type { StatCardModel } from "@/shared/components/ui/stat-card";
 import { getCurrencySymbol } from "@/shared/lib/shop.server";
-import { apiFetch } from "@/shared/lib/api.server";
+import { adminFetch } from "@/modules/auth/services/guarded-fetch.server";
 import { formatCompactCurrency, formatCount, formatCurrency } from "@/shared/lib/format";
 
 import type { LowStockItem } from "../types/dashboard.types";
@@ -50,7 +50,7 @@ export interface DashboardView {
 }
 
 export async function fetchDashboard(): Promise<DashboardView> {
-  const data = await apiFetch<DashboardResponse>("/api/v1/dashboard", {
+  const data = await adminFetch<DashboardResponse>("/api/v1/dashboard", {
     // The endpoint composes four aggregations — an inventory summary, today's
     // and this month's totals, and the low-stock list — and declares
     // `Cache-Control: private, max-age=30` because those figures move slowly

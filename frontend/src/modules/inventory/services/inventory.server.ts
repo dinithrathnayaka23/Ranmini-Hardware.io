@@ -7,7 +7,8 @@ import {
   WalletCards,
 } from "lucide-react";
 
-import { apiFetch, type PageResponse } from "@/shared/lib/api.server";
+import { adminFetch } from "@/modules/auth/services/guarded-fetch.server";
+import { type PageResponse } from "@/shared/lib/api.server";
 import { formatCompactCurrency, formatCount } from "@/shared/lib/format";
 import { getCurrencySymbol } from "@/shared/lib/shop.server";
 import type { StatCardModel } from "@/shared/components/ui/stat-card";
@@ -80,7 +81,7 @@ export async function fetchInventoryPage(
   if (query) params.set("q", query);
   if (status) params.set("status", status);
 
-  const response = await apiFetch<PageResponse<ProductResponse>>(
+  const response = await adminFetch<PageResponse<ProductResponse>>(
     `/api/v1/inventory/products?${params}`,
   );
 
@@ -103,7 +104,7 @@ export async function fetchInventoryPage(
  * changed in between.
  */
 export async function fetchProduct(id: string): Promise<Product> {
-  const response = await apiFetch<ProductResponse>(
+  const response = await adminFetch<ProductResponse>(
     `/api/v1/inventory/products/${encodeURIComponent(id)}`,
   );
   return toProduct(response);
@@ -121,7 +122,7 @@ export async function fetchInventoryStats(): Promise<StatCardModel[]> {
   // Settings → Business Logic owns the currency; this used to print the
   // build-time default whatever the shop had chosen.
   const currency = await getCurrencySymbol();
-  const summary = await apiFetch<SummaryResponse>("/api/v1/inventory/summary", {
+  const summary = await adminFetch<SummaryResponse>("/api/v1/inventory/summary", {
     // The endpoint sends `Cache-Control: private, max-age=30` because these are
     // aggregates over the whole catalogue and are expensive relative to how
     // fast they change. Reading them with `no-store` threw that away and re-ran
