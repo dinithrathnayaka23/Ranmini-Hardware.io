@@ -15,6 +15,14 @@ import type { NotificationFeed } from "../types/notifications.types";
  * <p>Failures are swallowed into an empty feed rather than thrown. This is
  * chrome on every screen in the portal — a notifications outage must not be
  * able to take down the inventory table with it.
+ *
+ * <p><b>Deliberately the one administrator read that does not go through
+ * `adminFetch`.</b> That wrapper refuses by redirecting, and a redirect in
+ * Next.js is thrown — so the blanket `catch` below would swallow it and leave
+ * the person on a page they are not allowed to see, which is the opposite of
+ * what the guard is for. It needs no guard anyway: it is only ever called from
+ * the portal layout, which runs `requireAdmin` itself, and a cashier whose
+ * token reaches the backend is refused there and simply gets an empty bell.
  */
 export async function fetchNotifications(): Promise<NotificationFeed> {
   try {

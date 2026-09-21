@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath, revalidateTag } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 
 import { routes } from "@/shared/config/app.config";
 import { apiFetch } from "@/shared/lib/api.server";
@@ -219,6 +220,14 @@ function notFound(): CategoryActionResult {
 
 /** The API's own message where there is one; vetted copy where there is not. */
 function failure(error: unknown): CategoryActionResult {
+  // Reordering reads the current list through the guarded page read, which
+  // refuses by redirecting — and a redirect in Next.js is thrown. Catching it
+  // here as though it were a failed API call would quietly cancel the
+  // navigation, which is the one thing a catch around Next internals must not
+  // do. `unstable_rethrow` puts anything belonging to the framework back where
+  // it came from and leaves the real errors to us.
+  unstable_rethrow(error);
+
   if (error instanceof ApiError) return { success: false, message: error.message };
   return { success: false, message: errorMessages.unexpected };
 }
