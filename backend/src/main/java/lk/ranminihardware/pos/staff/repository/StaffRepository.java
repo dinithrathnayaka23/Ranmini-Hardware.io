@@ -2,6 +2,7 @@ package lk.ranminihardware.pos.staff.repository;
 
 import java.util.Optional;
 import lk.ranminihardware.pos.staff.domain.StaffMember;
+import lk.ranminihardware.pos.staff.domain.StaffRole;
 import lk.ranminihardware.pos.staff.domain.StaffStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,4 +33,14 @@ public interface StaffRepository extends MongoRepository<StaffMember, String> {
   Optional<StaffMember> findByEmailIgnoreCase(String email);
 
   Page<StaffMember> findByStatusOrderByFullNameAsc(StaffStatus status, Pageable pageable);
+
+  /**
+   * Whether anybody can currently sign in with the given role.
+   *
+   * Used at startup to warn that the till has no usable account — see
+   * TillAccountCheck. Deliberately an existence check rather than a count: the
+   * answer is a yes or no, and asking Mongo to stop at the first match is both
+   * the cheaper query and the more honest statement of the question.
+   */
+  boolean existsByRoleAndStatus(StaffRole role, StaffStatus status);
 }
