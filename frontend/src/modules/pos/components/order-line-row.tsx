@@ -3,12 +3,12 @@
 import { Minus, Plus, Trash2 } from "lucide-react";
 import * as React from "react";
 
+import { AnimatedCurrency } from "@/shared/components/ui/animated-number";
 import { cn } from "@/shared/lib/cn";
-import { formatAmount, formatCurrency } from "@/shared/lib/format";
+import { formatAmount } from "@/shared/lib/format";
 
 import { lineTotal } from "../lib/cart";
 import type { OrderLine } from "../types/pos.types";
-import { useCurrency } from "@/shared/components/shop-provider";
 
 /**
  * Column template shared by the order rows and the header above them.
@@ -65,7 +65,6 @@ export function OrderLineRow({
   onDecrement: (productId: string) => void;
   onSetQuantity: (productId: string, quantity: number) => void;
 }) {
-  const currency = useCurrency();
   const isAtStockCeiling = line.quantity >= line.availableStock;
 
   return (
@@ -126,7 +125,7 @@ export function OrderLineRow({
 
         <div className="text-right">
           <p className="text-sm font-semibold whitespace-nowrap text-ink tabular-nums">
-            {formatCurrency(lineTotal(line), currency)}
+            <AnimatedCurrency value={lineTotal(line)} />
           </p>
           <p className="mt-0.5 text-xs whitespace-nowrap text-muted tabular-nums">
             {formatAmount(line.unitPrice)} × {line.quantity}

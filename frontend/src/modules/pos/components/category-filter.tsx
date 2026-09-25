@@ -1,15 +1,21 @@
 "use client";
 
-import { cn } from "@/shared/lib/cn";
+import { SegmentedControl } from "@/shared/components/ui/segmented-control";
 
 import type { PosCategory } from "../types/pos.types";
 
 /**
- * Category chips above the product grid.
+ * Category filter above the product grid.
  *
- * Plain buttons carrying `aria-pressed` rather than a tab list: these filter
- * one grid in place, and announcing them as tabs would promise a screen-reader
- * user panels that do not exist.
+ * A segmented control whose highlight slides to the chosen category, so a
+ * cashier glancing back at the screen can see at once which slice of the
+ * catalogue the grid is showing.
+ *
+ * It scrolls sideways rather than wrapping to a second row: on a tablet the
+ * filter must not steal height from the product grid. The control announces
+ * itself as a group of toggles rather than tabs, because these filter one grid
+ * in place and a screen-reader user should not be promised panels that do not
+ * exist.
  */
 export function CategoryFilter({
   categories,
@@ -21,34 +27,16 @@ export function CategoryFilter({
   onSelect: (categoryId: string) => void;
 }) {
   return (
-    <div
-      // Scrolls sideways rather than wrapping to a second row: on a tablet the
-      // chips must not steal height from the product grid.
-      className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      role="group"
-      aria-label="Filter products by category"
-    >
-      {categories.map((category) => {
-        const isActive = category.id === activeId;
-
-        return (
-          <button
-            key={category.id}
-            type="button"
-            onClick={() => onSelect(category.id)}
-            aria-pressed={isActive}
-            className={cn(
-              "shrink-0 touch-manipulation rounded-full px-4 py-2 text-sm font-medium select-none",
-              "transition-[color,background-color,border-color] duration-150 active:scale-[0.97]",
-              isActive
-                ? "bg-brand-600 text-white"
-                : "border border-line bg-surface text-ink-soft hover:border-line-strong hover:bg-brand-50/40",
-            )}
-          >
-            {category.label}
-          </button>
-        );
-      })}
-    </div>
+    <SegmentedControl
+      label="Filter products by category"
+      options={categories.map((category) => ({
+        value: category.id,
+        label: category.label,
+      }))}
+      value={activeId}
+      onChange={onSelect}
+      tone="brand"
+      scrollable
+    />
   );
 }

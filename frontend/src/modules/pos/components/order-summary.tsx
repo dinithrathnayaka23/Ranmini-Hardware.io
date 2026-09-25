@@ -1,9 +1,12 @@
 "use client";
 
 import { Banknote, CreditCard } from "lucide-react";
-import * as React from "react";
 
-import { cn } from "@/shared/lib/cn";
+import { AnimatedCurrency } from "@/shared/components/ui/animated-number";
+import {
+  SegmentedControl,
+  type SegmentedOption,
+} from "@/shared/components/ui/segmented-control";
 import { formatCurrency } from "@/shared/lib/format";
 
 import { parseTendered } from "../lib/cash";
@@ -11,6 +14,16 @@ import type { OrderTotals, TenderMethod } from "../types/pos.types";
 import { useCurrency } from "@/shared/components/shop-provider";
 
 import { CashTender } from "./cash-tender";
+
+/**
+ * Cash first, on the left. It is the default, it is how most of a hardware
+ * shop's sales are settled, and a control the cashier reaches for a hundred
+ * times a day belongs where the eye lands first.
+ */
+const TENDER_OPTIONS: readonly SegmentedOption<TenderMethod>[] = [
+  { value: "CASH", label: "Cash", icon: Banknote },
+  { value: "CARD", label: "Card", icon: CreditCard },
+];
 
 /**
  * Money, tender and the commit action.
@@ -61,7 +74,7 @@ export function OrderSummary({
         <div className="flex items-center justify-between gap-3">
           <dt className="text-sm text-ink-soft">Subtotal</dt>
           <dd className="text-sm font-medium whitespace-nowrap text-ink tabular-nums">
-            {formatCurrency(totals.subtotal, symbol)}
+            <AnimatedCurrency value={totals.subtotal} />
           </dd>
         </div>
 
@@ -132,32 +145,26 @@ export function OrderSummary({
         <span className="text-xl font-bold tracking-tight text-ink @min-[22rem]:text-2xl @min-[28rem]:text-3xl">
           Total
         </span>
-        <span className="text-xl font-bold tracking-tight whitespace-nowrap text-brand-600 tabular-nums @min-[22rem]:text-2xl @min-[28rem]:text-3xl">
-          {formatCurrency(totals.total, symbol)}
-        </span>
+        {/* The digits roll when the basket changes, which is the confirmation
+            a cashier looks for after tapping a product or typing a discount. */}
+        <AnimatedCurrency
+          value={totals.total}
+          className="text-xl font-bold tracking-tight whitespace-nowrap text-brand-600 tabular-nums @min-[22rem]:text-2xl @min-[28rem]:text-3xl"
+        />
       </div>
 
-      <div
-        role="group"
-        aria-label="Payment method"
-        className="mt-5 grid grid-cols-2 gap-3"
-      >
-        {/* Cash first, on the left. It is the default, it is how most of a
-            hardware shop's sales are settled, and a control the cashier reaches
-            for a hundred times a day belongs where the eye lands first. */}
-        <TenderButton
-          isSelected={tender === "CASH"}
-          onClick={() => onTenderChange("CASH")}
-          icon={Banknote}
-          label="Cash"
-        />
-        <TenderButton
-          isSelected={tender === "CARD"}
-          onClick={() => onTenderChange("CARD")}
-          icon={CreditCard}
-          label="Card"
-        />
-      </div>
+      {/* A sliding highlight rather than two buttons that swap colour: the
+          movement makes the switch between tenders impossible to miss. */}
+      <SegmentedControl
+        label="Payment method"
+        options={TENDER_OPTIONS}
+        value={tender}
+        onChange={onTenderChange}
+        tone="brand"
+        size="lg"
+        fullWidth
+        className="mt-5"
+      />
 
       {tender === "CASH" ? (
         <CashTender
@@ -183,43 +190,6 @@ export function OrderSummary({
         {isPaying ? "Processing…" : "Pay & Print Receipt"}
       </button>
     </div>
-  );
-}
-
-/**
- * One payment method.
- *
- * `aria-pressed` rather than a radio group: the pair reads as two toggles in
- * the design, and a cashier switching between them expects a button, not a
- * form control that needs arrow keys.
- */
-function TenderButton({
-  isSelected,
-  onClick,
-  icon: Icon,
-  label,
-}: {
-  isSelected: boolean;
-  onClick: () => void;
-  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={isSelected}
-      className={cn(
-        "inline-flex h-12 touch-manipulation items-center justify-center gap-2 rounded-[10px] text-sm font-medium select-none",
-        "transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.98] @min-[28rem]:h-13",
-        isSelected
-          ? "bg-brand-600 text-white hover:bg-brand-700"
-          : "border border-line bg-surface text-ink hover:border-line-strong hover:bg-brand-50/40",
-      )}
-    >
-      <Icon aria-hidden className="size-[18px]" />
-      {label}
-    </button>
   );
 }
 
