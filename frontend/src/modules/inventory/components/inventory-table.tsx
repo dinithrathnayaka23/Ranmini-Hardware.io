@@ -10,6 +10,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Card } from "@/shared/components/ui/card";
 import { Pagination } from "@/shared/components/ui/pagination";
 import { SearchInput } from "@/shared/components/ui/search-input";
+import { SegmentedControl } from "@/shared/components/ui/segmented-control";
 import { useCurrency } from "@/shared/components/shop-provider";
 import { routes } from "@/shared/config/app.config";
 import { accentRow, accentText } from "@/shared/lib/accent";
@@ -188,27 +189,17 @@ export function InventoryTable({
       {isFilterOpen ? (
         <div
           id="inventory-status-filter"
-          className="flex flex-wrap items-center gap-2 border-b border-line bg-canvas-subtle px-4 py-3"
+          className="flex min-w-0 items-center gap-3 border-b border-line bg-canvas-subtle/60 px-4 py-2.5"
         >
           <span className="text-xs font-medium text-muted">Status</span>
-          {STATUS_FILTERS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() =>
-                applyParams({ status: option.value === "ALL" ? null : option.value })
-              }
-              aria-pressed={status === option.value}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                status === option.value
-                  ? "border-brand-600 bg-brand-600 text-on-brand"
-                  : "border-line bg-surface text-ink-soft hover:border-line-strong",
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
+          <SegmentedControl
+            label="Filter products by stock status"
+            options={STATUS_FILTERS}
+            value={status}
+            onChange={(value) => applyParams({ status: value === "ALL" ? null : value })}
+            size="sm"
+            scrollable
+          />
         </div>
       ) : null}
 
