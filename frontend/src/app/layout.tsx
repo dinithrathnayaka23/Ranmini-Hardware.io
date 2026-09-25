@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 
+import { MotionProvider } from "@/shared/components/theme/motion-provider";
 import { ThemeScript } from "@/shared/components/theme/theme-script";
 import { appConfig } from "@/shared/config/app.config";
 
@@ -44,7 +45,9 @@ export default function RootLayout({
             paint rather than applied a frame after it. */}
         <ThemeScript />
       </head>
-      <body className="min-h-dvh antialiased">{children}</body>
+      <body className="min-h-dvh antialiased">
+        <MotionProvider>{children}</MotionProvider>
+      </body>
     </html>
   );
 }
