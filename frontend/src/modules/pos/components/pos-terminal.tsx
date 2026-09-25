@@ -505,7 +505,7 @@ export function PosTerminal({
           <span className="text-base font-bold whitespace-nowrap text-brand-600 tabular-nums">
             {formatCurrency(cart.totals.total, currency)}
           </span>
-          <span className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white">
+          <span className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-on-brand">
             View order
           </span>
         </span>

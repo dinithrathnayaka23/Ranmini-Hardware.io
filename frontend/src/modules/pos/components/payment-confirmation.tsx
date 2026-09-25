@@ -220,7 +220,7 @@ export function PaymentConfirmation({
           ref={doneRef}
           type="button"
           onClick={onDone}
-          className="h-11 flex-1 touch-manipulation rounded-[10px] bg-brand-600 text-sm font-semibold text-white select-none
+          className="h-11 flex-1 touch-manipulation rounded-[10px] bg-brand-600 text-sm font-semibold text-on-brand select-none
                      transition-[background-color,transform] duration-150 hover:bg-brand-700 active:scale-[0.99] sm:h-12 sm:text-base"
         >
           New sale

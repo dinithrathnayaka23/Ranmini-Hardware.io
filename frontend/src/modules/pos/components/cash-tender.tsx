@@ -160,7 +160,7 @@ function QuickAmount({
         "h-9 min-w-16 flex-1 touch-manipulation rounded-md px-2.5 text-sm font-medium tabular-nums select-none",
         "transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.97]",
         isSelected
-          ? "bg-brand-600 text-white"
+          ? "bg-brand-600 text-on-brand"
           : "border border-line bg-surface text-ink-soft hover:border-line-strong hover:bg-brand-50/40",
       )}
     >

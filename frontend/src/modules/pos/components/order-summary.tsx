@@ -175,7 +175,7 @@ export function OrderSummary({
         // impatient second tap happens.
         disabled={!isPayable || isPaying || isShortOfTotal}
         aria-busy={isPaying}
-        className="mt-3 h-13 w-full touch-manipulation rounded-[10px] bg-pay text-base font-semibold text-white shadow-sm select-none
+        className="mt-3 h-13 w-full touch-manipulation rounded-[10px] bg-pay text-base font-semibold text-on-pay shadow-sm select-none
                    transition-[background-color,transform,box-shadow] duration-150 @min-[28rem]:h-14 @min-[28rem]:text-lg
                    hover:bg-pay-strong hover:shadow active:scale-[0.99] active:bg-pay-strong
                    disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-sm"

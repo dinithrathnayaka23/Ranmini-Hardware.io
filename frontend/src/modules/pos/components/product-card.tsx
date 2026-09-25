@@ -130,14 +130,17 @@ function StockBadge({
   return (
     <span
       className={cn(
-        "absolute top-0 right-0 rounded-bl-lg px-2 py-1 text-[0.7rem] font-semibold text-white",
+        "absolute top-0 right-0 rounded-bl-lg px-2 py-1 text-[0.7rem] font-semibold",
+        // Each fill carries its own foreground, because the accents turn light
+        // in the dark theme. The neutral badge sits on a photograph rather than
+        // a themed surface, so it takes the scrim, which is dark in both themes.
         isSoldOut
-          ? "bg-danger"
+          ? "bg-danger text-on-danger"
           : isAtStockCeiling
-            ? "bg-brand-600"
+            ? "bg-brand-600 text-on-brand"
             : isLowStock
-              ? "bg-warning"
-              : "bg-ink/65",
+              ? "bg-warning text-on-warning"
+              : "bg-scrim text-white",
       )}
     >
       {isSoldOut

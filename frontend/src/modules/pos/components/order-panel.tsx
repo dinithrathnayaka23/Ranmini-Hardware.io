@@ -124,7 +124,7 @@ export function OrderPanel({
               "inline-flex touch-manipulation items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors duration-150",
               "disabled:cursor-not-allowed disabled:opacity-40",
               isConfirmingClear
-                ? "bg-danger text-white hover:bg-danger/90"
+                ? "bg-danger text-on-danger hover:bg-danger/90"
                 : "text-danger hover:bg-danger-soft",
             )}
           >
