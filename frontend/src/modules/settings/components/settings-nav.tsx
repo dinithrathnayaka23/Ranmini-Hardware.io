@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -13,6 +14,9 @@ import { settingsSections } from "../constants/settings-sections";
  * A real list of links rather than tab state: each section is its own route, so
  * it can be linked to and reached with the back button. `aria-current` marks
  * the active row for assistive tech, not just the tinted background.
+ *
+ * The tint slides between sections rather than jumping, using the same
+ * sliding-indicator technique as the sidebar.
  */
 export function SettingsNav() {
   const pathname = usePathname();
@@ -33,14 +37,21 @@ export function SettingsNav() {
                 href={href}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm whitespace-nowrap transition-colors",
+                  "relative flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm whitespace-nowrap transition-colors",
                   isActive
-                    ? "bg-brand-50 font-medium text-brand-700"
+                    ? "font-medium text-brand-700"
                     : "text-ink-soft hover:bg-canvas-subtle",
                 )}
               >
-                <Icon aria-hidden className="size-[18px] shrink-0" />
-                {label}
+                {isActive ? (
+                  <motion.span
+                    layoutId="settings-nav-highlight"
+                    aria-hidden
+                    className="absolute inset-0 rounded-lg bg-brand-50"
+                  />
+                ) : null}
+                <Icon aria-hidden className="relative size-[18px] shrink-0" />
+                <span className="relative">{label}</span>
               </Link>
             </li>
           );
