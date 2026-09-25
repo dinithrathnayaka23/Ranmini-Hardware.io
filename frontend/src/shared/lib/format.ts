@@ -46,8 +46,26 @@ function symbolGap(symbol: string): string {
 
 /** Money with the store's symbol, e.g. 4520 -> "Rs. 4,520.00". */
 export function formatCurrency(value: number, symbol: string): string {
-  return `${symbol}${symbolGap(symbol)}${amountFormatter.format(value)}`;
+  return `${currencyPrefix(symbol)}${amountFormatter.format(value)}`;
 }
+
+/**
+ * The symbol and its separator, e.g. "Rs. " — everything before the digits.
+ *
+ * Exported for the animated figures, which render the digits themselves and
+ * need the prefix on its own. Sharing it keeps an animated total and a static
+ * one spelled identically.
+ */
+export function currencyPrefix(symbol: string): string {
+  return `${symbol}${symbolGap(symbol)}`;
+}
+
+/** The locale and digit options every money figure is formatted with. */
+export const AMOUNT_LOCALE = LOCALE;
+export const AMOUNT_FORMAT = {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+} as const;
 
 /** Compact money for axis ticks, e.g. 4520 -> "Rs. 4.5k". */
 export function formatCompactCurrency(value: number, symbol: string): string {
