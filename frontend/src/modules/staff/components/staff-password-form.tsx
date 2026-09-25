@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/shared/components/ui/card";
 import { PasswordField } from "@/shared/components/ui/password-field";
+import { PasswordStrength } from "@/shared/components/ui/password-strength";
 
 import {
   staffPasswordSchema,
@@ -41,6 +42,7 @@ export function StaffPasswordForm({ staff }: { staff: StaffMember }) {
   const {
     register,
     handleSubmit,
+    watch,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<StaffPasswordValues>({
@@ -98,6 +100,9 @@ export function StaffPasswordForm({ staff }: { staff: StaffMember }) {
             error={errors.newPassword?.message}
             {...register("newPassword")}
           />
+
+
+          <PasswordStrength password={watch("newPassword") ?? ""} />
 
           <PasswordField
             label="Confirm New Password"

@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { Alert } from "@/shared/components/ui/alert";
 import { Button, ButtonLink } from "@/shared/components/ui/button";
 import { PasswordField } from "@/shared/components/ui/password-field";
+import { PasswordStrength } from "@/shared/components/ui/password-strength";
 import { routes } from "@/shared/config/app.config";
 
 import { confirmPasswordReset } from "../actions";
@@ -31,6 +32,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
   const {
     register,
     handleSubmit,
+    watch,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<ResetPasswordValues>({
@@ -106,6 +108,9 @@ export function ResetPasswordForm({ token }: { token: string }) {
         {...register("password")}
       />
 
+
+      <PasswordStrength password={watch("password") ?? ""} />
+
       <PasswordField
         label="Repeat New Password"
         placeholder="••••••••"
@@ -115,7 +120,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
       />
 
       <p className="text-xs leading-relaxed text-muted">
-        At least 8 characters. Using this link signs nobody out — any session
+        Using this link signs nobody out — any session
         already open elsewhere runs until it expires.
       </p>
 

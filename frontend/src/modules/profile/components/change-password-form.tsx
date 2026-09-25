@@ -9,6 +9,7 @@ import { Alert, type AlertTone } from "@/shared/components/ui/alert";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { PasswordField } from "@/shared/components/ui/password-field";
+import { PasswordStrength } from "@/shared/components/ui/password-strength";
 
 import { changeMyPassword } from "../actions";
 import {
@@ -31,6 +32,7 @@ export function ChangePasswordForm() {
   const {
     register,
     handleSubmit,
+    watch,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<ChangePasswordValues>({
@@ -78,6 +80,9 @@ export function ChangePasswordForm() {
             error={errors.newPassword?.message}
             {...register("newPassword")}
           />
+
+
+          <PasswordStrength password={watch("newPassword") ?? ""} />
 
           <PasswordField
             label="Repeat New Password"

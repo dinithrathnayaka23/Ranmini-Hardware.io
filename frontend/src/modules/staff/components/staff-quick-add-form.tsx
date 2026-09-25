@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/shared/components/ui/card";
 import { PasswordField } from "@/shared/components/ui/password-field";
+import { PasswordStrength } from "@/shared/components/ui/password-strength";
 import { SelectField } from "@/shared/components/ui/select-field";
 import { TextField } from "@/shared/components/ui/text-field";
 
@@ -45,6 +46,7 @@ export function StaffQuickAddForm() {
   const {
     register,
     handleSubmit,
+    watch,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<StaffQuickAddValues>({
@@ -142,6 +144,9 @@ export function StaffQuickAddForm() {
             error={errors.initialPassword?.message}
             {...register("initialPassword")}
           />
+
+
+          <PasswordStrength password={watch("initialPassword") ?? ""} />
 
           <Button
             type="submit"
