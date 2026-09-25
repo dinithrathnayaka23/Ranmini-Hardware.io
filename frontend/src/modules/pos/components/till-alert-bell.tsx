@@ -1,9 +1,11 @@
 "use client";
 
 import { Bell, PackageX, TriangleAlert } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 
 import { cn } from "@/shared/lib/cn";
+import { popoverMotion } from "@/shared/components/ui/dialog-motion";
 
 import { markTillAlertsRead } from "../actions";
 import type { TillAlert, TillAlertFeed, TillAlertKind } from "../types/pos.types";
@@ -112,43 +114,48 @@ export function TillAlertBell({ feed: initialFeed }: { feed: TillAlertFeed }) {
         ) : null}
       </button>
 
-      {isOpen ? (
-        <div
-          // Right-aligned and width-capped: the bell sits at the right edge of
-          // the top bar, and a panel that grew with its content would run off
-          // the screen on the narrow terminal the shop actually uses.
-          className="absolute right-0 z-40 mt-2 w-[min(24rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-line bg-surface shadow-lg"
-        >
-          <div className="flex items-center justify-between border-b border-line px-4 py-3">
-            <p className="text-sm font-semibold text-ink">Stock alerts</p>
-            <p className="text-xs text-muted">
-              {count === 0 ? "All clear" : `${count} ${count === 1 ? "line" : "lines"}`}
-            </p>
-          </div>
-
-          {count === 0 ? (
-            <p className="px-4 py-8 text-center text-sm leading-relaxed text-muted">
-              Nothing is running low. Lines that run out, or reach the level the
-              shop reorders at, appear here.
-            </p>
-          ) : (
-            <>
-              <ul className="max-h-[22rem] divide-y divide-line overflow-y-auto">
-                {feed.items.map((item) => (
-                  <li key={item.id}>
-                    <AlertRow item={item} />
-                  </li>
-                ))}
-              </ul>
-
-              {/* The one thing a cashier can actually do about any of this. */}
-              <p className="border-t border-line bg-canvas-subtle px-4 py-2.5 text-xs leading-relaxed text-muted">
-                Let the owner know so these can be reordered.
+      <AnimatePresence>
+        {isOpen ? (
+          <motion.div
+            {...popoverMotion}
+            // Grows out of the button it belongs to, at the top right.
+            style={{ transformOrigin: "top right" }}
+            // Right-aligned and width-capped: the bell sits at the right edge of
+            // the top bar, and a panel that grew with its content would run off
+            // the screen on the narrow terminal the shop actually uses.
+            className="absolute right-0 z-40 mt-2 w-[min(24rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-line bg-surface shadow-raised"
+          >
+            <div className="flex items-center justify-between border-b border-line px-4 py-3">
+              <p className="text-sm font-semibold text-ink">Stock alerts</p>
+              <p className="text-xs text-muted">
+                {count === 0 ? "All clear" : `${count} ${count === 1 ? "line" : "lines"}`}
               </p>
-            </>
-          )}
-        </div>
-      ) : null}
+            </div>
+
+            {count === 0 ? (
+              <p className="px-4 py-8 text-center text-sm leading-relaxed text-muted">
+                Nothing is running low. Lines that run out, or reach the level the
+                shop reorders at, appear here.
+              </p>
+            ) : (
+              <>
+                <ul className="max-h-[22rem] divide-y divide-line overflow-y-auto">
+                  {feed.items.map((item) => (
+                    <li key={item.id}>
+                      <AlertRow item={item} />
+                    </li>
+                  ))}
+                </ul>
+
+                {/* The one thing a cashier can actually do about any of this. */}
+                <p className="border-t border-line bg-canvas-subtle px-4 py-2.5 text-xs leading-relaxed text-muted">
+                  Let the owner know so these can be reordered.
+                </p>
+              </>
+            )}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

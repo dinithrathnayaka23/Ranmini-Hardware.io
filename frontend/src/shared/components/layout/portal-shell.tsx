@@ -1,11 +1,14 @@
 "use client";
 
 import { X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 
 import type { UserProfile } from "@/modules/auth/types/auth.types";
 import type { NotificationFeed } from "@/modules/notifications/types/notifications.types";
+
+import { backdropMotion, drawerLeftMotion } from "../ui/dialog-motion";
 
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
@@ -81,33 +84,39 @@ export function PortalShell({
       <Sidebar data-print="hide" className="hidden shrink-0 lg:flex" />
 
       {/* ---------------------------- Mobile drawer ---------------------------- */}
-      {isNavOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
-            type="button"
-            aria-label="Close navigation menu"
-            onClick={closeNav}
-            className="absolute inset-0 bg-scrim"
-          />
-
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Navigation menu"
-            className="absolute inset-y-0 left-0 w-64 shadow-xl"
-          >
-            <Sidebar onNavigate={closeNav} />
-            <button
+      {/* Slides in from the edge it lives on, so it reads as the rail being
+          pulled out rather than a panel appearing from nowhere. */}
+      <AnimatePresence>
+        {isNavOpen ? (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <motion.button
+              {...backdropMotion}
               type="button"
-              onClick={closeNav}
               aria-label="Close navigation menu"
-              className="absolute top-4 -right-12 inline-flex size-10 items-center justify-center rounded-lg bg-surface text-ink-soft shadow-sm"
+              onClick={closeNav}
+              className="absolute inset-0 bg-scrim"
+            />
+
+            <motion.div
+              {...drawerLeftMotion}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Navigation menu"
+              className="absolute inset-y-0 left-0 w-64 shadow-xl"
             >
-              <X aria-hidden className="size-5" />
-            </button>
+              <Sidebar onNavigate={closeNav} />
+              <button
+                type="button"
+                onClick={closeNav}
+                aria-label="Close navigation menu"
+                className="absolute top-4 -right-12 inline-flex size-10 items-center justify-center rounded-lg bg-surface text-ink-soft shadow-sm"
+              >
+                <X aria-hidden className="size-5" />
+              </button>
+            </motion.div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </AnimatePresence>
 
       {/* ---------------------------- Content column --------------------------- */}
       <div className="flex min-w-0 flex-1 flex-col">

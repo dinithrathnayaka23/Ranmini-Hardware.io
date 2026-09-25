@@ -1,9 +1,11 @@
 "use client";
 
 import { CircleCheck, PackageX, ShoppingBag, TriangleAlert } from "lucide-react";
+import { motion } from "motion/react";
 import * as React from "react";
 
 import { PrintReceiptButton } from "@/shared/components/receipt/print-receipt-button";
+import { backdropMotion, panelMotion } from "@/shared/components/ui/dialog-motion";
 import { useCurrency } from "@/shared/components/shop-provider";
 import { cn } from "@/shared/lib/cn";
 import { formatAmount, formatCurrency } from "@/shared/lib/format";
@@ -83,7 +85,8 @@ export function PaymentConfirmation({
   }, [onDone]);
 
   return (
-    <div
+    <motion.div
+      {...backdropMotion}
       role="dialog"
       aria-modal
       aria-label="Payment complete"
@@ -117,7 +120,13 @@ export function PaymentConfirmation({
           aria-label="Amount"
           className="flex shrink-0 flex-col justify-center gap-4 px-4 py-6 sm:px-6 lg:w-[clamp(22rem,40%,32rem)] lg:overflow-y-auto"
         >
-          <div className="rounded-xl border border-line bg-surface p-5 shadow-sm sm:p-6">
+          {/* Rises into place a beat after the screen appears, which draws the
+              eye to the one figure the cashier has to act on. */}
+          <motion.div
+            {...panelMotion}
+            transition={{ ...panelMotion.transition, delay: 0.08 }}
+            className="rounded-xl border border-line bg-surface p-5 shadow-raised sm:p-6"
+          >
             {hasChange ? (
               <>
                 <p className="text-sm font-medium text-ink-soft">Change due</p>
@@ -144,7 +153,7 @@ export function PaymentConfirmation({
                 </p>
               </>
             )}
-          </div>
+          </motion.div>
         </section>
 
         <section
@@ -231,7 +240,7 @@ export function PaymentConfirmation({
         Press Enter or Escape to start the next sale, or P to print another
         receipt.
       </p>
-    </div>
+    </motion.div>
   );
 }
 

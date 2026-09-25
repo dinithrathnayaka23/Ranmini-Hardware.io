@@ -1,11 +1,13 @@
 "use client";
 
 import { Ban, Bell, PackageX, TriangleAlert } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import * as React from "react";
 
 import { routes } from "@/shared/config/app.config";
 import { cn } from "@/shared/lib/cn";
+import { popoverMotion } from "@/shared/components/ui/dialog-motion";
 
 import { markNotificationsRead } from "../actions";
 import type {
@@ -116,37 +118,42 @@ export function NotificationBell({ initialFeed }: { initialFeed: NotificationFee
         ) : null}
       </button>
 
-      {isOpen ? (
-        <div
-          // Right-aligned and width-capped: the bar is at the right edge of the
-          // screen, and a panel that grew with its content would run off it.
-          className="absolute right-0 z-30 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-line bg-surface shadow-lg"
-        >
-          <div className="flex items-center justify-between border-b border-line px-4 py-3">
-            <p className="text-sm font-semibold text-ink">Notifications</p>
-            <p className="text-xs text-muted">
-              {feed.items.length === 0
-                ? "Nothing to report"
-                : `${feed.items.length} ${feed.items.length === 1 ? "item" : "items"}`}
-            </p>
-          </div>
+      <AnimatePresence>
+        {isOpen ? (
+          <motion.div
+            {...popoverMotion}
+            // Grows out of the button it belongs to, at the top right.
+            style={{ transformOrigin: "top right" }}
+            // Right-aligned and width-capped: the bar is at the right edge of the
+            // screen, and a panel that grew with its content would run off it.
+            className="absolute right-0 z-30 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-line bg-surface shadow-raised"
+          >
+            <div className="flex items-center justify-between border-b border-line px-4 py-3">
+              <p className="text-sm font-semibold text-ink">Notifications</p>
+              <p className="text-xs text-muted">
+                {feed.items.length === 0
+                  ? "Nothing to report"
+                  : `${feed.items.length} ${feed.items.length === 1 ? "item" : "items"}`}
+              </p>
+            </div>
 
-          {feed.items.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm leading-relaxed text-muted">
-              Nothing needs attention. Stock warnings and voided sales appear
-              here as they happen.
-            </p>
-          ) : (
-            <ul className="max-h-[26rem] divide-y divide-line overflow-y-auto">
-              {feed.items.map((item) => (
-                <li key={item.id}>
-                  <NotificationRow item={item} onNavigate={() => setIsOpen(false)} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ) : null}
+            {feed.items.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm leading-relaxed text-muted">
+                Nothing needs attention. Stock warnings and voided sales appear
+                here as they happen.
+              </p>
+            ) : (
+              <ul className="max-h-[26rem] divide-y divide-line overflow-y-auto">
+                {feed.items.map((item) => (
+                  <li key={item.id}>
+                    <NotificationRow item={item} onNavigate={() => setIsOpen(false)} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
