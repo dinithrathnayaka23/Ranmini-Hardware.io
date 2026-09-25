@@ -1,16 +1,19 @@
 "use client";
 
-import { CalendarDays, ChevronDown, FileDown } from "lucide-react";
-import * as React from "react";
+import { CalendarDays, FileDown } from "lucide-react";
+
+import { SegmentedControl } from "@/shared/components/ui/segmented-control";
 
 import type { ReportPeriod } from "../types/reports.types";
 
 /**
  * Reporting period selector and the report actions.
  *
- * The period is a native `<select>` wearing a custom chevron rather than a
- * bespoke dropdown: the platform control already brings keyboard support,
- * type-ahead and the right picker on mobile.
+ * The period is a segmented control rather than a dropdown. There are only four
+ * windows, and a dropdown hid three of them behind a click — showing them all
+ * side by side makes switching from "Today" to "Last 7 Days" one tap, and makes
+ * the window currently on screen readable without opening anything. On a phone
+ * the row scrolls sideways instead of wrapping.
  *
  * The selection is pushed into the URL by the view above, so a reporting window
  * survives a refresh and can be linked to, and the page fetches for that range
@@ -38,24 +41,13 @@ export function PeriodToolbar({
           <CalendarDays className="size-[18px]" />
         </span>
 
-        <div className="relative flex min-w-0 items-center">
-          <select
-            aria-label="Reporting period"
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            className="w-full appearance-none bg-transparent pr-8 text-[0.95rem] font-semibold tracking-tight text-ink focus:outline-none"
-          >
-            {periods.map((period) => (
-              <option key={period.value} value={period.value}>
-                {period.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            aria-hidden
-            className="pointer-events-none absolute right-2 size-4 text-muted"
-          />
-        </div>
+        <SegmentedControl
+          label="Reporting period"
+          options={periods}
+          value={value}
+          onChange={onChange}
+          scrollable
+        />
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
