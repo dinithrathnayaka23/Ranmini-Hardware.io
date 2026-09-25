@@ -1,19 +1,24 @@
 "use client";
 
-import { Trash2, Upload } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import * as React from "react";
 
 import { Alert, type AlertTone } from "@/shared/components/ui/alert";
 import { Button } from "@/shared/components/ui/button";
 import { Avatar } from "@/shared/components/ui/avatar";
 import { Card, CardBody, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { FileDropzone } from "@/shared/components/ui/file-dropzone";
 import { avatarUrlFor } from "@/shared/lib/avatar-url";
 
 import { removeAvatar, uploadAvatar } from "../actions";
 import type { MyProfile } from "../services/profile.server";
 
 /** What the API accepts, repeated here so the file picker offers the same set. */
-const ACCEPTED = "image/png,image/jpeg,image/webp";
+const ACCEPTED = {
+  "image/png": [".png"],
+  "image/jpeg": [".jpg", ".jpeg"],
+  "image/webp": [".webp"],
+};
 const MAX_BYTES = 512 * 1024;
 
 /**
@@ -26,7 +31,6 @@ const MAX_BYTES = 512 * 1024;
  * the tab.
  */
 export function ProfilePictureCard({ profile }: { profile: MyProfile }) {
-  const inputRef = React.useRef<HTMLInputElement>(null);
   const [preview, setPreview] = React.useState<string | null>(null);
   const [isBusy, setIsBusy] = React.useState(false);
   const [notice, setNotice] = React.useState<{ tone: AlertTone; message: string } | null>(null);
@@ -40,20 +44,9 @@ export function ProfilePictureCard({ profile }: { profile: MyProfile }) {
 
   const storedUrl = avatarUrlFor(profile.id, profile.avatarVersion);
 
+  // Type and size have already been checked by the drop zone.
   const handleFile = async (file: File) => {
     setNotice(null);
-
-    if (!ACCEPTED.split(",").includes(file.type)) {
-      setNotice({ tone: "danger", message: "Use a PNG, JPEG or WebP image." });
-      return;
-    }
-    if (file.size > MAX_BYTES) {
-      setNotice({
-        tone: "danger",
-        message: "That picture is larger than 512 KB. Choose a smaller one.",
-      });
-      return;
-    }
 
     setPreview(URL.createObjectURL(file));
     setIsBusy(true);
@@ -94,63 +87,41 @@ export function ProfilePictureCard({ profile }: { profile: MyProfile }) {
       <CardBody className="space-y-4">
         {notice ? <Alert tone={notice.tone} message={notice.message} /> : null}
 
-        <div className="flex items-center gap-5">
-          <Avatar fullName={profile.fullName} imageUrl={preview ?? storedUrl} size={88} />
+        <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center">
+          <div className="flex shrink-0 flex-col items-center gap-2">
+            <Avatar
+              fullName={profile.fullName}
+              imageUrl={preview ?? storedUrl}
+              size={96}
+              className="ring-4 ring-surface shadow-raised"
+            />
 
-          <div className="min-w-0 space-y-2">
-            <p className="text-sm text-muted">
-              PNG, JPEG or WebP, up to 512&nbsp;KB. A square picture looks best —
-              anything else is cropped to the circle.
-            </p>
-
-            <div className="flex flex-wrap gap-2">
+            {storedUrl && !preview ? (
               <Button
-                variant="secondary"
+                variant="ghost"
                 size="sm"
-                isLoading={isBusy}
-                loadingText="Working…"
-                onClick={() => inputRef.current?.click()}
+                disabled={isBusy}
+                onClick={handleRemove}
+                className="h-8 px-2.5 text-danger hover:bg-danger-soft"
               >
-                <Upload aria-hidden className="size-4" />
-                {storedUrl ? "Change picture" : "Upload picture"}
+                <Trash2 aria-hidden className="size-4" />
+                Remove
               </Button>
-
-              {storedUrl && !preview ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={isBusy}
-                  onClick={handleRemove}
-                >
-                  <Trash2 aria-hidden className="size-4" />
-                  Remove
-                </Button>
-              ) : null}
-            </div>
+            ) : null}
           </div>
-        </div>
 
-        {/*
-          The input is hidden and driven by the button above, because a bare
-          file input cannot be styled to match anything else on the page. It
-          stays a real focusable input rather than being display:none, so the
-          keyboard and assistive tech still reach it.
-        */}
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPTED}
-          aria-label="Choose a profile picture"
-          className="sr-only"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            // Reset first: choosing the same file twice in a row fires no
-            // change event otherwise, so a retry after an error would do
-            // nothing at all.
-            event.target.value = "";
-            if (file) void handleFile(file);
-          }}
-        />
+          <FileDropzone
+            accept={ACCEPTED}
+            maxSize={MAX_BYTES}
+            onFile={(file) => void handleFile(file)}
+            onReject={(message) => setNotice({ tone: "danger", message })}
+            isBusy={isBusy}
+            label={storedUrl ? "Change your profile picture" : "Upload a profile picture"}
+            title={storedUrl ? "Drop a new picture here" : "Drop a picture here"}
+            hint="PNG, JPEG or WebP · up to 512 KB · square looks best"
+            className="w-full min-w-0 flex-1"
+          />
+        </div>
       </CardBody>
     </Card>
   );

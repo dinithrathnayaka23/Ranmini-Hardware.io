@@ -1,10 +1,11 @@
 "use client";
 
-import { Image as ImageIcon, Trash2, Upload } from "lucide-react";
+import { Image as ImageIcon, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { Button } from "@/shared/components/ui/button";
+import { FileDropzone } from "@/shared/components/ui/file-dropzone";
 import { shopLogoUrl } from "@/shared/lib/shop-logo-url";
 
 import { removeShopLogo, uploadShopLogo } from "../actions";
@@ -19,7 +20,11 @@ import { removeShopLogo, uploadShopLogo } from "../actions";
  * attacking. The API refuses it for the same reason, which is the check that
  * actually decides; this list only spares the owner a rejected upload.
  */
-const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const ACCEPTED_TYPES = {
+  "image/png": [".png"],
+  "image/jpeg": [".jpg", ".jpeg"],
+  "image/webp": [".webp"],
+};
 
 /** Matches the API's own ceiling, so the picker refuses what it would refuse. */
 const MAX_BYTES = 512 * 1024;
@@ -45,7 +50,6 @@ export function LogoUpload({
   logoUpdatedAt: string | null;
 }) {
   const router = useRouter();
-  const inputRef = React.useRef<HTMLInputElement>(null);
 
   const [isPending, setIsPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -68,24 +72,13 @@ export function LogoUpload({
   const storedUrl = shopLogoUrl(logoUpdatedAt);
   const shownUrl = previewUrl ?? storedUrl;
 
-  const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  // Type and size have already been checked by the drop zone.
+  const handleFile = async (file: File) => {
     setError(null);
 
-    if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError("Choose a PNG, JPEG or WebP image.");
-      return;
-    }
-
-    if (file.size > MAX_BYTES) {
-      setError("The image must be 512 KB or smaller.");
-      return;
-    }
-
     if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(URL.createObjectURL(file));
+    const nextPreview = URL.createObjectURL(file);
+    setPreviewUrl(nextPreview);
 
     const data = new FormData();
     data.append("file", file);
@@ -94,13 +87,9 @@ export function LogoUpload({
     const result = await uploadShopLogo(data);
     setIsPending(false);
 
-    // The input keeps its value, so choosing the same file twice after a failure
-    // would not fire another change event.
-    event.target.value = "";
-
     if (!result.success) {
       setError(result.message);
-      URL.revokeObjectURL(previewUrl ?? "");
+      URL.revokeObjectURL(nextPreview);
       setPreviewUrl(null);
       return;
     }
@@ -130,70 +119,59 @@ export function LogoUpload({
     <div className="space-y-2">
       <p className="text-sm font-medium text-ink-soft">Company Logo</p>
 
-      <div className="flex flex-wrap items-start gap-4">
-        <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-line-strong bg-canvas-subtle">
-          {shownUrl ? (
-            // A plain <img>, not next/image: the source is either a local object
-            // URL with no known dimensions or a proxy route serving arbitrary
-            // bytes, and the image optimiser can handle neither.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={shownUrl}
-              alt="The shop's logo"
-              className="size-full object-contain"
-            />
-          ) : (
-            <ImageIcon aria-hidden className="size-7 text-placeholder" />
-          )}
-        </div>
-
-        <div className="min-w-0">
-          <input
-            ref={inputRef}
-            type="file"
-            accept={ACCEPTED_TYPES.join(",")}
-            onChange={handleFile}
-            className="sr-only"
-            // The visible control is the button below; this input is kept in
-            // the DOM (not removed) so it stays reachable and keyboard-operable.
-            aria-label="Choose a company logo file"
-          />
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              isLoading={isPending}
-              loadingText="Saving…"
-              onClick={() => inputRef.current?.click()}
-            >
-              <Upload aria-hidden className="size-4" />
-              {storedUrl ? "Replace" : "Upload"}
-            </Button>
-
-            {storedUrl ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={isPending}
-                onClick={handleRemove}
-              >
-                <Trash2 aria-hidden className="size-4" />
-                Remove
-              </Button>
-            ) : null}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch">
+        <div className="flex shrink-0 flex-col items-center gap-2">
+          <div className="flex size-28 items-center justify-center overflow-hidden rounded-xl border border-line bg-surface p-2 shadow-card">
+            {shownUrl ? (
+              // A plain <img>, not next/image: the source is either a local
+              // object URL with no known dimensions or a proxy route serving
+              // arbitrary bytes, and the image optimiser can handle neither.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={shownUrl}
+                alt="The shop's logo"
+                className="size-full object-contain"
+              />
+            ) : (
+              <ImageIcon aria-hidden className="size-8 text-placeholder" />
+            )}
           </div>
 
-          <p className="mt-2 text-xs leading-relaxed text-muted">
-            PNG, JPEG or WebP, up to 512 KB. Around 400×400px is plenty — it is
-            printed small at the top of a receipt.
+          {storedUrl ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isPending}
+              onClick={handleRemove}
+              className="h-8 px-2.5 text-danger hover:bg-danger-soft"
+            >
+              <Trash2 aria-hidden className="size-4" />
+              Remove
+            </Button>
+          ) : null}
+        </div>
+
+        <div className="min-w-0 flex-1 space-y-2">
+          <FileDropzone
+            accept={ACCEPTED_TYPES}
+            maxSize={MAX_BYTES}
+            onFile={(file) => void handleFile(file)}
+            onReject={setError}
+            isBusy={isPending}
+            label={storedUrl ? "Replace the company logo" : "Upload a company logo"}
+            title={storedUrl ? "Drop a new logo here" : "Drop your logo here"}
+            hint="PNG, JPEG or WebP · up to 512 KB"
+          />
+
+          <p className="text-xs leading-relaxed text-muted">
+            Around 400×400px is plenty — it is printed small at the top of a
+            receipt.
             {storedUrl ? null : " Receipts print without one until you add it."}
           </p>
 
           {error ? (
-            <p role="alert" className="mt-1 text-xs text-danger">
+            <p role="alert" className="text-xs text-danger">
               {error}
             </p>
           ) : null}
