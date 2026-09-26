@@ -56,8 +56,11 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                   </motion.span>
                 ) : null}
 
-                <Icon aria-hidden className="relative size-[18px] shrink-0" />
-                <span className="relative truncate">{label}</span>
+                {/* `z-10`, not just `relative`: mid-slide the highlight passes
+                    over other rows, and without it a later row's highlight
+                    paints over an earlier row's label for the whole slide. */}
+                <Icon aria-hidden className="relative z-10 size-[18px] shrink-0" />
+                <span className="relative z-10 truncate">{label}</span>
               </Link>
             </li>
           );

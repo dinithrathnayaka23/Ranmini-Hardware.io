@@ -50,8 +50,9 @@ export function SettingsNav() {
                     className="absolute inset-0 rounded-lg bg-brand-50"
                   />
                 ) : null}
-                <Icon aria-hidden className="relative size-[18px] shrink-0" />
-                <span className="relative">{label}</span>
+                {/* Above the sliding tint, which crosses other rows mid-slide. */}
+                <Icon aria-hidden className="relative z-10 size-[18px] shrink-0" />
+                <span className="relative z-10">{label}</span>
               </Link>
             </li>
           );
