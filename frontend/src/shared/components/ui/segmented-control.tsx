@@ -105,10 +105,14 @@ export function SegmentedControl<T extends string>({
             aria-pressed={isActive}
             onClick={() => onChange(option.value)}
             className={cn(
-              "relative inline-flex shrink-0 touch-manipulation items-center justify-center gap-2 rounded-lg font-medium whitespace-nowrap select-none",
+              "relative inline-flex touch-manipulation items-center justify-center gap-2 rounded-lg font-medium whitespace-nowrap select-none",
               "transition-colors duration-150",
               sizeStyles[size],
-              fullWidth && "flex-1",
+              // Full width shares the row equally and may shrink, so a long
+              // label ellipsises inside its own half instead of pushing the
+              // page sideways on a phone. Otherwise options keep their natural
+              // width, and a scrollable row scrolls.
+              fullWidth ? "min-w-0 flex-1 basis-0" : "shrink-0",
               isActive
                 ? tone === "brand"
                   ? "text-on-brand"
@@ -130,9 +134,9 @@ export function SegmentedControl<T extends string>({
             ) : null}
 
             {/* Above the highlight, which is absolutely positioned beneath. */}
-            <span className="relative z-10 inline-flex items-center gap-2">
-              {Icon ? <Icon aria-hidden className="size-[18px]" /> : null}
-              {option.label}
+            <span className="relative z-10 inline-flex min-w-0 items-center gap-2">
+              {Icon ? <Icon aria-hidden className="size-[18px] shrink-0" /> : null}
+              <span className="truncate">{option.label}</span>
             </span>
           </button>
         );
