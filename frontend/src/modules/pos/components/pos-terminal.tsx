@@ -13,7 +13,9 @@ import { completeSale } from "../actions";
 import { ALL_CATEGORIES } from "../constants/pos-data";
 import { parseTendered } from "../lib/cash";
 import { useCart } from "../lib/use-cart";
+import { useCatalogue } from "../lib/use-catalogue";
 import type {
+  CataloguePage,
   CompletedSale,
   PosCategory,
   PosProduct,
@@ -69,13 +71,14 @@ interface SearchNotice {
 }
 
 export function PosTerminal({
-  products,
+  catalogue: initialCatalogue,
   categories,
   terminalName,
   cashierName,
   alerts,
 }: {
-  products: PosProduct[];
+  /** The first page of the catalogue, rendered with the page. */
+  catalogue: CataloguePage;
   categories: PosCategory[];
   terminalName: string;
   cashierName: string;
@@ -88,6 +91,7 @@ export function PosTerminal({
   const router = useRouter();
   const searchRef = React.useRef<HTMLInputElement>(null);
   const closeOrderRef = React.useRef<HTMLButtonElement>(null);
+  const gridScrollRef = React.useRef<HTMLDivElement>(null);
   const openOrderRef = React.useRef<HTMLButtonElement>(null);
 
   const [query, setQuery] = React.useState("");
@@ -132,10 +136,9 @@ export function PosTerminal({
    */
   const idempotencyKey = React.useRef<string | null>(null);
 
-  const visibleProducts = React.useMemo(
-    () => filterProducts(products, categoryId, query),
-    [products, categoryId, query],
-  );
+  // Searched on the server, across the whole catalogue — see useCatalogue.
+  const catalogue = useCatalogue({ initial: initialCatalogue, query, categoryId });
+  const { resolveCurrent, findBySku, refresh: refreshCatalogue } = catalogue;
 
   const { add: addToCart } = cart;
 
@@ -143,10 +146,12 @@ export function PosTerminal({
    * What Enter in the search box does.
    *
    * <p>An exact code match is added straight away, so a cashier who knows the
-   * shelf code can type it and carry on. Failing that, a search narrowed to a
-   * single product is treated the same way — it is unambiguous, and it saves a
-   * tap. Anything broader is left showing in the grid rather than guessing
-   * which product was meant.
+   * shelf code can type it and carry on. The code is looked up on the server
+   * when it is not already on screen: in a large catalogue many codes share a
+   * prefix, and the one typed need not be first alphabetically. Failing that, a
+   * search narrowed to a single product is treated the same way — it is
+   * unambiguous, and it saves a tap. Anything broader is left showing in the
+   * grid rather than guessing which product was meant.
    *
    * <p><b>Every outcome says something.</b> This used to return silently when
    * the text matched nothing or matched something sold out, leaving the cashier
@@ -158,29 +163,43 @@ export function PosTerminal({
    * misspelling, and correcting three letters is far quicker than typing the
    * whole word again.
    */
-  const handleSearchSubmit = React.useCallback(() => {
-    const term = query.trim().toLowerCase();
-    if (term === "") return;
+  const handleSearchSubmit = React.useCallback(async () => {
+    const typed = query.trim();
+    if (typed === "") return;
+    const term = typed.toLowerCase();
 
-    const match =
-      products.find((product) => product.sku.toLowerCase() === term) ??
-      (visibleProducts.length === 1 ? visibleProducts[0] : undefined);
+    let results: { items: PosProduct[]; hasMore: boolean };
+    let match: PosProduct | null | undefined;
+    try {
+      results = await resolveCurrent();
+      match = results.items.find((product) => product.sku.toLowerCase() === term);
+      // A single word may be a full code for a product not on this page.
+      if (!match && !/\s/.test(typed)) match = await findBySku(typed);
+    } catch {
+      setNotice({ tone: "danger", message: "The catalogue could not be reached. Try again." });
+      return;
+    }
+
+    if (!match && results.items.length === 1 && !results.hasMore) {
+      match = results.items[0];
+    }
 
     if (!match) {
       // Several matches is not a failure — the grid is now showing exactly
       // those products, which is the useful state. The term stays so the filter
       // holds while the cashier picks one.
-      if (visibleProducts.length > 1) {
+      if (results.items.length > 1) {
+        const count = results.hasMore ? `More than ${results.items.length}` : `${results.items.length}`;
         setNotice({
           tone: "info",
-          message: `${visibleProducts.length} products match "${query.trim()}" — tap the one you want.`,
+          message: `${count} products match "${typed}" — tap the one you want.`,
         });
         return;
       }
 
       setNotice({
         tone: "danger",
-        message: `Nothing in the catalogue matches "${query.trim()}".`,
+        message: `Nothing in the catalogue matches "${typed}".`,
       });
       return;
     }
@@ -205,7 +224,7 @@ export function PosTerminal({
     // `md` the order panel is a sheet that is not even open.
     setNotice({ tone: "success", message: `Added ${match.name}.` });
     setQuery("");
-  }, [addToCart, cart, products, query, visibleProducts]);
+  }, [addToCart, cart, findBySku, query, resolveCurrent]);
 
   // The notice describes one action, so it clears itself rather than sitting
   // there describing an item three customers ago. Re-armed on every notice,
@@ -365,7 +384,9 @@ export function PosTerminal({
      */
     searchRef.current?.focus();
 
-    // The catalogue on screen still shows the stock this sale just took.
+    // The cards on screen still show the stock this sale just took. The grid
+    // re-reads what it is showing; the page refresh brings the bell up to date.
+    refreshCatalogue();
     router.refresh();
   };
 
@@ -448,11 +469,22 @@ export function PosTerminal({
               flick at the end of the grid from dragging the whole page on a
               touch screen. The extra bottom padding below `md` clears the fixed
               order bar, including the home indicator on a modern phone. */}
-          <div className="scroll-slim min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:p-4 sm:pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-4">
+          <div
+            ref={gridScrollRef}
+            className="scroll-slim min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:p-4 sm:pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-4"
+          >
             <ProductGrid
-              products={visibleProducts}
+              products={catalogue.items}
               isAtStockCeiling={cart.isAtStockCeiling}
               onSelect={handleSelectProduct}
+              hasMore={catalogue.hasMore}
+              isSearching={catalogue.isSearching}
+              isLoadingMore={catalogue.isLoadingMore}
+              isAtBrowseLimit={catalogue.isAtBrowseLimit}
+              error={catalogue.error}
+              onLoadMore={catalogue.loadMore}
+              onRetry={refreshCatalogue}
+              scrollRoot={gridScrollRef}
             />
           </div>
         </section>
@@ -600,32 +632,6 @@ function Shortcut({
       {children}
     </span>
   );
-}
-
-/**
- * Filters the catalogue by category and free text.
- *
- * The code is matched as well as the name, because a shelf label is often
- * quicker to read than a product name is to spell.
- */
-function filterProducts(
-  products: PosProduct[],
-  categoryId: string,
-  query: string,
-): PosProduct[] {
-  const term = query.trim().toLowerCase();
-
-  return products.filter((product) => {
-    const matchesCategory =
-      categoryId === ALL_CATEGORIES || product.categoryId === categoryId;
-
-    const matchesTerm =
-      term === "" ||
-      product.name.toLowerCase().includes(term) ||
-      product.sku.toLowerCase().includes(term);
-
-    return matchesCategory && matchesTerm;
-  });
 }
 
 /**

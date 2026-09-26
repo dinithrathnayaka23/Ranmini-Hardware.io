@@ -1,10 +1,15 @@
 import "server-only";
 
 import { cashierFetch } from "@/modules/auth/services/guarded-fetch.server";
-import { apiFetch, type PageResponse } from "@/shared/lib/api.server";
+import { apiFetch, apiFetchOrNull } from "@/shared/lib/api.server";
 
-import { ALL_CATEGORIES } from "../constants/pos-data";
-import type { PosCategory, PosProduct, TillAlertFeed } from "../types/pos.types";
+import { ALL_CATEGORIES, CATALOGUE_PAGE_SIZE } from "../constants/pos-data";
+import type {
+  CataloguePage,
+  PosCategory,
+  PosProduct,
+  TillAlertFeed,
+} from "../types/pos.types";
 
 /**
  * Reads the till needs before it can render.
@@ -23,6 +28,14 @@ interface CategoryResponse {
   displayOrder: number;
 }
 
+/** A page of results and whether another follows; the till never needs a total. */
+interface SliceResponse<T> {
+  content: T[];
+  page: number;
+  pageSize: number;
+  hasNext: boolean;
+}
+
 /** Shape the backend returns for a till product — note: no cost price. */
 interface PosProductResponse {
   id: string;
@@ -35,17 +48,6 @@ interface PosProductResponse {
   imageUrl: string | null;
   imageVersion: string | null;
 }
-
-/**
- * How many products the till loads up front.
- *
- * <p>The whole catalogue would be thousands of lines on a real shop's data, and
- * sending all of it to a counter machine on every page load is slow on the wire
- * before it is slow to render. This is enough to fill several screens of the
- * grid; anything beyond it is reached by searching, which queries the backend
- * rather than filtering what was already sent.
- */
-const CATALOGUE_PAGE_SIZE = 100;
 
 export async function fetchCategories(): Promise<PosCategory[]> {
   const categories = await apiFetch<CategoryResponse[]>("/api/v1/categories", {
@@ -68,17 +70,71 @@ export async function fetchCategories(): Promise<PosCategory[]> {
   ];
 }
 
-export async function fetchProducts(): Promise<PosProduct[]> {
-  const page = await cashierFetch<PageResponse<PosProductResponse>>(
-    `/api/v1/pos/products?size=${CATALOGUE_PAGE_SIZE}`,
-    {
-      // Never cached: this carries stock levels, and a cached stock level is a
-      // wrong stock level the moment another till sells something.
-      cache: "no-store",
-    },
+/**
+ * The first screenful of the catalogue, rendered with the page.
+ *
+ * <p>Only the first page. Everything past it — further pages, searches, a
+ * category — is fetched from the browser as the cashier asks for it, through
+ * {@link searchCatalogue}. A shop's full catalogue is tens of thousands of lines,
+ * and sending it all to a counter machine was never an option; sending the first
+ * hundred and <em>filtering those</em> is what made most of the stock
+ * impossible to find.
+ */
+export async function fetchProducts(): Promise<CataloguePage> {
+  // No guard of its own: the till page runs this alongside requireCashier()
+  // through guardedLoad, whose verdict decides what the visitor sees.
+  return searchCatalogue({ query: "", categoryId: ALL_CATEGORIES, page: 1 });
+}
+
+/**
+ * One page of the till's catalogue, for a search, a category, or neither.
+ *
+ * <p>Makes the call with the till's session and no redirect, so the route
+ * handler the browser calls can answer a lost session with a plain 401 rather
+ * than an HTML sign-in page it cannot parse.
+ */
+export async function searchCatalogue({
+  query,
+  categoryId,
+  page,
+}: {
+  query: string;
+  categoryId: string;
+  page: number;
+}): Promise<CataloguePage> {
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(CATALOGUE_PAGE_SIZE),
+  });
+  if (query.trim()) params.set("q", query.trim());
+  if (categoryId && categoryId !== ALL_CATEGORIES) params.set("categoryId", categoryId);
+
+  const slice = await apiFetch<SliceResponse<PosProductResponse>>(
+    `/api/v1/pos/products?${params}`,
+    // Never cached: this carries stock levels, and a cached stock level is a
+    // wrong stock level the moment another till sells something.
+    { session: "cashier", cache: "no-store" },
   );
 
-  return page.content.map((product) => ({
+  return { items: slice.content.map(toPosProduct), hasMore: slice.hasNext };
+}
+
+/**
+ * A sellable product by its exact shelf code, or null when there is none.
+ *
+ * <p>For the Enter key. A full code must find its product even when other codes
+ * start with the same characters and it would not be first alphabetically.
+ */
+export async function findBySku(sku: string): Promise<PosProduct | null> {
+  const product = await apiFetchOrNull<PosProductResponse>(
+    `/api/v1/pos/products/by-sku/${encodeURIComponent(sku)}`,
+    { session: "cashier", cache: "no-store" },
+  );
+  return product ? toPosProduct(product) : null;
+}
+
+function toPosProduct(product: PosProductResponse): PosProduct {
+  return {
     id: product.id,
     sku: product.sku,
     name: product.name,
@@ -88,7 +144,7 @@ export async function fetchProducts(): Promise<PosProduct[]> {
     status: product.status,
     imageUrl: product.imageUrl,
     imageVersion: product.imageVersion,
-  }));
+  };
 }
 
 /**

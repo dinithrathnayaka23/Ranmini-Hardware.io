@@ -16,3 +16,22 @@ export const ALL_CATEGORIES = "all";
 
 /** Which till this browser is. Comes from device configuration, eventually. */
 export const TERMINAL_NAME = "POS Terminal 1";
+
+/**
+ * Products per page of the till's catalogue.
+ *
+ * <p>Enough to fill a large screen with room to scroll, small enough that each
+ * page — and each keystroke of a search — is a quick request. Further pages load
+ * as the cashier scrolls.
+ */
+export const CATALOGUE_PAGE_SIZE = 60;
+
+/**
+ * The most products the grid will hold at once by scrolling.
+ *
+ * <p>A browsing cap, not a catalogue limit: everything stays reachable by
+ * searching or choosing a category. Scrolling one grid through thirty thousand
+ * product cards would bury a counter machine in page elements and photographs;
+ * past this point the till asks the cashier to narrow things down instead.
+ */
+export const MAX_BROWSE_ITEMS = 600;
