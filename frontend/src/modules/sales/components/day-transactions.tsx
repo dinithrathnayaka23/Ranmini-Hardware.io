@@ -7,6 +7,8 @@ import * as React from "react";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Card } from "@/shared/components/ui/card";
+import { Disclosure, DisclosureRow } from "@/shared/components/ui/disclosure";
+import { EmptyState } from "@/shared/components/ui/empty-state";
 import { Pagination } from "@/shared/components/ui/pagination";
 import { useCurrency } from "@/shared/components/shop-provider";
 import { cn } from "@/shared/lib/cn";
@@ -132,6 +134,7 @@ export function DayTransactions({
                   variant="secondary"
                   size="sm"
                   aria-expanded={isOpen}
+                  aria-controls={`receipt-card-${sale.id}`}
                   onClick={() => setOpenId(isOpen ? null : sale.id)}
                   className="mt-3 w-full"
                 >
@@ -140,7 +143,12 @@ export function DayTransactions({
                 </Button>
               </div>
 
-              {isOpen ? <SaleDetail sale={sale} /> : null}
+              {/* Grows out of the row it belongs to. The two views each render
+                  their own trigger, so the ids have to differ — both lists are
+                  in the DOM at once, one of them merely hidden. */}
+              <Disclosure open={isOpen} id={`receipt-card-${sale.id}`}>
+                <SaleDetail sale={sale} />
+              </Disclosure>
             </li>
           );
         })}
@@ -241,6 +249,7 @@ export function DayTransactions({
                         variant="secondary"
                         size="sm"
                         aria-expanded={isOpen}
+                        aria-controls={`receipt-row-${sale.id}`}
                         onClick={() => setOpenId(isOpen ? null : sale.id)}
                       >
                         <ReceiptIcon aria-hidden className="size-4" />
@@ -249,33 +258,32 @@ export function DayTransactions({
                     </td>
                   </tr>
 
-                  {isOpen ? (
-                    <tr className="border-b border-line">
-                      <td colSpan={7} className="p-0">
-                        <SaleDetail sale={sale} />
-                      </td>
-                    </tr>
-                  ) : null}
+                  <DisclosureRow
+                    open={isOpen}
+                    colSpan={7}
+                    id={`receipt-row-${sale.id}`}
+                    rowClassName="border-b border-line"
+                  >
+                    <SaleDetail sale={sale} />
+                  </DisclosureRow>
                 </React.Fragment>
               );
             })}
           </tbody>
         </table>
-
-        {page.sales.length === 0 ? (
-          <div className="px-5 py-12 text-center">
-            <span
-              aria-hidden
-              className="mx-auto flex size-11 items-center justify-center rounded-full bg-canvas-subtle text-muted"
-            >
-              <Search className="size-5" />
-            </span>
-            <p className="mt-3 text-sm text-muted">
-              Nothing was rung up on this day. Pick another date above.
-            </p>
-          </div>
-        ) : null}
       </div>
+
+      {/* Outside both views rather than inside the table, which is where it used
+          to live — so an empty day on a phone showed a bare card with nothing
+          in it at all, the one screen size where somebody is most likely to be
+          checking the takings from away from the shop. */}
+      {page.sales.length === 0 ? (
+        <EmptyState
+          icon={Search}
+          title="No sales on this day"
+          message="Nothing was rung up. Pick another trading day above."
+        />
+      ) : null}
 
       {page.totalPages > 1 ? (
         <div className="flex flex-col gap-3 border-t border-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between">

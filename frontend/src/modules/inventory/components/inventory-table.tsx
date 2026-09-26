@@ -1,13 +1,23 @@
 "use client";
 
-import { FileDown, ListFilter, Pencil, PackageSearch, Trash2 } from "lucide-react";
+import {
+  FileDown,
+  ListFilter,
+  PackageOpen,
+  PackageSearch,
+  Pencil,
+  SearchX,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 
 import { Badge } from "@/shared/components/ui/badge";
-import { Button } from "@/shared/components/ui/button";
+import { Button, ButtonLink } from "@/shared/components/ui/button";
 import { Card } from "@/shared/components/ui/card";
+import { Disclosure, DisclosureRow } from "@/shared/components/ui/disclosure";
+import { EmptyState } from "@/shared/components/ui/empty-state";
 import { Pagination } from "@/shared/components/ui/pagination";
 import { SearchInput } from "@/shared/components/ui/search-input";
 import { SegmentedControl } from "@/shared/components/ui/segmented-control";
@@ -143,6 +153,19 @@ export function InventoryTable({
     return `/api/inventory/export?${params}`;
   }, [query, status]);
 
+  /**
+   * Puts the listing back to the whole catalogue.
+   *
+   * <p>Offered from the empty state, because "no products match" is otherwise a
+   * dead end: the search box and the status filter are in two different strips
+   * above, and the filter strip may well be closed — so the reason the table is
+   * empty can be off screen entirely.
+   */
+  const clearNarrowing = React.useCallback(() => {
+    setDraft("");
+    applyParams({ q: null, status: null });
+  }, [applyParams]);
+
   const isNarrowed = query !== "" || status !== "ALL";
   const firstRow = (meta.page - 1) * meta.pageSize + 1;
   const lastRow = firstRow + products.length - 1;
@@ -186,11 +209,11 @@ export function InventoryTable({
         </div>
       </div>
 
-      {isFilterOpen ? (
-        <div
-          id="inventory-status-filter"
-          className="flex min-w-0 items-center gap-3 border-b border-line bg-canvas-subtle/60 px-4 py-2.5"
-        >
+      {/* Unrolled rather than appearing outright. The strip pushes the whole
+          table down by its own height, and doing that in one frame under a
+          pointer that is on its way to a row is how the wrong row gets clicked. */}
+      <Disclosure open={isFilterOpen} id="inventory-status-filter">
+        <div className="flex min-w-0 items-center gap-3 border-b border-line bg-canvas-subtle/60 px-4 py-2.5">
           <span className="text-xs font-medium text-muted">Status</span>
           <SegmentedControl
             label="Filter products by stock status"
@@ -201,7 +224,7 @@ export function InventoryTable({
             scrollable
           />
         </div>
-      ) : null}
+      </Disclosure>
 
       {/*
         ------------------------------ Card list ------------------------------
@@ -293,11 +316,38 @@ export function InventoryTable({
       </div>
 
       {products.length === 0 ? (
-        <p className="px-5 py-12 text-center text-sm text-muted">
-          {isNarrowed
-            ? "No products match this search."
-            : "The catalogue is empty. Add a product to get started."}
-        </p>
+        isNarrowed ? (
+          <EmptyState
+            icon={SearchX}
+            title="No products match"
+            message="Nothing in the catalogue matches this search and filter. Check the spelling, or widen the status filter."
+            action={
+              <Button variant="secondary" size="sm" onClick={clearNarrowing}>
+                Clear search and filter
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={PackageOpen}
+            title="The catalogue is empty"
+            message="Add the shop's first product, or bring the whole list in from a spreadsheet."
+            action={
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <ButtonLink href={routes.adminInventoryNew} size="sm">
+                  Add a product
+                </ButtonLink>
+                <ButtonLink
+                  href={routes.adminInventoryImport}
+                  variant="secondary"
+                  size="sm"
+                >
+                  Import a spreadsheet
+                </ButtonLink>
+              </div>
+            }
+          />
+        )
       ) : null}
 
       {/* ------------------------------- Footer ------------------------------ */}
@@ -410,10 +460,13 @@ function ProductRow({
               <Pencil aria-hidden className="size-4" />
             </Link>
 
+            {/* Both actions open the same region with different contents, so
+                they name the same panel. */}
             <RowAction
               label={`Adjust stock for ${product.name}`}
               icon={PackageSearch}
               isOpen={openPanel === "stock"}
+              controls={`product-panel-row-${product.id}`}
               onClick={() => onOpenPanel("stock")}
             />
 
@@ -425,6 +478,7 @@ function ProductRow({
               }
               icon={Trash2}
               isOpen={openPanel === "withdraw"}
+              controls={`product-panel-row-${product.id}`}
               onClick={() => onOpenPanel("withdraw")}
               className="hover:text-danger"
             />
@@ -432,19 +486,20 @@ function ProductRow({
         </td>
       </tr>
 
-      {openPanel ? (
-        <tr className="border-b border-line">
-          {/* One cell across the table: the panel belongs to the whole row, and
-              confining it to the actions column would make it a sliver. */}
-          <td colSpan={8} className="p-0">
-            <ProductRowActions
-              product={product}
-              panel={openPanel}
-              onClose={onClosePanel}
-            />
-          </td>
-        </tr>
-      ) : null}
+      {/* One cell across the table: the panel belongs to the whole row, and
+          confining it to the actions column would make it a sliver. */}
+      <DisclosureRow
+        open={openPanel !== null}
+        colSpan={8}
+        id={`product-panel-row-${product.id}`}
+        rowClassName="border-b border-line"
+      >
+        <ProductRowActions
+          product={product}
+          panel={openPanel}
+          onClose={onClosePanel}
+        />
+      </DisclosureRow>
     </>
   );
 }
@@ -527,25 +582,27 @@ function ProductCard({
             icon={PackageSearch}
             label="Stock"
             isOpen={openPanel === "stock"}
+            controls={`product-panel-card-${product.id}`}
             onClick={() => onOpenPanel("stock")}
           />
           <CardAction
             icon={Trash2}
             label={product.active ? "Withdraw" : "Restore"}
             isOpen={openPanel === "withdraw"}
+            controls={`product-panel-card-${product.id}`}
             onClick={() => onOpenPanel("withdraw")}
             className="hover:text-danger"
           />
         </div>
       </div>
 
-      {openPanel ? (
+      <Disclosure open={openPanel !== null} id={`product-panel-card-${product.id}`}>
         <ProductRowActions
           product={product}
           panel={openPanel}
           onClose={onClosePanel}
         />
-      ) : null}
+      </Disclosure>
     </li>
   );
 }
@@ -587,6 +644,7 @@ function CardAction({
   icon: Icon,
   label,
   isOpen,
+  controls,
   onClick,
   className,
 }: {
@@ -594,6 +652,8 @@ function CardAction({
   icon: typeof Pencil;
   label: string;
   isOpen?: boolean;
+  /** The id of the panel this opens, for `aria-controls`. Absent on links. */
+  controls?: string;
   onClick?: () => void;
   className?: string;
 }) {
@@ -615,7 +675,13 @@ function CardAction({
   }
 
   return (
-    <button type="button" aria-expanded={isOpen} onClick={onClick} className={shape}>
+    <button
+      type="button"
+      aria-expanded={isOpen}
+      aria-controls={controls}
+      onClick={onClick}
+      className={shape}
+    >
       <Icon aria-hidden className="size-4 shrink-0" />
       {label}
     </button>
@@ -626,12 +692,15 @@ function RowAction({
   label,
   icon: Icon,
   isOpen,
+  controls,
   onClick,
   className,
 }: {
   label: string;
   icon: typeof Pencil;
   isOpen: boolean;
+  /** The id of the panel this opens, for `aria-controls`. */
+  controls: string;
   onClick: () => void;
   className?: string;
 }) {
@@ -642,6 +711,7 @@ function RowAction({
       // the button belongs to, instead of five identical "Adjust stock" buttons.
       aria-label={label}
       aria-expanded={isOpen}
+      aria-controls={controls}
       onClick={onClick}
       className={cn(
         "inline-flex size-8 items-center justify-center rounded-md transition-colors hover:bg-canvas-subtle hover:text-ink",

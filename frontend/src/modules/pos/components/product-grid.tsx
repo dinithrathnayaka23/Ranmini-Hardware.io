@@ -3,6 +3,7 @@
 import { Loader2, RotateCw, SearchX } from "lucide-react";
 import * as React from "react";
 
+import { EmptyState } from "@/shared/components/ui/empty-state";
 import { cn } from "@/shared/lib/cn";
 
 import type { PosProduct } from "../types/pos.types";
@@ -93,19 +94,11 @@ export function ProductGrid({
     if (error) return <LoadError message={error} onRetry={onRetry} />;
 
     return (
-      <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-        <span
-          aria-hidden
-          className="flex size-12 items-center justify-center rounded-full bg-canvas-subtle text-muted"
-        >
-          <SearchX className="size-6" />
-        </span>
-        <p className="mt-4 text-sm font-medium text-ink">No products found</p>
-        <p className="mt-1 max-w-xs text-sm text-muted">
-          Check the spelling, or clear the category filter to search the whole
-          catalogue.
-        </p>
-      </div>
+      <EmptyState
+        icon={SearchX}
+        title="No products found"
+        message="Check the spelling, or clear the category filter to search the whole catalogue."
+      />
     );
   }
 

@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/shared/components/ui/card";
 import { PasswordField } from "@/shared/components/ui/password-field";
+import { PasswordMatch } from "@/shared/components/ui/password-match";
 import { PasswordStrength } from "@/shared/components/ui/password-strength";
 
 import {
@@ -104,13 +105,21 @@ export function StaffPasswordForm({ staff }: { staff: StaffMember }) {
 
           <PasswordStrength password={watch("newPassword") ?? ""} />
 
-          <PasswordField
-            label="Confirm New Password"
-            placeholder="••••••••"
-            autoComplete="new-password"
-            error={errors.confirmPassword?.message}
-            {...register("confirmPassword")}
-          />
+          <div className="space-y-2">
+            <PasswordField
+              label="Confirm New Password"
+              placeholder="••••••••"
+              autoComplete="new-password"
+              error={errors.confirmPassword?.message}
+              {...register("confirmPassword")}
+            />
+
+            <PasswordMatch
+              password={watch("newPassword") ?? ""}
+              confirmation={watch("confirmPassword") ?? ""}
+              error={errors.confirmPassword?.message}
+            />
+          </div>
 
           <Button
             type="submit"

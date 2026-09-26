@@ -5,6 +5,7 @@ import * as React from "react";
 
 import { Alert, type AlertTone } from "@/shared/components/ui/alert";
 import { Button } from "@/shared/components/ui/button";
+import { Disclosure } from "@/shared/components/ui/disclosure";
 import { PasswordField } from "@/shared/components/ui/password-field";
 import { TextField } from "@/shared/components/ui/text-field";
 
@@ -83,12 +84,27 @@ export function StaffRowActions({ staff }: { staff: StaffMember }) {
       {notice ? <Alert tone={notice.tone} message={notice.message} /> : null}
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" size="sm" onClick={() => togglePanel("password")}>
+        {/* `aria-expanded` and `aria-controls` were missing: the label changing
+            to "Cancel" tells a sighted user the form is open, and told a screen
+            reader nothing about the region that had appeared below. */}
+        <Button
+          variant="secondary"
+          size="sm"
+          aria-expanded={panel === "password"}
+          aria-controls={`staff-password-${staff.id}`}
+          onClick={() => togglePanel("password")}
+        >
           <KeyRound aria-hidden className="size-4" />
           {panel === "password" ? "Cancel" : "Set temporary password"}
         </Button>
 
-        <Button variant="secondary" size="sm" onClick={() => togglePanel("email")}>
+        <Button
+          variant="secondary"
+          size="sm"
+          aria-expanded={panel === "email"}
+          aria-controls={`staff-email-${staff.id}`}
+          onClick={() => togglePanel("email")}
+        >
           <Mail aria-hidden className="size-4" />
           {panel === "email" ? "Cancel" : staff.email ? "Change email" : "Add email"}
         </Button>
@@ -138,7 +154,7 @@ export function StaffRowActions({ staff }: { staff: StaffMember }) {
         )}
       </div>
 
-      {panel === "password" ? (
+      <Disclosure open={panel === "password"} id={`staff-password-${staff.id}`}>
         <div className="space-y-3 rounded-lg border border-line bg-canvas-subtle p-3">
           <PasswordField
             label={`Temporary password for ${staff.fullName}`}
@@ -164,9 +180,9 @@ export function StaffRowActions({ staff }: { staff: StaffMember }) {
             Save password
           </Button>
         </div>
-      ) : null}
+      </Disclosure>
 
-      {panel === "email" ? (
+      <Disclosure open={panel === "email"} id={`staff-email-${staff.id}`}>
         <form
           // A form, so Enter saves. `method="post"` keeps a pre-hydration submit
           // from putting the address in the URL.
@@ -218,7 +234,7 @@ export function StaffRowActions({ staff }: { staff: StaffMember }) {
             ) : null}
           </div>
         </form>
-      ) : null}
+      </Disclosure>
     </div>
   );
 }

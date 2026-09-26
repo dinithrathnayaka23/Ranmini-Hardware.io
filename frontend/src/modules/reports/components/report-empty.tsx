@@ -1,5 +1,7 @@
 import { CalendarOff } from "lucide-react";
 
+import { EmptyState } from "@/shared/components/ui/empty-state";
+
 /**
  * What a report panel shows when the chosen period has no sales.
  *
@@ -7,18 +9,21 @@ import { CalendarOff } from "lucide-react";
  * shop opened are all ordinary — not errors, and not something to hide. Each
  * panel says so in its own words rather than rendering an empty chart, which
  * reads as broken, or crashing, which is what the category donut used to do.
+ *
+ * <p>A thin wrapper over the shared {@link EmptyState} now that the portal has
+ * one. It is kept as its own component because four report panels share the same
+ * heading and the same icon, and only the sentence underneath differs — the
+ * wrapper is what stops that agreement drifting apart one panel at a time.
  */
 export function ReportEmpty({ message }: { message: string }) {
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-      <span
-        aria-hidden
-        className="flex size-11 items-center justify-center rounded-full bg-canvas-subtle text-muted"
-      >
-        <CalendarOff className="size-5" />
-      </span>
-      <p className="mt-3 text-sm font-medium text-ink">No sales in this period</p>
-      <p className="mt-1 max-w-xs text-sm text-muted">{message}</p>
-    </div>
+    <EmptyState
+      icon={CalendarOff}
+      title="No sales in this period"
+      message={message}
+      // A report panel sits beside two or three others, so it gets the compact
+      // proportions rather than a screen's worth of empty space.
+      size="sm"
+    />
   );
 }

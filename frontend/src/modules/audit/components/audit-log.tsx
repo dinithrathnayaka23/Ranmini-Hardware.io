@@ -4,6 +4,7 @@ import {
   KeyRound,
   PackageMinus,
   PackagePlus,
+  ScrollText,
   Settings,
   ShieldCheck,
   UserMinus,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { Card, CardBody, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { EmptyState } from "@/shared/components/ui/empty-state";
 import { Pagination } from "@/shared/components/ui/pagination";
 import { cn } from "@/shared/lib/cn";
 import { formatCount } from "@/shared/lib/format";
@@ -63,11 +65,18 @@ export function AuditLog({
         </p>
 
         {log.entries.length === 0 ? (
-          <p className="rounded-lg border border-line bg-canvas-subtle px-4 py-8 text-center text-sm text-muted">
-            {isEnabled
-              ? "Nothing recorded yet."
-              : "Nothing recorded. Switch the audit log on above to start."}
-          </p>
+          <div className="rounded-lg border border-line bg-canvas-subtle">
+            <EmptyState
+              icon={ScrollText}
+              title="Nothing recorded yet"
+              message={
+                isEnabled
+                  ? "Entries appear here the first time a sale is voided, a product is withdrawn, or a staff account or setting changes."
+                  : "Recording is switched off, so nothing is being added. Turn the audit log on above to start."
+              }
+              size="sm"
+            />
+          </div>
         ) : (
           <ol className="divide-y divide-line rounded-lg border border-line">
             {log.entries.map((entry) => {
