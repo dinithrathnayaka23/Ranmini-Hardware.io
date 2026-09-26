@@ -9,9 +9,9 @@ import { Alert } from "@/shared/components/ui/alert";
 import { Button, ButtonLink } from "@/shared/components/ui/button";
 import { PasswordField } from "@/shared/components/ui/password-field";
 import { PasswordStrength } from "@/shared/components/ui/password-strength";
-import { routes } from "@/shared/config/app.config";
 
 import { confirmPasswordReset } from "../actions";
+import { portals, type PortalId } from "../constants/portals";
 import {
   resetPasswordSchema,
   type ResetPasswordValues,
@@ -25,7 +25,15 @@ import {
  * link may expire between the check and the submit, or have been spent in
  * another tab — and that case is handled here rather than assumed away.
  */
-export function ResetPasswordForm({ token }: { token: string }) {
+export function ResetPasswordForm({
+  token,
+  portal = "admin",
+}: {
+  token: string;
+  /** Whose reset page this is — decides where the person is sent afterwards. */
+  portal?: PortalId;
+}) {
+  const { loginRoute, resetPasswordRoute } = portals[portal];
   const [formError, setFormError] = React.useState<string | null>(null);
   const [done, setDone] = React.useState(false);
 
@@ -62,7 +70,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
     // Done with the History API rather than `router.replace`, because a Next.js
     // navigation would unmount this component and the confirmation below would
     // never be seen. This rewrites the URL and leaves the page where it is.
-    window.history.replaceState(null, "", routes.resetPassword);
+    window.history.replaceState(null, "", resetPasswordRoute);
 
     setDone(true);
   };
@@ -77,7 +85,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
         {/* The shared button, so the last step of the reset flow looks like the
             Sign In button it is about to hand the user back to. */}
-        <ButtonLink href={routes.adminLogin} className="w-full">
+        <ButtonLink href={loginRoute} className="w-full">
           Go to Sign In
           <ArrowRight aria-hidden className="size-4" />
         </ButtonLink>
