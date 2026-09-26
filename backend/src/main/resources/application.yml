@@ -67,26 +67,36 @@ spring:
       max-file-size: 2MB
       max-request-size: 4MB
 
-  # Outgoing mail, for password-reset links.
+  # Outgoing mail, for password-reset links (both portals).
   #
-  # Note what is NOT here: spring.mail.host. Spring only defines a
-  # JavaMailSender when that property exists, and ResetMailer relies on its
-  # absence to fall back to logging the link — so setting it here to an empty
-  # default would create a sender pointed at nowhere and break the fallback.
-  # The host, username and password come straight from the environment
-  # (SPRING_MAIL_HOST and friends); see .env.example.
+  # Every value is mapped from .env explicitly, and that is load-bearing. The
+  # .env file is imported as a plain properties file, and Spring only turns
+  # SPRING_MAIL_HOST into spring.mail.host for real OS environment variables —
+  # never for lines in a file. Left to that translation, the host, username and
+  # password in .env were silently ignored and every reset link went to the log
+  # instead of the inbox.
   #
-  # Only the timeouts are pinned, because they are wrong by default: the JavaMail
-  # defaults are infinite, so one unreachable relay would pin a request thread
-  # until the client gave up.
+  # A blank host is safe: Spring still builds a sender, but ResetMailer treats a
+  # sender with no host as "no mail server" and falls back to logging the link.
+  #
+  # STARTTLS is required, not merely offered: the password must never cross the
+  # network in the clear because a server (or someone in the middle) declined
+  # to upgrade the connection. Both switches exist only for a local test relay.
+  #
+  # The timeouts are pinned because the JavaMail defaults are infinite, so one
+  # unreachable relay would pin a request thread until the client gave up.
   mail:
+    host: ${SPRING_MAIL_HOST:}
     port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
-          auth: true
+          auth: ${SPRING_MAIL_SMTP_AUTH:true}
           starttls:
-            enable: true
+            enable: ${SPRING_MAIL_SMTP_STARTTLS:true}
+            required: ${SPRING_MAIL_SMTP_STARTTLS:true}
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
@@ -166,7 +176,8 @@ ranmini:
     cashier-reset-url: ${RANMINI_CASHIER_RESET_URL:http://localhost:3000/cashier/reset-password}
 
   mail:
-    from: ${RANMINI_MAIL_FROM:no-reply@ranminihardware.lk}
+    # Blank means "the account mail is sent through" — see ResetMailer.
+    from: ${RANMINI_MAIL_FROM:}
     shop-name: ${RANMINI_MAIL_SHOP_NAME:Ranmini Hardware}
 
   # The two owner accounts, created on a fresh database only. Passwords come

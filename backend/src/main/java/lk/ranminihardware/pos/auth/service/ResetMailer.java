@@ -43,7 +43,7 @@ public class ResetMailer {
 
   public ResetMailer(
       ObjectProvider<JavaMailSender> mailSender,
-      @Value("${ranmini.mail.from:no-reply@ranminihardware.lk}") String fromAddress,
+      @Value("${ranmini.mail.from:}") String fromAddress,
       @Value("${ranmini.mail.shop-name:Ranmini Hardware}") String shopName) {
     this.mailSender = mailSender;
     this.fromAddress = fromAddress;
@@ -84,7 +84,7 @@ public class ResetMailer {
       var message = sender.createMimeMessage();
       var helper = new MimeMessageHelper(message, false, StandardCharsets.UTF_8.name());
 
-      helper.setFrom(fromAddress);
+      helper.setFrom(senderAddress(sender));
       helper.setTo(toAddress);
       helper.setSubject("Reset your %s password".formatted(shopName));
       helper.setText(body(fullName, link, validMinutes), false);
@@ -100,6 +100,22 @@ public class ResetMailer {
       log.error("Could not send password reset email to {}", maskEmail(toAddress), ex);
       return false;
     }
+  }
+
+  /**
+   * The From address.
+   *
+   * <p>The configured one when there is one; otherwise the account the mail is
+   * sent through. Gmail will only send as the signed-in account (or an alias
+   * verified on it), so falling back to that is what makes a blank
+   * RANMINI_MAIL_FROM work rather than fail.
+   */
+  private String senderAddress(JavaMailSender sender) {
+    if (fromAddress != null && !fromAddress.isBlank()) return fromAddress.trim();
+    if (sender instanceof JavaMailSenderImpl impl && impl.getUsername() != null) {
+      return impl.getUsername();
+    }
+    return "no-reply@ranminihardware.lk";
   }
 
   /**
