@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.Optional;
 import java.util.Set;
 import lk.ranminihardware.pos.catalog.domain.Product;
 import lk.ranminihardware.pos.catalog.domain.StockStatus;
@@ -15,6 +16,7 @@ import lk.ranminihardware.pos.auth.service.JwtService.AuthenticatedUser;
 import lk.ranminihardware.pos.catalog.service.InventoryPdfService;
 import lk.ranminihardware.pos.catalog.service.ProductService;
 import lk.ranminihardware.pos.shared.error.ApiException;
+import lk.ranminihardware.pos.shared.media.ImageBytes;
 import lk.ranminihardware.pos.shared.web.PageQuery;
 import lk.ranminihardware.pos.shared.web.PageResponse;
 import org.springframework.data.domain.Page;
@@ -264,13 +266,19 @@ public class ProductController {
    * photograph of a grey box.
    */
   @GetMapping("/products/{id}/image")
-  public ResponseEntity<byte[]> image(@PathVariable String id) {
-    return products
-        .findImage(id)
+  public ResponseEntity<byte[]> image(
+      @PathVariable String id, @RequestParam(required = false) String size) {
+    // "thumb" is the tile-sized copy for grids of products; anything else, the
+    // original as uploaded.
+    Optional<ImageBytes.Stored> stored =
+        "thumb".equals(size)
+            ? products.findThumbnail(id)
+            : products.findImage(id).map(i -> new ImageBytes.Stored(i.getData(), i.getContentType()));
+    return stored
         .map(
             image ->
                 ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(image.getContentType()))
+                    .contentType(MediaType.parseMediaType(image.contentType()))
                     // Immutable: the caller's URL carries the version stamp, so
                     // a replaced picture is a different address and this
                     // response can never go stale. Private because the
@@ -279,7 +287,7 @@ public class ProductController {
                     // The bytes were signature-checked on upload; a browser that
                     // sniffed its own type would make that check pointless.
                     .header("X-Content-Type-Options", "nosniff")
-                    .body(image.getData()))
+                    .body(image.data()))
         .orElseGet(() -> ResponseEntity.notFound().build());
   }
 

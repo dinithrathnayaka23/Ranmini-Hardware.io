@@ -17,6 +17,7 @@ import lk.ranminihardware.pos.catalog.repository.dto.InventorySummary;
 import lk.ranminihardware.pos.catalog.repository.dto.ProductSearchCriteria;
 import lk.ranminihardware.pos.shared.error.ApiException;
 import lk.ranminihardware.pos.shared.media.ImageBytes;
+import lk.ranminihardware.pos.shared.media.Thumbnails;
 import lk.ranminihardware.pos.settings.service.SettingsService;
 import lk.ranminihardware.pos.shared.money.Money;
 import org.springframework.data.domain.Page;
@@ -315,11 +316,17 @@ public class ProductService {
     Product product = get(id);
     Instant now = Instant.now(clock);
 
+    // Made once here rather than on every request: a till page asks for sixty
+    // of these at a time, and scaling is the expensive part.
+    Optional<Thumbnails.Thumbnail> thumbnail = Thumbnails.of(data);
+
     images.save(
         ProductImage.builder()
             .id(product.getId())
             .contentType(ImageBytes.normaliseType(contentType))
             .data(data)
+            .thumbnail(thumbnail.map(Thumbnails.Thumbnail::data).orElse(null))
+            .thumbnailType(thumbnail.map(Thumbnails.Thumbnail::contentType).orElse(null))
             .updatedAt(now)
             .build());
 
@@ -348,6 +355,42 @@ public class ProductService {
   /** The stored photograph, for the endpoint that serves the bytes. */
   public Optional<ProductImage> findImage(String productId) {
     return images.findById(productId);
+  }
+
+  /**
+   * The tile-sized copy of a product's picture: its bytes and type.
+   *
+   * <p>A picture uploaded before thumbnails existed gets one made on this first
+   * request and saved, so older photographs catch up without a migration. When
+   * none can be made (WebP), the original is returned instead.
+   */
+  public Optional<ImageBytes.Stored> findThumbnail(String productId) {
+    Optional<ProductImage> light = images.findThumbnailById(productId);
+    if (light.isEmpty()) return Optional.empty();
+
+    ProductImage thumb = light.get();
+    if (thumb.getThumbnail() != null) {
+      return Optional.of(new ImageBytes.Stored(thumb.getThumbnail(), thumb.getThumbnailType()));
+    }
+
+    // No thumbnail yet — uploaded before they existed — or none possible (WebP).
+    // Either way the original is needed now.
+    return images
+        .findById(productId)
+        .map(
+            image -> {
+              if (image.getThumbnailType() == null) {
+                Optional<Thumbnails.Thumbnail> made = Thumbnails.of(image.getData());
+                image.setThumbnail(made.map(Thumbnails.Thumbnail::data).orElse(null));
+                // Recorded even when none could be made, so a WebP is not
+                // re-attempted on every request.
+                image.setThumbnailType(made.map(Thumbnails.Thumbnail::contentType).orElse("none"));
+                images.save(image);
+              }
+              return image.getThumbnail() != null
+                  ? new ImageBytes.Stored(image.getThumbnail(), image.getThumbnailType())
+                  : new ImageBytes.Stored(image.getData(), image.getContentType());
+            });
   }
 
   /**
