@@ -45,6 +45,16 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 public class SecurityConfig {
 
+  /**
+   * The only authority held by a session that must replace a temporary
+   * password. Deliberately not a {@code ROLE_} name, so no role rule below can
+   * ever match it by accident.
+   */
+  public static final String PASSWORD_CHANGE_AUTHORITY = "PASSWORD_CHANGE_REQUIRED";
+
+  /** Every real role. Business endpoints require one of these, not just a token. */
+  private static final String[] STAFF_ROLES = {"ADMIN", "CASHIER"};
+
   private final CorsProperties corsProperties;
 
   public SecurityConfig(CorsProperties corsProperties) {
@@ -93,12 +103,22 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.OPTIONS, "/**")
                     .permitAll()
 
+                    // The only two things a session holding a temporary password
+                    // may do: say who it is, and choose a password of its own.
+                    // Such a session carries PASSWORD_CHANGE_AUTHORITY instead of
+                    // a role, so every rule below refuses it. Listed first so no
+                    // later rule can shadow them.
+                    .requestMatchers(HttpMethod.GET, "/api/v1/auth/me")
+                    .authenticated()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/auth/password/choose")
+                    .authenticated()
+
                     // Your own account. Any signed-in role: a cashier owns
                     // their name and their password too. Every endpoint under
                     // it acts on the token's own user, so there is no id to
                     // check and no way to reach somebody else's record.
                     .requestMatchers("/api/v1/profile/**")
-                    .authenticated()
+                    .hasAnyRole(STAFF_ROLES)
 
                     // The till: read the catalogue, ring up a sale. Cashiers
                     // only — an admin has no till to use, so a token of theirs
@@ -148,9 +168,11 @@ public class SecurityConfig {
                         "/api/v1/notifications/**", "/api/v1/audit/**")
                     .hasRole("ADMIN")
 
-                    // Deny by default. New endpoints are protected until opened.
+                    // Deny by default. New endpoints are protected until opened,
+                    // and need a real role — a restricted session is signed in,
+                    // so "authenticated" alone would let it through.
                     .anyRequest()
-                    .authenticated())
+                    .hasAnyRole(STAFF_ROLES))
 
         .exceptionHandling(
             handling ->

@@ -159,6 +159,35 @@ public class AuthService {
    * need different things from the person reading the screen: one signs in
    * again, the other has to speak to the owner.
    */
+  /**
+   * Replaces a temporary password and hands back a normal session.
+   *
+   * <p>The fresh tokens are the point. The caller's current token carries the
+   * restriction, and it would keep carrying it until it expired; issuing a new
+   * pair from the updated account lets the person go straight to work instead
+   * of being sent back to the sign-in page to type the password they just chose.
+   *
+   * <p>The account is re-checked here rather than trusted from the token: it may
+   * have been deactivated since the token was issued.
+   */
+  public AuthDtos.LoginResponse chooseOwnPassword(String username, String newPassword) {
+    StaffAccount account =
+        accounts.findForAuthentication(username).orElseThrow(this::sessionExpired);
+
+    if (!account.isActive()) {
+      throw deactivated();
+    }
+
+    StaffAccount updated = accounts.chooseOwnPassword(account.id(), newPassword);
+    log.info("{} replaced a temporary password", updated.username());
+
+    return new AuthDtos.LoginResponse(
+        jwt.issueAccessToken(updated),
+        jwt.issueRefreshToken(updated),
+        jwt.accessTokenSeconds(),
+        AuthDtos.UserResponse.from(updated));
+  }
+
   public AuthDtos.UserResponse currentUser(String username) {
     StaffAccount account =
         accounts.findForAuthentication(username).orElseThrow(this::sessionExpired);

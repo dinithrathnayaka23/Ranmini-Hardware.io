@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import lk.ranminihardware.pos.auth.service.JwtService;
+import lk.ranminihardware.pos.shared.config.SecurityConfig;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -52,7 +53,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // The role becomes a Spring authority so endpoints can be
                 // guarded declaratively. No database read: the token was signed
                 // by this service and carries everything the check needs.
-                var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.role()));
+                //
+                // A session that still has to replace a temporary password gets
+                // a single authority that no business endpoint accepts, instead
+                // of its role. It can say who it is and choose a password, and
+                // nothing else — see SecurityConfig.
+                var authorities =
+                    List.of(
+                        new SimpleGrantedAuthority(
+                            user.passwordChangeRequired()
+                                ? SecurityConfig.PASSWORD_CHANGE_AUTHORITY
+                                : "ROLE_" + user.role()));
 
                 // The whole record is the principal, so an endpoint that needs
                 // the signed-in person's id or name reads it from the verified
