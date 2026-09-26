@@ -5,6 +5,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lk.ranminihardware.pos.audit.domain.AuditAction;
+import lk.ranminihardware.pos.audit.service.AuditService;
 import lk.ranminihardware.pos.auth.service.PasswordResetService;
 import lk.ranminihardware.pos.auth.service.ResetRateLimiter;
 import lk.ranminihardware.pos.shared.error.ApiException;
@@ -18,12 +20,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Resetting a forgotten password by email.
+ * Recovering a forgotten password, by email or by asking the shop owner.
  *
  * <p>Open to anonymous callers by necessity — somebody who has forgotten their
  * password cannot sign in to ask. Everything that makes that safe lives here and
  * in {@link PasswordResetService}: the response never varies with whether an
  * account exists, and the endpoints are rate-limited.
+ *
+ * <p>Two routes because the staff are two kinds of people. Owners have email
+ * addresses and can be sent a link; most cashiers have none, so for them the
+ * request goes to the owner instead, who issues a temporary password.
  */
 @RestController
 @RequestMapping("/api/v1/auth/password-reset")
@@ -40,12 +46,25 @@ public class PasswordResetController {
       "If that email address belongs to an account, a reset link is on its way. "
           + "Check your inbox, and your spam folder.";
 
+  /**
+   * The one answer {@code /help} ever gives. Conditional for the same reason
+   * {@link #SENT_MESSAGE} is: it must read the same for a username that exists
+   * and one that does not.
+   */
+  private static final String HELP_MESSAGE =
+      "If that username belongs to an active account, the shop owner has been asked "
+          + "to reset it. They will give you a temporary password, and you will choose "
+          + "your own the next time you sign in.";
+
   private final PasswordResetService resets;
   private final ResetRateLimiter rateLimiter;
+  private final AuditService audit;
 
-  public PasswordResetController(PasswordResetService resets, ResetRateLimiter rateLimiter) {
+  public PasswordResetController(
+      PasswordResetService resets, ResetRateLimiter rateLimiter, AuditService audit) {
     this.resets = resets;
     this.rateLimiter = rateLimiter;
+    this.audit = audit;
   }
 
   /** Asks for a link. Always answers the same way. */
@@ -68,6 +87,43 @@ public class PasswordResetController {
     resets.requestReset(body.email());
 
     return ResponseEntity.ok().header("Cache-Control", "no-store").body(new MessageResponse(SENT_MESSAGE));
+  }
+
+  /**
+   * Asks the shop owner for a new password, for an account with no email.
+   *
+   * <p>Limited per username as well as per address, so one person at a till
+   * cannot fill the owner's notifications with requests for every name they
+   * can guess.
+   */
+  @PostMapping("/help")
+  public ResponseEntity<MessageResponse> requestHelp(
+      @Valid @RequestBody PasswordHelpRequest body, HttpServletRequest http) {
+
+    boolean allowed = rateLimiter.allow("help:" + body.username().trim().toLowerCase());
+    boolean allowedFromHere = rateLimiter.allow("ip:" + clientAddress(http));
+
+    if (!allowed || !allowedFromHere) {
+      throw new ApiException(
+          HttpStatus.TOO_MANY_REQUESTS,
+          "TOO_MANY_RESET_REQUESTS",
+          "Too many reset requests. Wait a few minutes before trying again.");
+    }
+
+    resets
+        .requestHelp(body.username())
+        .ifPresent(
+            member ->
+                audit.record(
+                    AuditAction.STAFF_PASSWORD_HELP_REQUESTED,
+                    "STAFF",
+                    member.getId(),
+                    "%s (%s) asked for a password reset from the sign-in page."
+                        .formatted(member.getFullName(), member.getUsername())));
+
+    return ResponseEntity.ok()
+        .header("Cache-Control", "no-store")
+        .body(new MessageResponse(HELP_MESSAGE));
   }
 
   /**
@@ -129,6 +185,10 @@ public class PasswordResetController {
           @Email(message = "Enter a valid email address.")
           @Size(max = 254)
           String email) {}
+
+  /** The username to ask about. Shape only — never a hint that it exists. */
+  public record PasswordHelpRequest(
+      @NotBlank(message = "Enter your username.") @Size(max = 64) String username) {}
 
   /**
    * A link and the password to set.

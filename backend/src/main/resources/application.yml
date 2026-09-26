@@ -160,6 +160,10 @@ ranmini:
     # Where the reset link points. Must be the address the shop's browsers
     # actually use, since it is the frontend that renders the reset form.
     reset-url: ${RANMINI_RESET_URL:http://localhost:3000/admin/reset-password}
+    # The same for cashier accounts. A separate page, because it returns the
+    # person to the till's sign-in rather than the management portal's, which
+    # would refuse a cashier account.
+    cashier-reset-url: ${RANMINI_CASHIER_RESET_URL:http://localhost:3000/cashier/reset-password}
 
   mail:
     from: ${RANMINI_MAIL_FROM:no-reply@ranminihardware.lk}
