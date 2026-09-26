@@ -13,6 +13,8 @@ import lk.ranminihardware.pos.notifications.domain.NotificationSeverity;
 import lk.ranminihardware.pos.notifications.web.NotificationDtos;
 import lk.ranminihardware.pos.sales.domain.Sale;
 import lk.ranminihardware.pos.sales.service.SaleService;
+import lk.ranminihardware.pos.staff.domain.StaffMember;
+import lk.ranminihardware.pos.staff.service.StaffService;
 import org.springframework.stereotype.Service;
 
 /**
@@ -69,13 +71,19 @@ public class NotificationService {
 
   private static final Duration VOID_WINDOW = Duration.ofDays(7);
 
+  /** Open password-help requests to show. More than this at once is not a real shop. */
+  private static final int PASSWORD_HELP_LIMIT = 10;
+
   private final ProductService products;
   private final SaleService sales;
+  private final StaffService staff;
   private final Clock clock;
 
-  public NotificationService(ProductService products, SaleService sales, Clock clock) {
+  public NotificationService(
+      ProductService products, SaleService sales, StaffService staff, Clock clock) {
     this.products = products;
     this.sales = sales;
+    this.staff = staff;
     this.clock = clock;
   }
 
@@ -90,6 +98,7 @@ public class NotificationService {
     List<NotificationDtos.Item> items = new ArrayList<>();
     items.addAll(stockAlerts(readAt));
     items.addAll(voidedSales(now.minus(VOID_WINDOW), readAt));
+    items.addAll(passwordHelpRequests(readAt));
 
     // Severity first, then most recent. Time alone would bury an empty shelf
     // under a week of routine corrections; severity alone would leave two
@@ -251,6 +260,35 @@ public class NotificationService {
   }
 
   /** Never having opened the panel means everything in it is new. */
+  /**
+   * People locked out of their account and waiting on the owner.
+   *
+   * <p>A warning rather than information: somebody cannot work until it is
+   * dealt with. Deliberately absent from the till's feed — it is the owner's
+   * job to answer, and the cashier who asked already knows.
+   */
+  private List<NotificationDtos.Item> passwordHelpRequests(Instant readAt) {
+    return staff.pendingPasswordHelp(PASSWORD_HELP_LIMIT).stream()
+        .map(member -> passwordHelp(member, readAt))
+        .toList();
+  }
+
+  private NotificationDtos.Item passwordHelp(StaffMember member, Instant readAt) {
+    Instant occurredAt = member.getPasswordHelpRequestedAt();
+    return new NotificationDtos.Item(
+        "password-help:%s:%d".formatted(member.getId(), occurredAt.toEpochMilli()),
+        NotificationKind.PASSWORD_HELP,
+        NotificationSeverity.WARNING,
+        "%s needs a new password".formatted(member.getFullName()),
+        ("%s asked for a reset from the sign-in page. Set a temporary password from Staff;"
+                + " they will choose their own when they next sign in.")
+            .formatted(member.getUsername()),
+        occurredAt,
+        isUnread(occurredAt, readAt),
+        "STAFF",
+        member.getId());
+  }
+
   private static boolean isUnread(Instant occurredAt, Instant readAt) {
     return readAt == null || occurredAt.isAfter(readAt);
   }
