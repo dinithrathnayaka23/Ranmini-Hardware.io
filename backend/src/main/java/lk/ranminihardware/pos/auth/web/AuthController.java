@@ -71,6 +71,24 @@ public class AuthController {
    * an endpoint that told you about whoever you named would be an account
    * directory with extra steps.
    */
+  /**
+   * Chooses a password to replace a temporary one an administrator issued.
+   *
+   * <p>Reachable by a restricted session — it is the one thing such a session is
+   * for — and answers with a new, unrestricted pair of tokens.
+   */
+  @PostMapping("/password/choose")
+  public ResponseEntity<AuthDtos.LoginResponse> choosePassword(
+      Authentication authentication, @Valid @RequestBody AuthDtos.ChoosePasswordRequest request) {
+    if (authentication == null || !authentication.isAuthenticated()) {
+      throw new ApiException(
+          HttpStatus.UNAUTHORIZED, "SESSION_EXPIRED", "Your session has ended. Please sign in again.");
+    }
+    return ResponseEntity.ok()
+        .header("Cache-Control", "no-store")
+        .body(auth.chooseOwnPassword(authentication.getName(), request.password()));
+  }
+
   @GetMapping("/me")
   public AuthDtos.UserResponse me(Authentication authentication) {
     if (authentication == null || !authentication.isAuthenticated()) {

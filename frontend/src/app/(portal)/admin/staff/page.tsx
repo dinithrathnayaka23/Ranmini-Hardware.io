@@ -27,7 +27,13 @@ export const metadata: Metadata = {
  * two different onboarding forms would mean two places to keep correct.
  */
 export default async function AdminStaffPage() {
-  const staff = await fetchStaff();
+  // Anyone waiting on a new password goes to the top: they cannot work until
+  // it is dealt with, and the notification that brought the owner here should
+  // land on them rather than somewhere down the list. The sort is stable, so
+  // everyone else keeps the server's order.
+  const staff = (await fetchStaff()).toSorted(
+    (a, b) => Number(Boolean(b.passwordHelpRequestedAt)) - Number(Boolean(a.passwordHelpRequestedAt)),
+  );
 
   return (
     <div className="mx-auto w-full max-w-[90rem] p-4 sm:p-6 lg:p-8">
@@ -66,6 +72,11 @@ export default async function AdminStaffPage() {
                             {member.fullName}
                           </p>
                           <Badge label={status.label} accent={status.accent} />
+                          {member.passwordHelpRequestedAt ? (
+                            <Badge label="Asked for a new password" accent="warning" />
+                          ) : member.passwordChangeRequired ? (
+                            <Badge label="Temporary password" accent="neutral" />
+                          ) : null}
                         </div>
 
                         <p className="mt-0.5 text-xs text-muted">
@@ -73,6 +84,16 @@ export default async function AdminStaffPage() {
                         </p>
                         <p className="mt-1 text-xs text-muted">
                           Joined {member.joinedLabel} &middot; {member.lastActive}
+                        </p>
+                        {/* Whether they can recover a password on their own.
+                            Stated either way, so a missing address reads as a
+                            fact the owner can act on rather than a blank. */}
+                        <p className="mt-1 truncate text-xs text-muted">
+                          {member.email ? (
+                            member.email
+                          ) : (
+                            <span className="italic">No email — resets go through you</span>
+                          )}
                         </p>
                       </div>
                     </div>

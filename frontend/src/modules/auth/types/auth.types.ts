@@ -34,6 +34,14 @@ export interface UserProfile {
    * new URL and the browser cannot show a cached copy of the old one.
    */
   avatarVersion?: string | null;
+  /**
+   * True while the password is a temporary one an administrator set.
+   *
+   * <p>The backend refuses such a session everything except choosing a new
+   * password, so the frontend sends it straight to the page for that rather
+   * than rendering screens whose every request would fail.
+   */
+  passwordChangeRequired?: boolean;
 }
 
 /** Raw payload returned by the backend's role-scoped login endpoints. */

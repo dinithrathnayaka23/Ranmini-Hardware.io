@@ -31,4 +31,14 @@ public interface StaffAccountApi {
 
   /** Clears the failure count and stamps the last-active time. */
   void recordSuccessfulLogin(String staffId);
+
+  /**
+   * Replaces a temporary password with one the person chose themselves.
+   *
+   * <p>Only allowed while the account is flagged as needing it, so this cannot
+   * be used as a way to change a password without knowing the current one.
+   *
+   * @return the account as it now stands, no longer flagged
+   */
+  StaffAccount chooseOwnPassword(String staffId, String rawPassword);
 }

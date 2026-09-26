@@ -26,6 +26,8 @@ interface StaffResponse {
   joinedOn: string | null;
   lastActiveAt: string | null;
   avatarVersion: string | null;
+  passwordChangeRequired?: boolean;
+  passwordHelpRequestedAt?: string | null;
 }
 
 export async function fetchStaff(): Promise<StaffMember[]> {
@@ -46,6 +48,8 @@ function toStaffMember(response: StaffResponse): StaffMember {
     joinedLabel: formatJoinedDate(response.joinedOn),
     lastActive: formatLastActive(response.lastActiveAt),
     avatarVersion: response.avatarVersion ?? null,
+    passwordChangeRequired: response.passwordChangeRequired ?? false,
+    passwordHelpRequestedAt: response.passwordHelpRequestedAt ?? null,
   };
 }
 

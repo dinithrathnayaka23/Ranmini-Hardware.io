@@ -43,6 +43,15 @@ public class JwtService {
   /** Distinguishes an access token from a refresh token. */
   private static final String CLAIM_TYPE = "typ";
 
+  /**
+   * Present, and true, on a session whose password was set by somebody else.
+   *
+   * <p>Carried in the token so the restriction is enforced on every request
+   * without a database read. It cannot outlive the flag: choosing a password
+   * issues a fresh pair of tokens without it, and a refresh re-reads the account.
+   */
+  private static final String CLAIM_PASSWORD_CHANGE = "pwc";
+
   private static final String TYPE_ACCESS = "access";
   private static final String TYPE_REFRESH = "refresh";
 
@@ -149,6 +158,7 @@ public class JwtService {
         .claim("name", account.fullName())
         .claim(CLAIM_ROLE, account.role().name())
         .claim(CLAIM_TYPE, type)
+        .claim(CLAIM_PASSWORD_CHANGE, account.passwordChangeRequired() ? Boolean.TRUE : null)
         .issuedAt(Date.from(now))
         .expiration(Date.from(now.plus(ttl)))
         .signWith(key)
@@ -195,7 +205,8 @@ public class JwtService {
               claims.getSubject(),
               claims.get("username", String.class),
               claims.get("name", String.class),
-              claims.get(CLAIM_ROLE, String.class)));
+              claims.get(CLAIM_ROLE, String.class),
+              Boolean.TRUE.equals(claims.get(CLAIM_PASSWORD_CHANGE, Boolean.class))));
 
     } catch (JwtException | IllegalArgumentException ex) {
       // Expected for any invalid token, so logged at debug: a stream of these
@@ -213,7 +224,8 @@ public class JwtService {
    * needs the id or the display name can cast the principal and read it —
    * without a database lookup on every request.
    */
-  public record AuthenticatedUser(String id, String username, String fullName, String role)
+  public record AuthenticatedUser(
+      String id, String username, String fullName, String role, boolean passwordChangeRequired)
       implements java.security.Principal {
 
     @Override

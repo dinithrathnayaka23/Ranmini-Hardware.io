@@ -15,6 +15,7 @@ import lk.ranminihardware.pos.auth.repository.PasswordResetTokenRepository;
 import lk.ranminihardware.pos.settings.service.SettingsService;
 import lk.ranminihardware.pos.shared.error.ApiException;
 import lk.ranminihardware.pos.staff.domain.StaffMember;
+import lk.ranminihardware.pos.staff.domain.StaffRole;
 import lk.ranminihardware.pos.staff.domain.StaffStatus;
 import lk.ranminihardware.pos.staff.repository.StaffRepository;
 import org.slf4j.Logger;
@@ -62,6 +63,7 @@ public class PasswordResetService {
 
   private final Duration validity;
   private final String resetUrlTemplate;
+  private final String cashierResetUrlTemplate;
 
   public PasswordResetService(
       StaffRepository staff,
@@ -72,7 +74,9 @@ public class PasswordResetService {
       Clock clock,
       @Value("${ranmini.auth.reset-token-minutes:45}") long validityMinutes,
       @Value("${ranmini.app.reset-url:http://localhost:3000/admin/reset-password}")
-          String resetUrlTemplate) {
+          String resetUrlTemplate,
+      @Value("${ranmini.app.cashier-reset-url:http://localhost:3000/cashier/reset-password}")
+          String cashierResetUrlTemplate) {
     this.staff = staff;
     this.tokens = tokens;
     this.settings = settings;
@@ -81,6 +85,7 @@ public class PasswordResetService {
     this.clock = clock;
     this.validity = Duration.ofMinutes(validityMinutes);
     this.resetUrlTemplate = resetUrlTemplate;
+    this.cashierResetUrlTemplate = cashierResetUrlTemplate;
   }
 
   /**
@@ -128,7 +133,45 @@ public class PasswordResetService {
             .build());
 
     mailer.sendResetLink(
-        member.getEmail(), member.getFullName(), buildLink(token), validity.toMinutes());
+        member.getEmail(), member.getFullName(), buildLink(token, member), validity.toMinutes());
+  }
+
+  /**
+   * Asks the shop owner to reset a password, for an account with no email.
+   *
+   * <p>Most cashiers have no address on file, so an emailed link cannot reach
+   * them. This records the request on the account instead, where it appears in
+   * the administrators' notification feed; the owner answers it by setting a
+   * temporary password, and the cashier then chooses their own at sign-in.
+   *
+   * <p>Silent in exactly the way {@link #requestReset} is: an unknown or
+   * deactivated username returns without a trace in the response, so the form
+   * cannot be used to find out who works here.
+   *
+   * @return the account the request was recorded against, for the audit trail,
+   *     or empty when nothing was recorded
+   */
+  public Optional<StaffMember> requestHelp(String username) {
+    String name = username == null ? "" : username.trim().toLowerCase(java.util.Locale.ROOT);
+    if (name.isEmpty()) return Optional.empty();
+
+    Optional<StaffMember> found = staff.findByUsername(name);
+
+    if (found.isEmpty() || found.get().getStatus() != StaffStatus.ACTIVE) {
+      log.info("Password help requested for a username with no active account");
+      return Optional.empty();
+    }
+
+    StaffMember member = found.get();
+
+    // Re-stamped on a repeat request rather than kept at the first one, so the
+    // request comes back to the top of the owner's feed as unread. The rate
+    // limit in front of this keeps that from being a way to spam the feed.
+    member.setPasswordHelpRequestedAt(Instant.now(clock));
+    staff.save(member);
+
+    log.info("Password help requested for {}", member.getUsername());
+    return Optional.of(member);
   }
 
   /**
@@ -171,6 +214,10 @@ public class PasswordResetService {
     // has served its purpose and would now only punish the owner.
     member.setFailedLoginAttempts(0);
     member.setLockedUntil(null);
+    // They chose this password themselves, so nothing is left for an
+    // administrator to do: no temporary password to replace, no request open.
+    member.setPasswordChangeRequired(false);
+    member.setPasswordHelpRequestedAt(null);
     staff.save(member);
 
     reset.setUsedAt(now);
@@ -233,13 +280,20 @@ public class PasswordResetService {
     }
   }
 
-  private String buildLink(String token) {
-    String separator = resetUrlTemplate.contains("?") ? "&" : "?";
+  /**
+   * The link to email, pointing at the recovery page of the person's own portal.
+   *
+   * <p>Chosen from the account's role rather than from anything in the request,
+   * so the page a link opens — and the sign-in screen it returns to afterwards —
+   * is always the one that person can actually use. A cashier sent to the admin
+   * reset page would set a password and then be refused at the admin door.
+   */
+  private String buildLink(String token, StaffMember member) {
+    String base =
+        member.getRole() == StaffRole.CASHIER ? cashierResetUrlTemplate : resetUrlTemplate;
+    String separator = base.contains("?") ? "&" : "?";
     return "%s%stoken=%s"
-        .formatted(
-            resetUrlTemplate,
-            separator,
-            java.net.URLEncoder.encode(token, StandardCharsets.UTF_8));
+        .formatted(base, separator, java.net.URLEncoder.encode(token, StandardCharsets.UTF_8));
   }
 
   private static ApiException invalidLink() {

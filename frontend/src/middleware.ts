@@ -55,5 +55,8 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/admin/dashboard/:path*", "/admin/inventory/:path*", "/admin/reports/:path*",
     "/admin/staff/:path*", "/admin/settings/:path*", "/admin/profile/:path*",
-    "/cashier/pos/:path*"],
+    "/cashier/pos/:path*",
+    // Choosing a password needs the session a temporary password opened, so a
+    // signed-out visitor goes to sign in first rather than to a dead form.
+    "/admin/set-password", "/cashier/set-password"],
 };

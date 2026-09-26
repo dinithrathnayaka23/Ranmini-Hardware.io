@@ -15,6 +15,7 @@ export type AuditAction =
   | "STAFF_REACTIVATED"
   | "STAFF_ROLE_CHANGED"
   | "STAFF_PASSWORD_RESET"
+  | "STAFF_PASSWORD_HELP_REQUESTED"
   | "SETTINGS_CHANGED";
 
 export interface AuditEntry {

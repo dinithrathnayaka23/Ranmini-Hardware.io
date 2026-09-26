@@ -37,11 +37,14 @@ public class StaffAccountAdapter implements StaffAccountApi {
   private final StaffRepository staff;
   private final SettingsService settings;
   private final Clock clock;
+  private final StaffService staffService;
 
-  public StaffAccountAdapter(StaffRepository staff, SettingsService settings, Clock clock) {
+  public StaffAccountAdapter(
+      StaffRepository staff, SettingsService settings, Clock clock, StaffService staffService) {
     this.staff = staff;
     this.settings = settings;
     this.clock = clock;
+    this.staffService = staffService;
   }
 
   @Override
@@ -84,6 +87,11 @@ public class StaffAccountAdapter implements StaffAccountApi {
             });
   }
 
+  @Override
+  public StaffAccount chooseOwnPassword(String staffId, String rawPassword) {
+    return toAccount(staffService.chooseOwnPassword(staffId, rawPassword));
+  }
+
   private static StaffAccount toAccount(StaffMember member) {
     return new StaffAccount(
         member.getId(),
@@ -94,6 +102,7 @@ public class StaffAccountAdapter implements StaffAccountApi {
         member.getStatus(),
         member.getPasswordHash(),
         member.getLockedUntil(),
-        member.getAvatarVersion());
+        member.getAvatarVersion(),
+        member.isPasswordChangeRequired());
   }
 }

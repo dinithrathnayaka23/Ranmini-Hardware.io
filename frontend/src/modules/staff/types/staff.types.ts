@@ -28,6 +28,13 @@ export interface StaffMember {
   lastActive: string;
   /** Null when there is no picture; otherwise the cache-busting token. */
   avatarVersion: string | null;
+  /** Their current password is a temporary one; they will replace it at sign-in. */
+  passwordChangeRequired: boolean;
+  /**
+   * When they asked, from the sign-in page, for a new password — or null when
+   * no request is open. Cleared as soon as their password changes.
+   */
+  passwordHelpRequestedAt: string | null;
 }
 
 /** How each status is labelled and coloured wherever it appears. */

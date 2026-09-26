@@ -9,9 +9,9 @@ import { useForm } from "react-hook-form";
 import { Alert } from "@/shared/components/ui/alert";
 import { Button } from "@/shared/components/ui/button";
 import { TextField } from "@/shared/components/ui/text-field";
-import { routes } from "@/shared/config/app.config";
 
 import { requestPasswordReset } from "../actions";
+import { portals, type PortalId } from "../constants/portals";
 import {
   forgotPasswordSchema,
   type ForgotPasswordValues,
@@ -31,7 +31,7 @@ import {
  * backend answers the same either way: a form that said "no such account" would
  * be a free tool for working out who works at the shop.
  */
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({ portal = "admin" }: { portal?: PortalId }) {
   const [sentTo, setSentTo] = React.useState<string | null>(null);
   const [confirmation, setConfirmation] = React.useState<string>("");
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -89,7 +89,7 @@ export function ForgotPasswordForm() {
           .
         </p>
 
-        <BackToSignIn />
+        <BackToSignIn portal={portal} />
       </div>
     );
   }
@@ -125,15 +125,16 @@ export function ForgotPasswordForm() {
         Send Reset Link
       </Button>
 
-      <BackToSignIn />
+      <BackToSignIn portal={portal} />
     </form>
   );
 }
 
-function BackToSignIn() {
+/** Back to the sign-in page of the portal this recovery started from. */
+export function BackToSignIn({ portal }: { portal: PortalId }) {
   return (
     <Link
-      href={routes.adminLogin}
+      href={portals[portal].loginRoute}
       className="inline-flex items-center gap-2 text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
     >
       <ArrowLeft aria-hidden className="size-4" />

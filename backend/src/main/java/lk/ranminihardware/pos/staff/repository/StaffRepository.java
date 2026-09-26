@@ -1,5 +1,6 @@
 package lk.ranminihardware.pos.staff.repository;
 
+import java.util.List;
 import java.util.Optional;
 import lk.ranminihardware.pos.staff.domain.StaffMember;
 import lk.ranminihardware.pos.staff.domain.StaffRole;
@@ -43,4 +44,14 @@ public interface StaffRepository extends MongoRepository<StaffMember, String> {
    * the cheaper query and the more honest statement of the question.
    */
   boolean existsByRoleAndStatus(StaffRole role, StaffStatus status);
+
+  /**
+   * Open requests for a password reset, newest first.
+   *
+   * Served by the sparse {@code ix_staff_password_help} index, which holds only
+   * accounts with a request open — a handful at most — so the notification feed
+   * that calls this on every page load never touches the rest of the collection.
+   */
+  List<StaffMember> findByPasswordHelpRequestedAtIsNotNullAndStatusOrderByPasswordHelpRequestedAtDesc(
+      StaffStatus status, Pageable pageable);
 }

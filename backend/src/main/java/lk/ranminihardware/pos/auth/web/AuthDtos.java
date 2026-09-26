@@ -36,6 +36,15 @@ public final class AuthDtos {
   public record RefreshRequest(@NotBlank String refreshToken) {}
 
   /**
+   * The password a person chooses to replace a temporary one.
+   *
+   * <p>The upper bound only stops an obviously oversized payload reaching
+   * BCrypt; the shop's minimum is checked in the service, against its setting.
+   */
+  public record ChoosePasswordRequest(
+      @NotBlank(message = "Enter a new password.") @Size(max = 128) String password) {}
+
+  /**
    * The signed-in user.
    *
    * <p>No password hash, no lockout state, no failure count. The account record
@@ -54,7 +63,13 @@ public final class AuthDtos {
        * session it already has, without a second request on every page load —
        * and so the URL it builds changes when the picture does.
        */
-      Instant avatarVersion) {
+      Instant avatarVersion,
+      /**
+       * True when the password was set by an administrator and has not yet been
+       * replaced. The frontend sends such a session straight to the page for
+       * choosing one — the only thing the backend will let it do anyway.
+       */
+      boolean passwordChangeRequired) {
 
     public static UserResponse from(StaffAccount account) {
       return new UserResponse(
@@ -63,7 +78,8 @@ public final class AuthDtos {
           account.fullName(),
           account.email(),
           account.role(),
-          account.avatarVersion());
+          account.avatarVersion(),
+          account.passwordChangeRequired());
     }
   }
 }

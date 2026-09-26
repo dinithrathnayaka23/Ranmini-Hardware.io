@@ -12,7 +12,6 @@ import { Button } from "@/shared/components/ui/button";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { PasswordField } from "@/shared/components/ui/password-field";
 import { TextField } from "@/shared/components/ui/text-field";
-import { routes } from "@/shared/config/app.config";
 
 import type { PortalDefinition } from "../constants/portals";
 import {
@@ -101,7 +100,14 @@ export function LoginForm({
       redirectTo.startsWith(`${portal.areaPrefix}/`) &&
       !redirectTo.startsWith("//");
 
-    const destination = isOwnArea ? redirectTo : portal.landingRoute;
+    // A temporary password outranks everything else: the backend will refuse
+    // this session every screen until it chooses its own, so going anywhere
+    // else would only bounce.
+    const destination = outcome.user.passwordChangeRequired
+      ? portal.setPasswordRoute
+      : isOwnArea
+        ? redirectTo
+        : portal.landingRoute;
 
     router.replace(destination);
     router.refresh();
@@ -143,20 +149,18 @@ export function LoginForm({
         placeholder="••••••••"
         autoComplete="current-password"
         labelAction={
-          // Cashier accounts are reset by an administrator, so that portal
-          // offers no self-service link rather than a dead end.
-          portal.hasPasswordReset ? (
-            <Link
-              href={routes.forgotPassword}
-              // Not prefetched. Almost nobody who reaches the sign-in page has
-              // forgotten their password, so fetching the recovery route for
-              // every visitor is bandwidth spent on the rare case.
-              prefetch={false}
-              className="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
-            >
-              Forgot Password?
-            </Link>
-          ) : null
+          // Each portal's own recovery page. The till's offers an emailed link
+          // and, for accounts with no address, a request to the owner.
+          <Link
+            href={portal.forgotPasswordRoute}
+            // Not prefetched. Almost nobody who reaches the sign-in page has
+            // forgotten their password, so fetching the recovery route for
+            // every visitor is bandwidth spent on the rare case.
+            prefetch={false}
+            className="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
+          >
+            Forgot Password?
+          </Link>
         }
         error={errors.password?.message}
         {...register("password")}

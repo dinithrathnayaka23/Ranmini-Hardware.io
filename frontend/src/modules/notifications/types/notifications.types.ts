@@ -8,7 +8,12 @@
  */
 
 /** What a notification is about. A closed set: the panel picks an icon from it. */
-export type NotificationKind = "OUT_OF_STOCK" | "LOW_STOCK" | "SALE_VOIDED";
+export type NotificationKind =
+  | "OUT_OF_STOCK"
+  | "LOW_STOCK"
+  | "SALE_VOIDED"
+  /** A cashier asked, from the sign-in page, for their password to be reset. */
+  | "PASSWORD_HELP";
 
 /** How much the reader should care. Drives the colour and the sort order. */
 export type NotificationSeverity = "CRITICAL" | "WARNING" | "INFO";
@@ -29,7 +34,7 @@ export interface Notification {
    * portal's route table is the frontend's business, and a path baked into an
    * API response would be a second place to update when a screen moves.
    */
-  entityType: "PRODUCT" | "SALE";
+  entityType: "PRODUCT" | "SALE" | "STAFF";
   entityId: string;
 }
 

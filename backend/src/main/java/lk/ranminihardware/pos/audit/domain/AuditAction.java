@@ -48,6 +48,15 @@ public enum AuditAction {
   /** An administrator set another person's password. */
   STAFF_PASSWORD_RESET,
 
+  /**
+   * Somebody asked, from the sign-in page, for the owner to reset their password.
+   *
+   * <p>Recorded because it is an anonymous request that changes what the owner
+   * is shown; if the feed ever fills with requests nobody made, this is where
+   * the pattern shows.
+   */
+  STAFF_PASSWORD_HELP_REQUESTED,
+
   /** A section of the shop's configuration was saved. */
   SETTINGS_CHANGED
 }

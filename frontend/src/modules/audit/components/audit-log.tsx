@@ -137,6 +137,8 @@ function presentation(action: AuditAction) {
       return { Icon: ShieldCheck, tint: "bg-warning-soft text-warning" };
     case "STAFF_PASSWORD_RESET":
       return { Icon: KeyRound, tint: "bg-warning-soft text-warning" };
+    case "STAFF_PASSWORD_HELP_REQUESTED":
+      return { Icon: KeyRound, tint: "bg-canvas-subtle text-ink-soft" };
     case "SETTINGS_CHANGED":
       return { Icon: Settings, tint: "bg-canvas-subtle text-ink-soft" };
   }

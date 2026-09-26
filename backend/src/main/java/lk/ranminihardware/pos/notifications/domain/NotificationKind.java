@@ -22,5 +22,14 @@ public enum NotificationKind {
    * the day's takings, and a till where voids can happen unseen is the oldest
    * hole in retail — this is the notification that closes it.
    */
-  SALE_VOIDED
+  SALE_VOIDED,
+
+  /**
+   * Somebody asked, from the sign-in page, for their password to be reset.
+   *
+   * <p>How a cashier with no email address recovers their account. It stays in
+   * the feed until an administrator sets them a temporary password, or they
+   * recover it some other way.
+   */
+  PASSWORD_HELP
 }

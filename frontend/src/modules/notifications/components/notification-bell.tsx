@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Bell, PackageX, TriangleAlert } from "lucide-react";
+import { Ban, Bell, KeyRound, PackageX, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import * as React from "react";
@@ -222,6 +222,8 @@ function presentation(kind: NotificationKind) {
       return { Icon: TriangleAlert, tint: "bg-warning-soft text-warning" };
     case "SALE_VOIDED":
       return { Icon: Ban, tint: "bg-canvas-subtle text-ink-soft" };
+    case "PASSWORD_HELP":
+      return { Icon: KeyRound, tint: "bg-warning-soft text-warning" };
   }
 }
 
@@ -235,6 +237,9 @@ function presentation(kind: NotificationKind) {
  */
 function hrefFor(item: Notification): string {
   if (item.entityType === "SALE") return routes.adminReportsDaily;
+  // The Staff screen is where a temporary password is set, and it marks the
+  // person who asked, so the owner lands on the fix rather than a description.
+  if (item.entityType === "STAFF") return routes.adminStaff;
 
   const sku = item.detail.split(" ")[0];
   return `${routes.adminInventory}?q=${encodeURIComponent(sku)}`;

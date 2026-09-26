@@ -14,9 +14,9 @@ export const metadata: Metadata = {
 /**
  * `/admin/forgot-password` — asks for a reset link by email.
  *
- * Offered on the admin portal only. Cashier accounts are reset by an
- * administrator in person, so the till's sign-in page shows no link rather than
- * a dead end.
+ * Email only: the owners' accounts have addresses. The till has its own page,
+ * `/cashier/forgot-password`, which can also ask an owner for help, because
+ * most cashier accounts do not.
  */
 export default function ForgotPasswordPage() {
   return (
@@ -28,7 +28,7 @@ export default function ForgotPasswordPage() {
       />
 
       <div className="mt-8 sm:mt-10">
-        <ForgotPasswordForm />
+        <ForgotPasswordForm portal="admin" />
       </div>
     </div>
   );

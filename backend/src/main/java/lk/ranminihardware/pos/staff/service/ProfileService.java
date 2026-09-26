@@ -122,6 +122,9 @@ public class ProfileService {
     }
 
     member.setPasswordHash(passwords.encode(newPassword));
+    // A password the person chose themselves settles any recovery in progress.
+    member.setPasswordChangeRequired(false);
+    member.setPasswordHelpRequestedAt(null);
     return staff.save(member);
   }
 

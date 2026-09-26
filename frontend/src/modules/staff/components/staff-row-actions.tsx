@@ -1,27 +1,36 @@
 "use client";
 
-import { KeyRound, UserCheck, UserX } from "lucide-react";
+import { KeyRound, Mail, UserCheck, UserX } from "lucide-react";
 import * as React from "react";
 
 import { Alert, type AlertTone } from "@/shared/components/ui/alert";
 import { Button } from "@/shared/components/ui/button";
 import { PasswordField } from "@/shared/components/ui/password-field";
+import { TextField } from "@/shared/components/ui/text-field";
 
-import { changeStaffPassword, setStaffActive } from "../actions";
+import { changeStaffPassword, setStaffActive, setStaffEmail } from "../actions";
 import type { StaffMember } from "../types/staff.types";
 
+/** Which inline form is open on this row. One at a time, never both. */
+type Panel = "password" | "email" | null;
+
 /**
- * The two things an admin does to somebody else's account: reset the password,
- * or stop them signing in.
+ * What an admin does to somebody else's account: set a temporary password, set
+ * the email address that lets them reset one themselves, or stop them signing in.
  *
- * <p>Both are deliberately a little effortful. The password form has to be
- * opened before it can be used, and deactivation asks for confirmation, because
- * these sit in a list where the row above and the row below look identical and
- * a misplaced click would otherwise lock the wrong person out mid-shift.
+ * <p>All deliberately a little effortful. Each form has to be opened before it
+ * can be used, and deactivation asks for confirmation, because these sit in a
+ * list where the row above and the row below look identical and a misplaced
+ * click would otherwise lock the wrong person out mid-shift.
  */
 export function StaffRowActions({ staff }: { staff: StaffMember }) {
-  const [isResetting, setIsResetting] = React.useState(false);
+  // Opened already for somebody who asked for help: setting them a password is
+  // the reason the owner is looking at this row.
+  const [panel, setPanel] = React.useState<Panel>(
+    staff.passwordHelpRequestedAt ? "password" : null,
+  );
   const [password, setPassword] = React.useState("");
+  const [email, setEmail] = React.useState(staff.email);
   const [isConfirmingDisable, setIsConfirmingDisable] = React.useState(false);
   const [isPending, setIsPending] = React.useState(false);
   const [notice, setNotice] = React.useState<{ tone: AlertTone; message: string } | null>(
@@ -29,6 +38,13 @@ export function StaffRowActions({ staff }: { staff: StaffMember }) {
   );
 
   const isActive = staff.status === "ACTIVE";
+
+  const togglePanel = (next: Exclude<Panel, null>) => {
+    setPanel((open) => (open === next ? null : next));
+    setNotice(null);
+    // Reopening starts from what is saved, not from a half-typed edit.
+    setEmail(staff.email);
+  };
 
   const handleResetPassword = async () => {
     setIsPending(true);
@@ -40,8 +56,17 @@ export function StaffRowActions({ staff }: { staff: StaffMember }) {
     if (result.success) {
       // The new password must not linger in the DOM once it has been set.
       setPassword("");
-      setIsResetting(false);
+      setPanel(null);
     }
+  };
+
+  const handleSaveEmail = async (address: string) => {
+    setIsPending(true);
+    const result = await setStaffEmail(staff.id, address);
+    setIsPending(false);
+
+    setNotice({ tone: result.success ? "success" : "danger", message: result.message });
+    if (result.success) setPanel(null);
   };
 
   const handleToggleActive = async () => {
@@ -58,16 +83,14 @@ export function StaffRowActions({ staff }: { staff: StaffMember }) {
       {notice ? <Alert tone={notice.tone} message={notice.message} /> : null}
 
       <div className="flex flex-wrap gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => {
-            setIsResetting((open) => !open);
-            setNotice(null);
-          }}
-        >
+        <Button variant="secondary" size="sm" onClick={() => togglePanel("password")}>
           <KeyRound aria-hidden className="size-4" />
-          {isResetting ? "Cancel" : "Set password"}
+          {panel === "password" ? "Cancel" : "Set temporary password"}
+        </Button>
+
+        <Button variant="secondary" size="sm" onClick={() => togglePanel("email")}>
+          <Mail aria-hidden className="size-4" />
+          {panel === "email" ? "Cancel" : staff.email ? "Change email" : "Add email"}
         </Button>
 
         {isConfirmingDisable ? (
@@ -84,7 +107,7 @@ export function StaffRowActions({ staff }: { staff: StaffMember }) {
               isLoading={isPending}
               loadingText="Working…"
               onClick={handleToggleActive}
-              className="bg-danger hover:bg-danger/90"
+              className="bg-danger text-on-danger hover:bg-danger/90"
             >
               <UserX aria-hidden className="size-4" />
               Confirm deactivate
@@ -94,7 +117,7 @@ export function StaffRowActions({ staff }: { staff: StaffMember }) {
           <Button
             variant="secondary"
             size="sm"
-            isLoading={isPending && !isResetting}
+            isLoading={isPending && panel === null}
             loadingText="Working…"
             onClick={() =>
               isActive ? setIsConfirmingDisable(true) : void handleToggleActive()
@@ -115,10 +138,10 @@ export function StaffRowActions({ staff }: { staff: StaffMember }) {
         )}
       </div>
 
-      {isResetting ? (
+      {panel === "password" ? (
         <div className="space-y-3 rounded-lg border border-line bg-canvas-subtle p-3">
           <PasswordField
-            label={`New password for ${staff.fullName}`}
+            label={`Temporary password for ${staff.fullName}`}
             placeholder="••••••••"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
@@ -127,7 +150,9 @@ export function StaffRowActions({ staff }: { staff: StaffMember }) {
             autoComplete="new-password"
           />
           <p className="text-xs leading-relaxed text-muted">
-            Give this to {staff.fullName} directly. It is not shown again.
+            Give this to {staff.fullName} in person. It is not shown again, and
+            they will be asked to replace it with their own the next time they
+            sign in.
           </p>
           <Button
             size="sm"
@@ -139,6 +164,60 @@ export function StaffRowActions({ staff }: { staff: StaffMember }) {
             Save password
           </Button>
         </div>
+      ) : null}
+
+      {panel === "email" ? (
+        <form
+          // A form, so Enter saves. `method="post"` keeps a pre-hydration submit
+          // from putting the address in the URL.
+          method="post"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSaveEmail(email);
+          }}
+          className="space-y-3 rounded-lg border border-line bg-canvas-subtle p-3"
+        >
+          <TextField
+            label={`Email for ${staff.fullName}`}
+            type="email"
+            inputMode="email"
+            placeholder="name@example.com"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            autoFocus
+          />
+          <p className="text-xs leading-relaxed text-muted">
+            With an address, {staff.fullName} can reset a forgotten password
+            themselves from the sign-in page. Without one, they ask you.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="submit"
+              size="sm"
+              isLoading={isPending}
+              loadingText="Saving…"
+              disabled={email.trim() === staff.email}
+            >
+              Save email
+            </Button>
+            {staff.email ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={isPending}
+                onClick={() => void handleSaveEmail("")}
+                className="text-danger hover:bg-danger-soft"
+              >
+                Remove email
+              </Button>
+            ) : null}
+          </div>
+        </form>
       ) : null}
     </div>
   );

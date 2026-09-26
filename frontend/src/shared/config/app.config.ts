@@ -41,6 +41,19 @@ export const routes = {
    * other sends staff to a 404.
    */
   resetPassword: "/admin/reset-password",
+  /**
+   * Where a signed-in administrator is sent to replace a temporary password.
+   * The backend will let such a session do nothing else, so nor does the portal.
+   */
+  adminSetPassword: "/admin/set-password",
+
+  // Till account recovery. Two ways in, because most cashiers have no email
+  // address: a link for those who do, and a request to the owner for those who
+  // do not — see the cashier forgot-password page.
+  cashierForgotPassword: "/cashier/forgot-password",
+  /** Kept in step with the backend's `ranmini.app.cashier-reset-url`. */
+  cashierResetPassword: "/cashier/reset-password",
+  cashierSetPassword: "/cashier/set-password",
 
   // Management portal
   adminDashboard: "/admin/dashboard",
