@@ -146,7 +146,7 @@ public class CategoryService {
    * transliteration step; the shop names its shelves in English today, and
    * guessing at a scheme now would be harder to undo than to add later.
    */
-  static String toSlug(String name) {
+  public static String toSlug(String name) {
     String slug =
         name.trim()
             .toLowerCase(Locale.ROOT)
