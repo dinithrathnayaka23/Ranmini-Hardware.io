@@ -81,6 +81,27 @@ public class StaffMember {
   private Instant lockedUntil;
 
   /**
+   * Whether the current password was chosen by somebody else and must be
+   * replaced at the next sign-in.
+   *
+   * <p>Set when an administrator issues a temporary password. Until the person
+   * chooses their own, their session can do nothing except that — so the owner
+   * who read the temporary password out loud never ends up knowing a password
+   * the cashier actually uses.
+   */
+  @Builder.Default private boolean passwordChangeRequired = false;
+
+  /**
+   * When this person last asked, from the sign-in page, for the owner to reset
+   * their password; null when no request is open.
+   *
+   * <p>This is the recovery route for accounts with no email address, which is
+   * most cashiers. It surfaces in the administrators' notification feed and is
+   * cleared the moment the password changes by any route.
+   */
+  private Instant passwordHelpRequestedAt;
+
+  /**
    * When this person last opened the notification panel, or null if never.
    *
    * <p>One timestamp rather than a read/unread flag per notification, because

@@ -2,6 +2,7 @@ package lk.ranminihardware.pos.staff.service;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Locale;
 import lk.ranminihardware.pos.settings.service.SettingsService;
 import lk.ranminihardware.pos.shared.error.ApiException;
@@ -10,7 +11,9 @@ import lk.ranminihardware.pos.staff.domain.StaffRole;
 import lk.ranminihardware.pos.staff.domain.StaffStatus;
 import lk.ranminihardware.pos.staff.repository.StaffRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -97,20 +100,74 @@ public class StaffService {
   }
 
   /**
-   * Sets a new password.
+   * Sets a temporary password on somebody else's account.
    *
    * <p>Changing it also clears any lockout: an administrator resetting a
    * forgotten password has plainly established who the person is, and leaving
-   * them locked out afterwards would be a support call for nothing.
+   * them locked out afterwards would be a support call for nothing. It also
+   * closes any open request for help, since this is the answer to it.
+   *
+   * <p><b>The password is temporary.</b> The account is flagged so that its next
+   * session can do nothing but choose a replacement. The administrator has seen
+   * this password, and probably said it out loud at the counter; a password
+   * other people know is not a credential that identifies anyone.
    */
   public StaffMember changePassword(String id, String rawPassword) {
     validatePassword(rawPassword);
 
     StaffMember member = get(id);
     member.setPasswordHash(passwords.encode(rawPassword));
+    member.setPasswordChangeRequired(true);
+    member.setPasswordHelpRequestedAt(null);
     member.setFailedLoginAttempts(0);
     member.setLockedUntil(null);
     return staff.save(member);
+  }
+
+  /**
+   * Replaces a temporary password with one the person chose.
+   *
+   * <p>Refused unless the account is actually flagged. The session calling this
+   * has proved it knows the temporary password, not the person's real one, so
+   * outside that one situation it must not be a way to change a password
+   * without supplying the current one.
+   *
+   * <p>The new password must differ from the temporary one; otherwise the
+   * administrator who issued it would still know it.
+   */
+  public StaffMember chooseOwnPassword(String id, String rawPassword) {
+    StaffMember member = get(id);
+
+    if (!member.isPasswordChangeRequired()) {
+      throw new ApiException(
+          HttpStatus.CONFLICT,
+          "PASSWORD_CHANGE_NOT_REQUIRED",
+          "Your password has already been set. Change it from your profile instead.");
+    }
+
+    validatePassword(rawPassword);
+
+    if (member.getPasswordHash() != null && passwords.matches(rawPassword, member.getPasswordHash())) {
+      throw ApiException.badRequest(
+          "PASSWORD_UNCHANGED",
+          "Choose a password of your own, different from the temporary one you were given.");
+    }
+
+    member.setPasswordHash(passwords.encode(rawPassword));
+    member.setPasswordChangeRequired(false);
+    member.setPasswordHelpRequestedAt(null);
+    return staff.save(member);
+  }
+
+  /**
+   * Accounts whose holder has asked the owner for a new password, newest first.
+   *
+   * <p>Capped, and served by a sparse index that only holds open requests, so it
+   * stays cheap however many staff records the shop accumulates.
+   */
+  public List<StaffMember> pendingPasswordHelp(int limit) {
+    return staff.findByPasswordHelpRequestedAtIsNotNullAndStatusOrderByPasswordHelpRequestedAtDesc(
+        StaffStatus.ACTIVE, PageRequest.of(0, Math.clamp(limit, 1, 50)));
   }
 
   /**

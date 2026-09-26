@@ -279,6 +279,14 @@ public class MongoIndexInitializer {
             .on("status", Sort.Direction.ASC)
             .on("fullName", Sort.Direction.ASC)
             .named("ix_staff_status_name"));
+
+    // Open password-help requests, for the administrators' notification feed.
+    // Sparse, so only the few accounts with a request open are in it at all.
+    ops.createIndex(
+        new Index()
+            .on("passwordHelpRequestedAt", Sort.Direction.DESC)
+            .sparse()
+            .named("ix_staff_password_help"));
   }
 
   /**

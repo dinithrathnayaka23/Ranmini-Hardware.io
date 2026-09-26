@@ -182,7 +182,11 @@ public class StaffController {
       LocalDate joinedOn,
       Instant lastActiveAt,
       /** Null when there is no picture; otherwise the cache-busting token. */
-      Instant avatarVersion) {
+      Instant avatarVersion,
+      /** Signing in will ask them to replace a password an administrator set. */
+      boolean passwordChangeRequired,
+      /** When they asked for a reset from the sign-in page; null when no request is open. */
+      Instant passwordHelpRequestedAt) {
 
     static Response from(StaffMember m) {
       return new Response(
@@ -195,7 +199,9 @@ public class StaffController {
           m.getStatus(),
           m.getJoinedOn(),
           m.getLastActiveAt(),
-          m.getAvatarVersion());
+          m.getAvatarVersion(),
+          m.isPasswordChangeRequired(),
+          m.getPasswordHelpRequestedAt());
     }
   }
 
