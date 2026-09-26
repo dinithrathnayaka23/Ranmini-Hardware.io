@@ -19,10 +19,12 @@ import { apiFetchRaw } from "@/shared/lib/api.server";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  // Only one value is passed on; anything else means the original.
+  const thumb = new URL(request.url).searchParams.get("size") === "thumb";
 
   // Either portal: a cashier needs product pictures because they are the tiles
   // on the till, and an administrator needs them on the inventory screen.
@@ -32,7 +34,7 @@ export async function GET(
   }
 
   const response = await apiFetchRaw(
-    `/api/v1/inventory/products/${encodeURIComponent(id)}/image`,
+    `/api/v1/inventory/products/${encodeURIComponent(id)}/image${thumb ? "?size=thumb" : ""}`,
     session.portal,
   );
 

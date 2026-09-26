@@ -251,6 +251,52 @@ export async function apiFetchMultipart<T>(
   return (await response.json()) as T;
 }
 
+/**
+ * Posts a text body — a CSV file — to the backend, and parses the JSON answer.
+ *
+ * <p>The timeout is the caller's, not the usual one: checking a spreadsheet of
+ * tens of thousands of rows legitimately takes longer than an ordinary request,
+ * and cutting it off at the normal limit would report a working import as a
+ * network failure.
+ */
+export async function apiPostText<T>(
+  path: string,
+  body: string,
+  contentType: string,
+  session: ApiSession,
+  timeoutMs: number,
+): Promise<T> {
+  const { API_BASE_URL } = getServerEnv();
+
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "Content-Type": contentType,
+  };
+  const token = await tokenFor(session);
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: "POST",
+      headers,
+      body,
+      signal: controller.signal,
+      cache: "no-store",
+    });
+  } catch {
+    throw new ApiError(errorMessages.network, 503);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!response.ok) throw new ApiError(await readMessage(response), response.status);
+  return (await response.json()) as T;
+}
+
 /** Shape of the backend's paged responses. */
 export interface PageResponse<T> {
   content: T[];

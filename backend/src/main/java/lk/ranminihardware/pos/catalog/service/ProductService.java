@@ -17,11 +17,13 @@ import lk.ranminihardware.pos.catalog.repository.dto.InventorySummary;
 import lk.ranminihardware.pos.catalog.repository.dto.ProductSearchCriteria;
 import lk.ranminihardware.pos.shared.error.ApiException;
 import lk.ranminihardware.pos.shared.media.ImageBytes;
+import lk.ranminihardware.pos.shared.media.Thumbnails;
 import lk.ranminihardware.pos.settings.service.SettingsService;
 import lk.ranminihardware.pos.shared.money.Money;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 
 /**
@@ -40,6 +42,7 @@ public class ProductService {
   private final CategoryService categories;
   private final CatalogApiAdapter stock;
   private final SettingsService settings;
+  private final InventorySummaryCache summary;
   private final Clock clock;
 
   public ProductService(
@@ -48,17 +51,29 @@ public class ProductService {
       CategoryService categories,
       CatalogApiAdapter stock,
       SettingsService settings,
+      InventorySummaryCache summary,
       Clock clock) {
     this.products = products;
     this.images = images;
     this.categories = categories;
     this.stock = stock;
     this.settings = settings;
+    this.summary = summary;
     this.clock = clock;
   }
 
   public Page<Product> search(ProductSearchCriteria criteria, Pageable pageable) {
     return products.search(criteria, pageable);
+  }
+
+  /** The till's catalogue: sellable products only, and no total. */
+  public Slice<Product> searchSellable(String term, String categoryId, Pageable pageable) {
+    return products.searchSlice(ProductSearchCriteria.sellable(term, categoryId), pageable);
+  }
+
+  /** A sellable product by its exact shelf code, for the till's Enter key. */
+  public Optional<Product> findSellableBySku(String sku) {
+    return products.findBySku(ProductRepository.normaliseSku(sku)).filter(Product::isActive);
   }
 
   public Product get(String id) {
@@ -67,12 +82,13 @@ public class ProductService {
 
   public Product getBySku(String sku) {
     return products
-        .findBySkuIgnoreCase(sku)
+        .findBySku(ProductRepository.normaliseSku(sku))
         .orElseThrow(() -> ApiException.notFound("Product with SKU", sku));
   }
 
+  /** Catalogue totals, recounted at most every few seconds — see InventorySummaryCache. */
   public InventorySummary summarise() {
-    return products.summarise();
+    return summary.get();
   }
 
   /** The dashboard's low-stock panel: the most urgent lines, capped. */
@@ -83,10 +99,10 @@ public class ProductService {
   }
 
   public Product create(ProductWrite write) {
-    String sku = write.sku().trim().toUpperCase();
+    String sku = ProductRepository.normaliseSku(write.sku());
 
     // Checked for a readable message; the unique index is the real guarantee.
-    if (products.existsBySkuIgnoreCase(sku)) {
+    if (products.existsBySku(sku)) {
       throw ApiException.conflict("SKU_EXISTS", "A product with SKU %s already exists.".formatted(sku));
     }
 
@@ -110,7 +126,9 @@ public class ProductService {
             .build();
 
     product.refreshStatus();
-    return products.save(product);
+    Product saved = products.save(product);
+    summary.invalidate();
+    return saved;
   }
 
   /**
@@ -148,7 +166,9 @@ public class ProductService {
     product.setReorderLevel(write.reorderLevel());
     product.refreshStatus();
 
-    return products.save(product);
+    Product saved = products.save(product);
+    summary.invalidate();
+    return saved;
   }
 
   /**
@@ -161,14 +181,18 @@ public class ProductService {
   public Product deactivate(String id) {
     Product product = get(id);
     product.setActive(false);
-    return products.save(product);
+    Product saved = products.save(product);
+    summary.invalidate();
+    return saved;
   }
 
   public Product reactivate(String id) {
     Product product = get(id);
     product.setActive(true);
     product.refreshStatus();
-    return products.save(product);
+    Product saved = products.save(product);
+    summary.invalidate();
+    return saved;
   }
 
   /**
@@ -213,6 +237,7 @@ public class ProductService {
       revalue(id, before, delta, unitCost);
     }
 
+    summary.invalidate();
     return get(id);
   }
 
@@ -291,11 +316,17 @@ public class ProductService {
     Product product = get(id);
     Instant now = Instant.now(clock);
 
+    // Made once here rather than on every request: a till page asks for sixty
+    // of these at a time, and scaling is the expensive part.
+    Optional<Thumbnails.Thumbnail> thumbnail = Thumbnails.of(data);
+
     images.save(
         ProductImage.builder()
             .id(product.getId())
             .contentType(ImageBytes.normaliseType(contentType))
             .data(data)
+            .thumbnail(thumbnail.map(Thumbnails.Thumbnail::data).orElse(null))
+            .thumbnailType(thumbnail.map(Thumbnails.Thumbnail::contentType).orElse(null))
             .updatedAt(now)
             .build());
 
@@ -324,6 +355,42 @@ public class ProductService {
   /** The stored photograph, for the endpoint that serves the bytes. */
   public Optional<ProductImage> findImage(String productId) {
     return images.findById(productId);
+  }
+
+  /**
+   * The tile-sized copy of a product's picture: its bytes and type.
+   *
+   * <p>A picture uploaded before thumbnails existed gets one made on this first
+   * request and saved, so older photographs catch up without a migration. When
+   * none can be made (WebP), the original is returned instead.
+   */
+  public Optional<ImageBytes.Stored> findThumbnail(String productId) {
+    Optional<ProductImage> light = images.findThumbnailById(productId);
+    if (light.isEmpty()) return Optional.empty();
+
+    ProductImage thumb = light.get();
+    if (thumb.getThumbnail() != null) {
+      return Optional.of(new ImageBytes.Stored(thumb.getThumbnail(), thumb.getThumbnailType()));
+    }
+
+    // No thumbnail yet — uploaded before they existed — or none possible (WebP).
+    // Either way the original is needed now.
+    return images
+        .findById(productId)
+        .map(
+            image -> {
+              if (image.getThumbnailType() == null) {
+                Optional<Thumbnails.Thumbnail> made = Thumbnails.of(image.getData());
+                image.setThumbnail(made.map(Thumbnails.Thumbnail::data).orElse(null));
+                // Recorded even when none could be made, so a WebP is not
+                // re-attempted on every request.
+                image.setThumbnailType(made.map(Thumbnails.Thumbnail::contentType).orElse("none"));
+                images.save(image);
+              }
+              return image.getThumbnail() != null
+                  ? new ImageBytes.Stored(image.getThumbnail(), image.getThumbnailType())
+                  : new ImageBytes.Stored(image.getData(), image.getContentType());
+            });
   }
 
   /**

@@ -2,6 +2,7 @@ package lk.ranminihardware.pos.catalog.domain;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -102,6 +103,15 @@ public class Product {
    */
   @Builder.Default private boolean active = true;
 
+  /**
+   * The lower-cased words of the name, brand and SKU, for type-ahead search.
+   *
+   * <p>Derived, never edited: {@link SearchKeysOnSave} recomputes it on every
+   * save, so no write path can leave it out of step with the name. See
+   * {@link SearchKeys} for why this exists instead of a text index.
+   */
+  private List<String> searchKeys;
+
   @CreatedDate private Instant createdAt;
 
   @LastModifiedDate private Instant updatedAt;
@@ -114,6 +124,11 @@ public class Product {
   @Version private Long version;
 
   /** Recomputes {@link #status} from the current stock and reorder level. */
+  /** Recomputes {@link #searchKeys} from the current name, brand and SKU. */
+  public void refreshSearchKeys() {
+    this.searchKeys = SearchKeys.forProduct(this.name, this.brand, this.sku);
+  }
+
   public void refreshStatus() {
     this.status = StockStatus.of(this.stock, this.reorderLevel);
   }

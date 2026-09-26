@@ -1,11 +1,17 @@
 package lk.ranminihardware.pos.catalog.repository;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lk.ranminihardware.pos.catalog.domain.Product;
 import lk.ranminihardware.pos.catalog.repository.dto.InventorySummary;
+import lk.ranminihardware.pos.catalog.repository.dto.ProductDetails;
+import lk.ranminihardware.pos.catalog.repository.dto.ProductDetailsUpdate;
 import lk.ranminihardware.pos.catalog.repository.dto.ProductSearchCriteria;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 
 /**
  * Product queries that derived repository methods cannot express.
@@ -46,13 +52,23 @@ public interface ProductRepositoryCustom {
   Optional<Product> incrementStock(String productId, int quantity);
 
   /**
-   * The admin inventory table: text search, filters, and paging in one query.
+   * The admin inventory table: type-ahead search, filters, and paging in one query.
    *
-   * <p>Uses the text index rather than a regex. An unanchored {@code /term/}
-   * cannot use an index at all, so it degrades to a full collection scan on
-   * every keystroke — fine on the seed data, fatal on a real catalogue.
+   * <p>Words are matched as prefixes of stored search keys (see {@code
+   * SearchKeys}), never as an unanchored {@code /term/}, which cannot use an
+   * index and degrades to a full collection scan on every keystroke.
    */
   Page<Product> search(ProductSearchCriteria criteria, Pageable pageable);
+
+  /**
+   * The same search without the total, for the till.
+   *
+   * <p>The till only needs to know whether there is more to scroll to, and a
+   * count of every match on every keystroke is the most expensive part of a
+   * broad search ("a" matches most of the catalogue). Reading one row past the
+   * page answers "is there more" for the price of that one row.
+   */
+  Slice<Product> searchSlice(ProductSearchCriteria criteria, Pageable pageable);
 
   /**
    * The four figures on the inventory summary cards.
@@ -62,4 +78,29 @@ public interface ProductRepositoryCustom {
    * catalogue into memory to add it up.
    */
   InventorySummary summarise();
+
+  /**
+   * Inserts new products in one unordered batch.
+   *
+   * @return the SKUs that could not be inserted because they already exist —
+   *     created by someone else since the import checked — so the caller can
+   *     report them rather than lose them silently
+   */
+  List<String> insertAll(List<Product> products);
+
+  /**
+   * Updates the descriptive fields of existing products, matched by SKU, in one
+   * batch — leaving stock untouched and recomputing the stock status from the
+   * new reorder level.
+   *
+   * @return how many products were updated
+   */
+  long updateDetails(List<ProductDetailsUpdate> updates);
+
+  /**
+   * The importable fields of the products with these SKUs, keyed by SKU; absent
+   * SKUs are simply missing from the map. One indexed query, reading only those
+   * fields.
+   */
+  Map<String, ProductDetails> detailsBySku(Collection<String> skus);
 }

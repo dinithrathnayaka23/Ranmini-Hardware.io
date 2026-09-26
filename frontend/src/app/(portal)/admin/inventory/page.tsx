@@ -1,4 +1,4 @@
-import { Network, Plus } from "lucide-react";
+import { FileSpreadsheet, Network, Plus } from "lucide-react";
 import type { Metadata } from "next";
 
 import { InventoryTable } from "@/modules/inventory/components/inventory-table";
@@ -60,6 +60,10 @@ export default async function AdminInventoryPage({
             >
               <Network aria-hidden className="size-4" />
               Manage Categories
+            </ButtonLink>
+            <ButtonLink href={routes.adminInventoryImport} variant="secondary" size="sm">
+              <FileSpreadsheet aria-hidden className="size-4" />
+              Import
             </ButtonLink>
             <ButtonLink href={routes.adminInventoryNew} size="sm">
               <Plus aria-hidden className="size-4" />

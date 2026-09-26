@@ -22,6 +22,12 @@
 export type PosStockStatus = "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
 
 /** A product as the till needs it: enough to show, price and sell. */
+/** One page of the till's catalogue, and whether another follows. */
+export interface CataloguePage {
+  items: PosProduct[];
+  hasMore: boolean;
+}
+
 export interface PosProduct {
   id: string;
   sku: string;

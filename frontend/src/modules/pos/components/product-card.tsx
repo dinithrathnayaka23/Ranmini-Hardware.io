@@ -6,7 +6,7 @@ import * as React from "react";
 
 import { cn } from "@/shared/lib/cn";
 import { formatCurrency } from "@/shared/lib/format";
-import { productImageUrl } from "@/shared/lib/product-image-url";
+import { isProxiedImage, productImageUrl } from "@/shared/lib/product-image-url";
 
 import type { PosProduct } from "../types/pos.types";
 import { useCurrency } from "@/shared/components/shop-provider";
@@ -163,7 +163,8 @@ function ProductImage({ product }: { product: PosProduct }) {
   const [hasFailed, setHasFailed] = React.useState(false);
 
   // An uploaded photograph if there is one, the bundled path otherwise.
-  const url = productImageUrl(product);
+  // The tile-sized copy: sixty full photographs per page would be tens of MB.
+  const url = productImageUrl(product, "thumb");
 
   if (!url || hasFailed) {
     return (
@@ -181,6 +182,9 @@ function ProductImage({ product }: { product: PosProduct }) {
       // Cards are roughly a quarter of the catalogue column, itself ~60% of the
       // viewport, and never wider than ~260px on a desktop till.
       sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 15vw"
+      // Uploaded photographs come through the signed-in proxy, which the image
+      // optimiser cannot reach — see isProxiedImage.
+      unoptimized={isProxiedImage(url)}
       onError={() => setHasFailed(true)}
       className="object-cover"
     />

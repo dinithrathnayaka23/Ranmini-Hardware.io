@@ -1,15 +1,14 @@
 package lk.ranminihardware.pos.catalog.web;
 
 import java.util.Set;
-import lk.ranminihardware.pos.catalog.domain.Product;
-import lk.ranminihardware.pos.catalog.repository.dto.ProductSearchCriteria;
 import lk.ranminihardware.pos.catalog.service.ProductService;
+import lk.ranminihardware.pos.shared.error.ApiException;
 import lk.ranminihardware.pos.shared.web.PageQuery;
-import lk.ranminihardware.pos.shared.web.PageResponse;
-import org.springframework.data.domain.Page;
+import lk.ranminihardware.pos.shared.web.SliceResponse;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -44,11 +43,15 @@ public class PosCatalogController {
    * <p>Paged even though the till renders a wall of cards: a hardware shop's
    * catalogue is thousands of lines, and sending all of them to a counter
    * machine on every page load would be slow on the wire before it was slow to
-   * render. The frontend's search and category chips map onto the parameters
+   * render. The till's search box and category chips map onto the parameters
    * here, so filtering narrows the query rather than the rendered list.
+   *
+   * <p>Answers with a slice — the page and whether there is more — rather than a
+   * page with a total. The till scrolls; it never shows "page 4 of 500", and
+   * counting every match on every keystroke was the costliest part of a search.
    */
   @GetMapping("/products")
-  public PageResponse<ProductDtos.PosProduct> products(
+  public SliceResponse<ProductDtos.PosProduct> products(
       @RequestParam(required = false) String q,
       @RequestParam(required = false) String categoryId,
       @RequestParam(required = false) Integer page,
@@ -59,9 +62,22 @@ public class PosCatalogController {
 
     // `sellable` pins activeOnly to true, so a deactivated product can never
     // reach the till regardless of what the client asks for.
-    Page<Product> results =
-        products.search(ProductSearchCriteria.sellable(q, categoryId), pageable);
+    return SliceResponse.from(
+        products.searchSellable(q, categoryId, pageable), ProductDtos.PosProduct::from);
+  }
 
-    return PageResponse.from(results, ProductDtos.PosProduct::from);
+  /**
+   * One sellable product by its exact shelf code.
+   *
+   * <p>For the till's Enter key: a cashier who types a full SKU expects that
+   * item, even when other codes start with the same characters and it would not
+   * be first in an alphabetical list.
+   */
+  @GetMapping("/products/by-sku/{sku}")
+  public ProductDtos.PosProduct bySku(@PathVariable String sku) {
+    return products
+        .findSellableBySku(sku)
+        .map(ProductDtos.PosProduct::from)
+        .orElseThrow(() -> ApiException.notFound("Product with SKU", sku));
   }
 }

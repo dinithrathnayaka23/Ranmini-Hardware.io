@@ -47,6 +47,16 @@ public class ProductImage {
 
   private byte[] data;
 
+  /**
+   * A small JPEG copy for product tiles, made when the picture is uploaded — or
+   * the first time it is asked for, for pictures uploaded before thumbnails
+   * existed. Null when the format cannot be scaled (WebP); the original is then
+   * served in its place.
+   */
+  private byte[] thumbnail;
+
+  private String thumbnailType;
+
   /** Matches {@code Product.imageVersion}; the two are written together. */
   private Instant updatedAt;
 }

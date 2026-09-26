@@ -70,6 +70,9 @@ public final class ImageBytes {
 
   private ImageBytes() {}
 
+  /** Stored picture bytes and the type to serve them as. */
+  public record Stored(byte[] data, String contentType) {}
+
   /**
    * @param maxBytes the ceiling for this kind of upload — see the constants above
    * @throws ApiException when the upload is too large, the wrong type, or does

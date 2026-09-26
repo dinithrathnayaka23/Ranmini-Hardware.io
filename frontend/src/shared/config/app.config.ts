@@ -67,6 +67,8 @@ export const routes = {
    */
   adminInventoryEdit: (id: string) => `/admin/inventory/${encodeURIComponent(id)}/edit`,
   adminInventoryCategories: "/admin/inventory/categories",
+  /** Adding and updating products in bulk from a spreadsheet. */
+  adminInventoryImport: "/admin/inventory/import",
   adminReports: "/admin/reports",
   adminReportsDaily: "/admin/reports/daily",
   adminStaff: "/admin/staff",

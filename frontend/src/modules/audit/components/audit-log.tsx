@@ -1,5 +1,6 @@
 import {
   Ban,
+  FileSpreadsheet,
   KeyRound,
   PackageMinus,
   PackagePlus,
@@ -127,6 +128,8 @@ function presentation(action: AuditAction) {
       return { Icon: PackageMinus, tint: "bg-warning-soft text-warning" };
     case "PRODUCT_RESTORED":
       return { Icon: PackagePlus, tint: "bg-success-soft text-success" };
+    case "PRODUCTS_IMPORTED":
+      return { Icon: FileSpreadsheet, tint: "bg-brand-50 text-brand-600" };
     case "STAFF_CREATED":
       return { Icon: UserPlus, tint: "bg-success-soft text-success" };
     case "STAFF_DEACTIVATED":

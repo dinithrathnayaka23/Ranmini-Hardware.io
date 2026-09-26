@@ -7,7 +7,6 @@ import lk.ranminihardware.pos.catalog.domain.Product;
 import lk.ranminihardware.pos.catalog.domain.StockStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
 
 /**
  * Product persistence.
@@ -18,10 +17,22 @@ import org.springframework.data.mongodb.repository.Query;
  */
 public interface ProductRepository extends MongoRepository<Product, String>, ProductRepositoryCustom {
 
-  /** Shelf-code lookup — served by the unique index on sku. */
-  Optional<Product> findBySkuIgnoreCase(String sku);
+  /**
+   * Shelf-code lookup, by the exact upper-case code.
+   *
+   * <p>Exact rather than {@code IgnoreCase}, which Spring turns into a
+   * case-insensitive regular expression that walks every key in the index. SKUs
+   * are always stored upper-case (see {@link #normaliseSku}), so upper-casing the
+   * input gives the same answer from a single index lookup.
+   */
+  Optional<Product> findBySku(String sku);
 
-  boolean existsBySkuIgnoreCase(String sku);
+  boolean existsBySku(String sku);
+
+  /** The one spelling a SKU is stored and looked up in. */
+  static String normaliseSku(String sku) {
+    return sku == null ? null : sku.trim().toUpperCase(java.util.Locale.ROOT);
+  }
 
   /**
    * Loads several products by id in one round trip.
@@ -43,12 +54,4 @@ public interface ProductRepository extends MongoRepository<Product, String>, Pro
 
   long countByCategoryIdAndActiveIsTrue(String categoryId);
 
-  /**
-   * Projection for the category rename fan-out: ids only.
-   *
-   * Reading whole product documents to update one denormalised field would pull
-   * the entire category into memory for nothing.
-   */
-  @Query(value = "{ 'categoryId': ?0 }", fields = "{ '_id': 1 }")
-  List<Product> findIdsByCategoryId(String categoryId);
 }

@@ -41,7 +41,7 @@ export default async function CashierPosPage() {
   // them showed the owner a 403 error page about half the time instead of
   // sending them to their dashboard. The guard's verdict has to outrank
   // anything the data says.
-  const [user, categories, products, shop, alerts] = await guardedLoad(
+  const [user, categories, catalogue, shop, alerts] = await guardedLoad(
     requireCashier(),
     fetchCategories(),
     fetchProducts(),
@@ -60,7 +60,7 @@ export default async function CashierPosPage() {
   return (
     <ShopProvider settings={shop}>
       <PosTerminal
-        products={products}
+        catalogue={catalogue}
         categories={categories}
         terminalName={TERMINAL_NAME}
         cashierName={user.fullName}

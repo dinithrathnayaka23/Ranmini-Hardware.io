@@ -131,6 +131,15 @@ management:
     health:
       probes:
         enabled: true
+  health:
+    mail:
+      # Mail is not part of whether the shop is up. Spring's mail health check
+      # opens a connection to the mail server on every probe: unconfigured, that
+      # reported the whole service DOWN (HTTP 503) and logged a stack trace per
+      # probe; configured, a Gmail hiccup would do the same to a till that is
+      # working perfectly. MailStartupCheck says plainly whether reset email
+      # works, once, at startup — which is where that belongs.
+      enabled: false
 
 # Application-specific settings, bound by typed @ConfigurationProperties rather
 # than scattered @Value annotations.

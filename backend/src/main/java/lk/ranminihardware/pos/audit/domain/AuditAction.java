@@ -29,6 +29,14 @@ public enum AuditAction {
 
   PRODUCT_RESTORED,
 
+  /**
+   * Products were added or updated in bulk from a spreadsheet.
+   *
+   * <p>One entry for the whole file rather than one per product: an import of
+   * thirty thousand lines would otherwise bury every other entry in the log.
+   */
+  PRODUCTS_IMPORTED,
+
   /** A new staff account was created, and can now sign in. */
   STAFF_CREATED,
 
