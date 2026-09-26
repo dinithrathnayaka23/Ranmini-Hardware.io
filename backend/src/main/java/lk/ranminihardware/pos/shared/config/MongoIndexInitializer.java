@@ -11,7 +11,6 @@ import org.springframework.data.mongodb.core.index.PartialIndexFilter;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.schema.JsonSchemaObject;
 import org.springframework.data.mongodb.core.index.IndexOperations;
-import org.springframework.data.mongodb.core.index.TextIndexDefinition;
 import org.springframework.stereotype.Component;
 
 /**
@@ -63,47 +62,86 @@ public class MongoIndexInitializer {
     }
   }
 
+  /**
+   * One index per query shape the product screens actually run.
+   *
+   * <p>Every list here is sorted by name, and an index only saves the sort when
+   * its fields are exactly the query's equality filters followed by name. So
+   * each combination the screens use gets its own: without one, MongoDB reads
+   * and sorts the whole catalogue in memory — imperceptible at a hundred
+   * products, over 300ms at thirty thousand, and on every page view.
+   */
   private void products() {
     IndexOperations ops = mongo.indexOps("products");
 
     // Unique so two products can never share a shelf code, which is what makes
-    // a code a usable way to identify one at the counter.
+    // a code a usable way to identify one at the counter. Also serves the exact
+    // SKU lookups: SKUs are stored upper-case, so no case-insensitive scan.
     ops.createIndex(new Index().on("sku", Sort.Direction.ASC).unique().named("uk_product_sku"));
 
-    // The till's catalogue: filter by category, order by name. Compound and in
-    // this order so the same index serves "all items" (sorted by name) via its
-    // prefix and a single category without a re-sort.
+    // Inventory, unfiltered: the default view of the whole catalogue, by name.
+    ops.createIndex(new Index().on("name", Sort.Direction.ASC).named("ix_product_name"));
+
+    // The till's "All items", and the inventory limited to active lines.
+    ops.createIndex(
+        new Index()
+            .on("active", Sort.Direction.ASC)
+            .on("name", Sort.Direction.ASC)
+            .named("ix_product_active_name"));
+
+    // The till's category chips, and the per-category product counts on the
+    // categories screen, which it answers from the index without reading a
+    // single product.
+    ops.createIndex(
+        new Index()
+            .on("active", Sort.Direction.ASC)
+            .on("categoryId", Sort.Direction.ASC)
+            .on("name", Sort.Direction.ASC)
+            .named("ix_product_active_category_name"));
+
+    // Inventory filtered to one category (active and withdrawn alike), and
+    // finding a category's products when it is renamed or removed.
     ops.createIndex(
         new Index()
             .on("categoryId", Sort.Direction.ASC)
             .on("name", Sort.Direction.ASC)
             .named("ix_product_category_name"));
 
-    // Powers the low-stock and out-of-stock dashboard panels, which would
-    // otherwise scan the whole catalogue to count a handful of rows.
+    // Inventory filtered by stock status, by name.
+    ops.createIndex(
+        new Index()
+            .on("status", Sort.Direction.ASC)
+            .on("name", Sort.Direction.ASC)
+            .named("ix_product_status_name"));
+
+    // The low-stock and out-of-stock panels: by status, most urgent first.
     ops.createIndex(
         new Index()
             .on("status", Sort.Direction.ASC)
             .on("stock", Sort.Direction.ASC)
             .named("ix_product_status_stock"));
 
-    // Only active products are sellable, and the till never asks for the rest.
     ops.createIndex(
         new Index()
             .on("active", Sort.Direction.ASC)
             .on("updatedAt", Sort.Direction.DESC)
             .named("ix_product_active_updated"));
 
-    // Free-text search over the name and SKU, for the admin inventory table.
-    // A text index rather than a regex: an unanchored regex cannot use a normal
-    // index at all and degrades to a full scan on every keystroke.
-    ops.createIndex(
-        TextIndexDefinition.builder()
-            .onField("name", 3F)
-            .onField("sku", 2F)
-            .onField("brand", 1F)
-            .named("tx_product_search")
-            .build());
+    // The type-ahead search index is created by the catalogue module's
+    // SearchKeyInitializer, straight after it fills in any missing keys.
+
+    // The text index this replaced matched whole words only, so nothing was
+    // found until a word was fully typed. Nothing queries it any more, and an
+    // unused index still costs a write on every sale, so it is removed.
+    dropIfPresent(ops, "tx_product_search");
+  }
+
+  /** Drops an index that has been retired, and says so; absent is fine. */
+  private void dropIfPresent(IndexOperations ops, String name) {
+    boolean present = ops.getIndexInfo().stream().anyMatch(info -> name.equals(info.getName()));
+    if (!present) return;
+    ops.dropIndex(name);
+    log.info("Dropped retired index {}", name);
   }
 
   private void categories() {

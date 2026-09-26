@@ -22,6 +22,7 @@ import lk.ranminihardware.pos.shared.money.Money;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 
 /**
@@ -40,6 +41,7 @@ public class ProductService {
   private final CategoryService categories;
   private final CatalogApiAdapter stock;
   private final SettingsService settings;
+  private final InventorySummaryCache summary;
   private final Clock clock;
 
   public ProductService(
@@ -48,17 +50,29 @@ public class ProductService {
       CategoryService categories,
       CatalogApiAdapter stock,
       SettingsService settings,
+      InventorySummaryCache summary,
       Clock clock) {
     this.products = products;
     this.images = images;
     this.categories = categories;
     this.stock = stock;
     this.settings = settings;
+    this.summary = summary;
     this.clock = clock;
   }
 
   public Page<Product> search(ProductSearchCriteria criteria, Pageable pageable) {
     return products.search(criteria, pageable);
+  }
+
+  /** The till's catalogue: sellable products only, and no total. */
+  public Slice<Product> searchSellable(String term, String categoryId, Pageable pageable) {
+    return products.searchSlice(ProductSearchCriteria.sellable(term, categoryId), pageable);
+  }
+
+  /** A sellable product by its exact shelf code, for the till's Enter key. */
+  public Optional<Product> findSellableBySku(String sku) {
+    return products.findBySku(ProductRepository.normaliseSku(sku)).filter(Product::isActive);
   }
 
   public Product get(String id) {
@@ -67,12 +81,13 @@ public class ProductService {
 
   public Product getBySku(String sku) {
     return products
-        .findBySkuIgnoreCase(sku)
+        .findBySku(ProductRepository.normaliseSku(sku))
         .orElseThrow(() -> ApiException.notFound("Product with SKU", sku));
   }
 
+  /** Catalogue totals, recounted at most every few seconds — see InventorySummaryCache. */
   public InventorySummary summarise() {
-    return products.summarise();
+    return summary.get();
   }
 
   /** The dashboard's low-stock panel: the most urgent lines, capped. */
@@ -83,10 +98,10 @@ public class ProductService {
   }
 
   public Product create(ProductWrite write) {
-    String sku = write.sku().trim().toUpperCase();
+    String sku = ProductRepository.normaliseSku(write.sku());
 
     // Checked for a readable message; the unique index is the real guarantee.
-    if (products.existsBySkuIgnoreCase(sku)) {
+    if (products.existsBySku(sku)) {
       throw ApiException.conflict("SKU_EXISTS", "A product with SKU %s already exists.".formatted(sku));
     }
 
@@ -110,7 +125,9 @@ public class ProductService {
             .build();
 
     product.refreshStatus();
-    return products.save(product);
+    Product saved = products.save(product);
+    summary.invalidate();
+    return saved;
   }
 
   /**
@@ -148,7 +165,9 @@ public class ProductService {
     product.setReorderLevel(write.reorderLevel());
     product.refreshStatus();
 
-    return products.save(product);
+    Product saved = products.save(product);
+    summary.invalidate();
+    return saved;
   }
 
   /**
@@ -161,14 +180,18 @@ public class ProductService {
   public Product deactivate(String id) {
     Product product = get(id);
     product.setActive(false);
-    return products.save(product);
+    Product saved = products.save(product);
+    summary.invalidate();
+    return saved;
   }
 
   public Product reactivate(String id) {
     Product product = get(id);
     product.setActive(true);
     product.refreshStatus();
-    return products.save(product);
+    Product saved = products.save(product);
+    summary.invalidate();
+    return saved;
   }
 
   /**
@@ -213,6 +236,7 @@ public class ProductService {
       revalue(id, before, delta, unitCost);
     }
 
+    summary.invalidate();
     return get(id);
   }
 

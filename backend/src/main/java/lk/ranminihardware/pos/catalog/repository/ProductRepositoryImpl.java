@@ -1,14 +1,24 @@
 package lk.ranminihardware.pos.catalog.repository;
 
-import com.mongodb.client.model.ReturnDocument;
+import com.mongodb.client.model.BulkWriteOptions;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
+import com.mongodb.client.model.ReturnDocument;
+import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.model.WriteModel;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lk.ranminihardware.pos.catalog.domain.Product;
+import lk.ranminihardware.pos.catalog.domain.SearchKeys;
 import lk.ranminihardware.pos.catalog.domain.StockStatus;
 import lk.ranminihardware.pos.catalog.repository.dto.InventorySummary;
+import lk.ranminihardware.pos.catalog.repository.dto.ProductDetails;
+import lk.ranminihardware.pos.catalog.repository.dto.ProductDetailsUpdate;
 import lk.ranminihardware.pos.catalog.repository.dto.ProductSearchCriteria;
 import org.bson.Document;
 import org.bson.types.Decimal128;
@@ -16,10 +26,13 @@ import org.bson.types.ObjectId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
+import org.springframework.data.mongodb.BulkOperationException;
+import org.springframework.data.mongodb.core.BulkOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.TextCriteria;
 
 /**
  * Hand-written product queries. See {@link ProductRepositoryCustom} for why
@@ -132,34 +145,194 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
             .append("default", StockStatus.IN_STOCK.name()));
   }
 
+  /**
+   * The name of the search-key index, pinned by searches that carry words.
+   *
+   * <p>Pinned because the planner's choice is not stable here. With a word
+   * <em>and</em> a sort by name, it can prefer walking the name index and
+   * testing each product against the word — fast for a common word, a scan of
+   * the whole catalogue for a rare one, and whichever it picks first it caches.
+   * Going through the key index always touches only the products that match.
+   */
+  static final String SEARCH_KEYS_INDEX = "ix_product_search_keys"; // see SearchKeyInitializer
+
   @Override
   public Page<Product> search(ProductSearchCriteria criteria, Pageable pageable) {
-    Query query = new Query();
+    Built built = build(criteria);
+    long total = count(built.query(), built.unfiltered());
+
+    Query query = built.query().with(pageable);
+    return new PageImpl<>(mongo.find(query, Product.class, COLLECTION), pageable, total);
+  }
+
+  @Override
+  public Slice<Product> searchSlice(ProductSearchCriteria criteria, Pageable pageable) {
+    Query query = build(criteria).query().with(pageable);
+    // One row past the page: its presence is the answer to "is there more".
+    query.limit(pageable.getPageSize() + 1);
+
+    List<Product> rows = mongo.find(query, Product.class, COLLECTION);
+    boolean hasNext = rows.size() > pageable.getPageSize();
+    List<Product> content = hasNext ? rows.subList(0, pageable.getPageSize()) : rows;
+    return new SliceImpl<>(content, pageable, hasNext);
+  }
+
+  /** A search's filter, before paging, and whether it filters anything at all. */
+  private record Built(Query query, boolean unfiltered) {}
+
+  private Built build(ProductSearchCriteria criteria) {
+    List<Criteria> filters = new ArrayList<>();
 
     if (criteria.activeOnly()) {
-      query.addCriteria(Criteria.where("active").is(true));
+      filters.add(Criteria.where("active").is(true));
     }
     if (criteria.categoryId() != null && !criteria.categoryId().isBlank()) {
-      query.addCriteria(Criteria.where("categoryId").is(criteria.categoryId()));
+      filters.add(Criteria.where("categoryId").is(criteria.categoryId()));
     }
     if (criteria.status() != null) {
-      query.addCriteria(Criteria.where("status").is(criteria.status()));
-    }
-    if (criteria.hasTerm()) {
-      // matchingAny gives OR-of-terms, so "pvc pipe" finds products matching
-      // either word — what a cashier half-remembering a name actually needs.
-      query.addCriteria(TextCriteria.forDefaultLanguage().matchingAny(criteria.term()));
+      filters.add(Criteria.where("status").is(criteria.status()));
     }
 
-    // Count first, on the same criteria but without paging. Mongo answers this
-    // from the index alone when the filter is covered, so it is far cheaper
-    // than it looks.
-    long total = mongo.count(Query.of(query).limit(-1).skip(-1), Product.class, COLLECTION);
+    // Every word must match the start of one of the product's words: "port
+    // cem" finds Portland Cement, and nothing that merely mentions ports.
+    List<String> terms = criteria.hasTerm() ? SearchKeys.termsOf(criteria.term()) : List.of();
+    for (String term : terms) {
+      filters.add(Criteria.where("searchKeys").regex("^" + escapeRegex(term)));
+    }
 
-    query.with(pageable);
-    List<Product> content = mongo.find(query, Product.class, COLLECTION);
+    Query query = filters.isEmpty() ? new Query() : new Query(new Criteria().andOperator(filters));
+    if (!terms.isEmpty()) query.withHint(SEARCH_KEYS_INDEX);
 
-    return new PageImpl<>(content, pageable, total);
+    // A sort the indexes do not cover — by price, say — is done in memory, and
+    // MongoDB refuses one over 100MB outright. Letting it spill to disk trades
+    // that failure for a slower answer, which is the right trade at any size.
+    query.allowDiskUse(true);
+    return new Built(query, filters.isEmpty());
+  }
+
+  /**
+   * How many products match, for the pager.
+   *
+   * <p>With no filter at all the answer comes from collection metadata instead
+   * of a count, which would otherwise read every document on the busiest view of
+   * the inventory screen — the unfiltered first page.
+   */
+  private long count(Query query, boolean unfiltered) {
+    if (unfiltered) return mongo.estimatedCount(COLLECTION);
+    return mongo.count(Query.of(query).limit(-1).skip(-1), Product.class, COLLECTION);
+  }
+
+  /**
+   * Escapes a term for use inside a regular expression.
+   *
+   * <p>{@link SearchKeys#termsOf} already yields letters and digits only, so
+   * this changes nothing today. It is here so that no future change to the
+   * tokeniser can turn a search box into a way of sending the database an
+   * arbitrary — possibly catastrophically slow — pattern.
+   */
+  private static String escapeRegex(String term) {
+    return term.replaceAll("[\\\\^$.|?*+()\\[\\]{}]", "\\\\$0");
+  }
+
+  @Override
+  public List<String> insertAll(List<Product> products) {
+    if (products.isEmpty()) return List.of();
+    try {
+      mongo.bulkOps(BulkOperations.BulkMode.UNORDERED, Product.class, COLLECTION)
+          .insert(products)
+          .execute();
+      return List.of();
+    } catch (BulkOperationException ex) {
+      // Unordered, so everything else went in. The failures are SKUs someone
+      // created between the import's check and this write; anything other than
+      // a duplicate is a real fault and is not swallowed.
+      List<String> duplicates = new ArrayList<>();
+      for (var error : ex.getErrors()) {
+        if (error.getCode() != DUPLICATE_KEY) throw ex;
+        duplicates.add(products.get(error.getIndex()).getSku());
+      }
+      return duplicates;
+    }
+  }
+
+  @Override
+  public long updateDetails(List<ProductDetailsUpdate> updates) {
+    if (updates.isEmpty()) return 0;
+    Instant now = Instant.now();
+
+    List<WriteModel<Document>> writes = new ArrayList<>(updates.size());
+    for (ProductDetailsUpdate u : updates) {
+      // Every value goes through $literal: in an update pipeline a plain string
+      // starting with "$" is read as a field reference, so a product named
+      // "$5 Tool" would otherwise copy some other field into its name.
+      Document set =
+          new Document("name", literal(u.name()))
+              .append("brand", literal(u.brand()))
+              .append("categoryId", literal(u.categoryId()))
+              .append("categoryName", literal(u.categoryName()))
+              .append("unit", literal(u.unit()))
+              .append("buyingPrice", literal(new Decimal128(u.buyingPrice())))
+              .append("sellingPrice", literal(new Decimal128(u.sellingPrice())))
+              .append("reorderLevel", literal(u.reorderLevel()))
+              .append("searchKeys", literal(u.searchKeys()))
+              .append("updatedAt", literal(now))
+              // Bumped so an edit made from a copy read before the import is
+              // refused as stale, rather than silently undoing the import.
+              .append(
+                  "version",
+                  new Document("$add", List.of(new Document("$ifNull", List.of("$version", 0L)), 1L)));
+
+      writes.add(
+          new UpdateOneModel<>(
+              new Document("sku", u.sku()),
+              List.of(
+                  new Document("$set", set),
+                  // After the first stage, so the status follows the new level.
+                  new Document("$set", new Document("status", statusExpression())))));
+    }
+
+    return mongo
+        .getCollection(COLLECTION)
+        .bulkWrite(writes, new BulkWriteOptions().ordered(false))
+        .getModifiedCount();
+  }
+
+  @Override
+  public Map<String, ProductDetails> detailsBySku(Collection<String> skus) {
+    if (skus.isEmpty()) return Map.of();
+    Map<String, ProductDetails> found = new HashMap<>();
+    mongo
+        .getCollection(COLLECTION)
+        .find(new Document("sku", new Document("$in", List.copyOf(skus))))
+        .projection(
+            new Document("_id", 0)
+                .append("sku", 1)
+                .append("name", 1)
+                .append("brand", 1)
+                .append("categoryId", 1)
+                .append("unit", 1)
+                .append("buyingPrice", 1)
+                .append("sellingPrice", 1)
+                .append("reorderLevel", 1))
+        .forEach(
+            doc ->
+                found.put(
+                    doc.getString("sku"),
+                    new ProductDetails(
+                        doc.getString("name"),
+                        doc.getString("brand"),
+                        doc.getString("categoryId"),
+                        doc.getString("unit"),
+                        decimalValue(doc.get("buyingPrice")),
+                        decimalValue(doc.get("sellingPrice")),
+                        doc.getInteger("reorderLevel", 0))));
+    return found;
+  }
+
+  private static final int DUPLICATE_KEY = 11000;
+
+  private static Document literal(Object value) {
+    return new Document("$literal", value);
   }
 
   @Override
