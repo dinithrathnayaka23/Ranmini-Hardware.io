@@ -8,13 +8,19 @@ Several interface components in this app are adapted from
 restyled to this project's design tokens so that they follow the light and dark
 themes, and trimmed to what a point-of-sale screen needs.
 
-| File in this project                                   | Adapted from (UI Layouts)            |
-| ------------------------------------------------------ | ------------------------------------ |
-| `src/shared/components/ui/segmented-control.tsx`       | Tabs (`components/ui/tab.tsx`)        |
-| `src/shared/components/ui/animated-number.tsx`         | Motion Number                        |
-| `src/shared/components/ui/password-strength.tsx`       | Password — strength indicator        |
-| `src/shared/components/ui/file-dropzone.tsx`           | File Upload                          |
-| `src/shared/components/ui/dialog-motion.ts`            | Dialog / Responsive Modal            |
+| File in this project                             | Adapted from (UI Layouts)      |
+| ------------------------------------------------ | ------------------------------ |
+| `src/shared/components/ui/segmented-control.tsx` | Tabs (`components/ui/tab.tsx`) |
+| `src/shared/components/ui/animated-number.tsx`   | Motion Number                  |
+| `src/shared/components/ui/password-strength.tsx` | Password — strength indicator  |
+| `src/shared/components/ui/password-match.tsx`    | Password — confirm check       |
+| `src/shared/components/ui/file-dropzone.tsx`     | File Upload                    |
+| `src/shared/components/ui/dialog-motion.ts`      | Dialog / Responsive Modal      |
+| `src/shared/components/ui/disclosure.tsx`        | Accordion                      |
+
+Each adapted file carries a comment at the top naming what was kept from the
+original and what was deliberately left behind, so the next person can see where
+this project departs from upstream without diffing against it.
 
 Those components are distributed under the following licence:
 
