@@ -1,6 +1,6 @@
 "use client";
 
-import { ImageUp, Loader2 } from "lucide-react";
+import { ImageUp, Loader2, type LucideIcon } from "lucide-react";
 import * as React from "react";
 import { type Accept, type FileRejection, useDropzone } from "react-dropzone";
 
@@ -9,13 +9,14 @@ import { cn } from "@/shared/lib/cn";
 /*
  * Adapted from the UI Layouts "File Upload" component (MIT) — see
  * THIRD_PARTY_NOTICES.md. Theirs manages a list of files with a carousel of
- * previews; every upload in this app is exactly one image that replaces the
- * previous one, so this keeps the drop target and its drag feedback and hands
- * the single accepted file straight to the caller.
+ * previews; every upload in this app is exactly one file — a picture that
+ * replaces the previous one, or a spreadsheet to import — so this keeps the drop
+ * target and its drag feedback and hands the single accepted file straight to
+ * the caller.
  */
 
 /**
- * A drop target for one image, which is also a button that opens the picker.
+ * A drop target for one file, which is also a button that opens the picker.
  *
  * <p><b>Dropping is a convenience, not the only way in.</b> The whole area is a
  * focusable control that opens the ordinary file picker on click, Enter or
@@ -36,6 +37,8 @@ export function FileDropzone({
   label,
   title,
   hint,
+  icon: Icon = ImageUp,
+  typeMessage = "Choose a PNG, JPEG or WebP image.",
   className,
 }: {
   accept: Accept;
@@ -52,17 +55,21 @@ export function FileDropzone({
   title: string;
   /** Formats and size, shown under the prompt. */
   hint: string;
+  /** Defaults to an image icon, since most drop zones here take pictures. */
+  icon?: LucideIcon;
+  /** What to say when a file of the wrong type is dropped. */
+  typeMessage?: string;
   className?: string;
 }) {
   const onDrop = React.useCallback(
     (accepted: File[], rejected: FileRejection[]) => {
       if (rejected.length > 0) {
-        onReject(rejectionMessage(rejected[0], maxSize));
+        onReject(rejectionMessage(rejected[0], maxSize, typeMessage));
         return;
       }
       if (accepted[0]) onFile(accepted[0]);
     },
-    [onFile, onReject, maxSize],
+    [onFile, onReject, maxSize, typeMessage],
   );
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
@@ -103,7 +110,7 @@ export function FileDropzone({
           isDragActive && "-translate-y-0.5",
         )}
       >
-        {isBusy ? <Loader2 className="size-5 animate-spin" /> : <ImageUp className="size-5" />}
+        {isBusy ? <Loader2 className="size-5 animate-spin" /> : <Icon className="size-5" />}
       </span>
 
       <p className="text-sm text-ink-soft">
@@ -128,14 +135,15 @@ export function FileDropzone({
 }
 
 /** Turns react-dropzone's error codes into a sentence a shop owner can act on. */
-function rejectionMessage(rejection: FileRejection, maxSize: number): string {
+function rejectionMessage(rejection: FileRejection, maxSize: number, typeMessage: string): string {
   const code = rejection.errors[0]?.code;
 
   if (code === "file-too-large") {
-    return `That file is larger than ${Math.round(maxSize / 1024)} KB. Choose a smaller one.`;
+    const size = maxSize >= 1024 * 1024 ? `${Math.round(maxSize / (1024 * 1024))} MB` : `${Math.round(maxSize / 1024)} KB`;
+    return `That file is larger than ${size}. Choose a smaller one.`;
   }
   if (code === "file-invalid-type") {
-    return "Choose a PNG, JPEG or WebP image.";
+    return typeMessage;
   }
   if (code === "too-many-files") {
     return "Choose one image at a time.";

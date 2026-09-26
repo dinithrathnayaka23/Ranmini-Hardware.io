@@ -1,0 +1,4 @@
+SKU,Name,Brand,Category,Unit,Buying Price,Selling Price,Stock,Reorder Level
+CEM-001,Portland Cement 50kg,Tokyo,Cement & Concrete,bags,1850.00,2150.00,120,20
+PLB-014,PVC Pipe 1/2" x 3m,S-lon,Plumbing,pcs,420.00,540.00,300,50
+HT-003,"Claw Hammer, 16oz",Stanley,Hand Tools,pcs,1450.00,1890.00,40,5

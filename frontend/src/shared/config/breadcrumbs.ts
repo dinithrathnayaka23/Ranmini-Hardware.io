@@ -49,6 +49,7 @@ const LABELS: ReadonlyMap<string, string> = (() => {
   // Leaves that live in no navigation: reached from a button on their parent.
   labels.set(routes.adminInventoryNew, "Add Product");
   labels.set(routes.adminInventoryCategories, "Categories");
+  labels.set(routes.adminInventoryImport, "Import");
   labels.set(routes.adminReportsDaily, "Daily Details");
 
   return labels;
