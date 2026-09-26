@@ -85,6 +85,16 @@ export default async function AdminStaffPage() {
                         <p className="mt-1 text-xs text-muted">
                           Joined {member.joinedLabel} &middot; {member.lastActive}
                         </p>
+                        {/* Whether they can recover a password on their own.
+                            Stated either way, so a missing address reads as a
+                            fact the owner can act on rather than a blank. */}
+                        <p className="mt-1 truncate text-xs text-muted">
+                          {member.email ? (
+                            member.email
+                          ) : (
+                            <span className="italic">No email — resets go through you</span>
+                          )}
+                        </p>
                       </div>
                     </div>
 
