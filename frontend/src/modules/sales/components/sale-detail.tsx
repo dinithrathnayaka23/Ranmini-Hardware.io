@@ -6,6 +6,7 @@ import * as React from "react";
 
 import { Alert, type AlertTone } from "@/shared/components/ui/alert";
 import { Button } from "@/shared/components/ui/button";
+import { Disclosure } from "@/shared/components/ui/disclosure";
 import { TextField } from "@/shared/components/ui/text-field";
 
 import { PrintReceiptButton } from "@/shared/components/receipt/print-receipt-button";
@@ -103,6 +104,8 @@ export function SaleDetail({ sale: initial }: { sale: Sale }) {
               type="button"
               variant="secondary"
               size="sm"
+              aria-expanded={isVoiding}
+              aria-controls={`void-sale-${sale.id}`}
               onClick={() => {
                 setIsVoiding(true);
                 setNotice(null);
@@ -114,7 +117,7 @@ export function SaleDetail({ sale: initial }: { sale: Sale }) {
           ) : null}
         </div>
 
-        {isVoiding ? (
+        <Disclosure open={isVoiding} id={`void-sale-${sale.id}`}>
           <div className="space-y-3 rounded-lg border border-line bg-surface p-3">
             <TextField
               label="Why is this sale being voided?"
@@ -161,7 +164,7 @@ export function SaleDetail({ sale: initial }: { sale: Sale }) {
               </Button>
             </div>
           </div>
-        ) : null}
+        </Disclosure>
       </div>
     </div>
   );
