@@ -56,12 +56,13 @@ public class StaffService {
 
   public StaffMember create(StaffWrite write, String rawPassword) {
     String username = normaliseUsername(write.username());
+    String email = normaliseEmail(write.email());
 
     // Checked for a readable message; the unique indexes are the real guarantee.
     if (staff.existsByUsername(username)) {
       throw ApiException.conflict("USERNAME_TAKEN", "That username is already in use.");
     }
-    if (write.email() != null && staff.existsByEmailIgnoreCase(write.email())) {
+    if (email != null && staff.existsByEmailIgnoreCase(email)) {
       throw ApiException.conflict("EMAIL_TAKEN", "That email address is already in use.");
     }
 
@@ -71,7 +72,7 @@ public class StaffService {
         StaffMember.builder()
             .fullName(write.fullName().trim())
             .username(username)
-            .email(write.email() == null ? null : write.email().trim())
+            .email(email)
             .phone(write.phone())
             .role(write.role())
             .status(StaffStatus.ACTIVE)
@@ -89,9 +90,18 @@ public class StaffService {
    */
   public StaffMember update(String id, StaffWrite write) {
     StaffMember member = get(id);
+    String email = normaliseEmail(write.email());
+
+    // Same readable check as on creation. Without it a clash reached the unique
+    // index and came back as a generic "record already exists".
+    if (email != null
+        && !email.equalsIgnoreCase(member.getEmail())
+        && staff.existsByEmailIgnoreCase(email)) {
+      throw ApiException.conflict("EMAIL_TAKEN", "That email address is already in use.");
+    }
 
     member.setFullName(write.fullName().trim());
-    member.setEmail(write.email() == null ? null : write.email().trim());
+    member.setEmail(email);
     member.setPhone(write.phone());
     member.setRole(write.role());
     if (write.joinedOn() != null) member.setJoinedOn(write.joinedOn());
@@ -208,6 +218,20 @@ public class StaffService {
       throw ApiException.badRequest(
           "PASSWORD_TOO_LONG", "The password must be at most 128 characters.");
     }
+  }
+
+  /**
+   * An email as stored: trimmed, and null rather than blank.
+   *
+   * <p>Null matters. The unique email index only covers string values, which is
+   * what lets many cashiers have no address; an empty string is a string, so the
+   * second account saved with "" would collide with the first. A blank form
+   * field must therefore mean "no address", never an empty one.
+   */
+  private static String normaliseEmail(String email) {
+    if (email == null) return null;
+    String trimmed = email.trim();
+    return trimmed.isEmpty() ? null : trimmed;
   }
 
   private static String normaliseUsername(String username) {
