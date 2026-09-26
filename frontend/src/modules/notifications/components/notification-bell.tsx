@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Bell, KeyRound, PackageX, TriangleAlert } from "lucide-react";
+import { Ban, Bell, BellOff, KeyRound, PackageX, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import * as React from "react";
@@ -8,6 +8,7 @@ import * as React from "react";
 import { routes } from "@/shared/config/app.config";
 import { cn } from "@/shared/lib/cn";
 import { popoverMotion } from "@/shared/components/ui/dialog-motion";
+import { EmptyState } from "@/shared/components/ui/empty-state";
 
 import { markNotificationsRead } from "../actions";
 import type {
@@ -138,10 +139,12 @@ export function NotificationBell({ initialFeed }: { initialFeed: NotificationFee
             </div>
 
             {feed.items.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm leading-relaxed text-muted">
-                Nothing needs attention. Stock warnings and voided sales appear
-                here as they happen.
-              </p>
+              <EmptyState
+                icon={BellOff}
+                title="Nothing needs attention"
+                message="Stock warnings and voided sales appear here as they happen."
+                size="sm"
+              />
             ) : (
               <ul className="max-h-[26rem] divide-y divide-line overflow-y-auto">
                 {feed.items.map((item) => (
