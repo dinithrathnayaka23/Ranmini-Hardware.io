@@ -1,16 +1,13 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Archive, Network, Pencil } from "lucide-react";
+import { ArrowDown, ArrowUp, Archive, FolderPlus, Network, Pencil } from "lucide-react";
 import * as React from "react";
 
 import { Alert, type AlertTone } from "@/shared/components/ui/alert";
 import { Button } from "@/shared/components/ui/button";
-import {
-  Card,
-  CardBody,
-  CardHeader,
-  CardTitle,
-} from "@/shared/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Disclosure } from "@/shared/components/ui/disclosure";
+import { EmptyState } from "@/shared/components/ui/empty-state";
 import { TextField } from "@/shared/components/ui/text-field";
 import { cn } from "@/shared/lib/cn";
 
@@ -62,13 +59,11 @@ export function CategoryList({ categories }: { categories: Category[] }) {
       ) : null}
 
       {categories.length === 0 ? (
-        <CardBody>
-          <p className="text-sm leading-relaxed text-muted">
-            No categories yet. Add the first one with the form beside this — a
-            product cannot be created until there is at least one to file it
-            under.
-          </p>
-        </CardBody>
+        <EmptyState
+          icon={FolderPlus}
+          title="No categories yet"
+          message="Add the first one with the form beside this — a product cannot be created until there is at least one to file it under."
+        />
       ) : (
         <ul className="divide-y divide-line">
           {categories.map((category, index) => (
@@ -292,7 +287,10 @@ function CategoryRow({
         </div>
       </div>
 
-      {isConfirmingRetire ? (
+      {/* Unrolled rather than appearing outright, so the rows below are not
+          shoved down in a single frame while somebody is still reading the two
+          buttons that caused it. */}
+      <Disclosure open={isConfirmingRetire}>
         <p className="mt-3 rounded-lg border border-line bg-canvas-subtle p-3 text-xs leading-relaxed text-ink-soft">
           <strong className="font-medium text-ink">{category.name}</strong> will
           disappear from the till&apos;s filter buttons and from the category
@@ -300,7 +298,7 @@ function CategoryRow({
           records, and past sales are untouched — but this screen cannot bring
           the category back afterwards. You would have to create it again.
         </p>
-      ) : null}
+      </Disclosure>
     </li>
   );
 }
