@@ -71,7 +71,12 @@ export async function createStaffMember(
   }
 }
 
-/** Sets a new password for someone who has forgotten theirs. */
+/**
+ * Sets a temporary password for someone who has forgotten theirs.
+ *
+ * <p>Temporary because the administrator knows it. The backend makes the
+ * person choose their own the next time they sign in.
+ */
 export async function changeStaffPassword(
   staffId: string,
   password: string,
@@ -87,7 +92,11 @@ export async function changeStaffPassword(
       body: { password },
     });
     revalidatePath(routes.adminStaff);
-    return { success: true, message: "Password updated. Give it to them directly." };
+    return {
+      success: true,
+      message:
+        "Temporary password set. Give it to them in person; they will choose their own when they next sign in.",
+    };
   } catch (error) {
     if (error instanceof ApiError) return { success: false, message: error.message };
     return { success: false, message: errorMessages.unexpected };

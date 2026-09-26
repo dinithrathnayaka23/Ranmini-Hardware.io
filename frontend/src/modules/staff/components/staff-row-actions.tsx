@@ -20,7 +20,11 @@ import type { StaffMember } from "../types/staff.types";
  * a misplaced click would otherwise lock the wrong person out mid-shift.
  */
 export function StaffRowActions({ staff }: { staff: StaffMember }) {
-  const [isResetting, setIsResetting] = React.useState(false);
+  // Opened already for somebody who asked for help: setting them a password is
+  // the reason the owner is looking at this row.
+  const [isResetting, setIsResetting] = React.useState(
+    Boolean(staff.passwordHelpRequestedAt),
+  );
   const [password, setPassword] = React.useState("");
   const [isConfirmingDisable, setIsConfirmingDisable] = React.useState(false);
   const [isPending, setIsPending] = React.useState(false);
@@ -67,7 +71,7 @@ export function StaffRowActions({ staff }: { staff: StaffMember }) {
           }}
         >
           <KeyRound aria-hidden className="size-4" />
-          {isResetting ? "Cancel" : "Set password"}
+          {isResetting ? "Cancel" : "Set temporary password"}
         </Button>
 
         {isConfirmingDisable ? (
@@ -118,7 +122,7 @@ export function StaffRowActions({ staff }: { staff: StaffMember }) {
       {isResetting ? (
         <div className="space-y-3 rounded-lg border border-line bg-canvas-subtle p-3">
           <PasswordField
-            label={`New password for ${staff.fullName}`}
+            label={`Temporary password for ${staff.fullName}`}
             placeholder="••••••••"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
@@ -127,7 +131,9 @@ export function StaffRowActions({ staff }: { staff: StaffMember }) {
             autoComplete="new-password"
           />
           <p className="text-xs leading-relaxed text-muted">
-            Give this to {staff.fullName} directly. It is not shown again.
+            Give this to {staff.fullName} in person. It is not shown again, and
+            they will be asked to replace it with their own the next time they
+            sign in.
           </p>
           <Button
             size="sm"
