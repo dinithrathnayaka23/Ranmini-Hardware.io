@@ -30,6 +30,20 @@ export const staffQuickAddSchema = z.object({
       message: "Only letters, numbers, dots, underscores and hyphens.",
     }),
 
+  /**
+   * Optional, because many cashiers have no address to give. An address is
+   * what lets a person reset a forgotten password by email; without one, they
+   * ask the owner from the sign-in page instead. Blank means "none" and is sent
+   * as absent, never as an empty string.
+   */
+  email: z
+    .string()
+    .trim()
+    .max(160, { message: "Email must be at most 160 characters." })
+    .email({ message: "Enter a valid email address." })
+    .optional()
+    .or(z.literal("")),
+
   initialPassword: z
     .string()
     .min(8, { message: "Password must be at least 8 characters." })
@@ -37,3 +51,11 @@ export const staffQuickAddSchema = z.object({
 });
 
 export type StaffQuickAddValues = z.infer<typeof staffQuickAddSchema>;
+
+/** An email set on an existing account from the Staff screen. Blank removes it. */
+export const staffEmailSchema = z
+  .string()
+  .trim()
+  .max(160, { message: "Email must be at most 160 characters." })
+  .email({ message: "Enter a valid email address." })
+  .or(z.literal(""));

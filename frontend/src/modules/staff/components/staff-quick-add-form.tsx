@@ -55,6 +55,7 @@ export function StaffQuickAddForm() {
       fullName: "",
       role: "CASHIER",
       username: "",
+      email: "",
       initialPassword: "",
     },
     mode: "onSubmit",
@@ -75,7 +76,7 @@ export function StaffQuickAddForm() {
       // Only cleared on success. A failed submission — a username already taken,
       // say — should leave what was typed on screen to be corrected, not make
       // the admin enter it all again.
-      reset({ fullName: "", role: "CASHIER", username: "", initialPassword: "" });
+      reset({ fullName: "", role: "CASHIER", username: "", email: "", initialPassword: "" });
     } else {
       // The password should not sit in the DOM after a failed attempt either.
       reset({ ...values, initialPassword: "" });
@@ -133,6 +134,22 @@ export function StaffQuickAddForm() {
             spellCheck={false}
             error={errors.username?.message}
             {...register("username")}
+          />
+
+          <TextField
+            label="Email (optional)"
+            type="email"
+            inputMode="email"
+            placeholder="name@example.com"
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            // Says why it is worth filling in. Without an address a forgotten
+            // password means asking the owner; with one they can reset it alone.
+            labelAction={<span className="text-xs text-muted">For password resets</span>}
+            error={errors.email?.message}
+            {...register("email")}
           />
 
           <PasswordField

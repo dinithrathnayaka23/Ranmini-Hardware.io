@@ -7,6 +7,7 @@ import { apiFetch } from "@/shared/lib/api.server";
 import { ApiError, errorMessages } from "@/shared/lib/http-error";
 
 import {
+  staffEmailSchema,
   staffQuickAddSchema,
   type StaffQuickAddValues,
 } from "./schemas/staff-quick-add.schema";
@@ -46,13 +47,15 @@ export async function createStaffMember(
     return { success: false, message: "Those details are not valid." };
   }
 
-  const { fullName, username, role, initialPassword } = parsed.data;
+  const { fullName, username, role, email, initialPassword } = parsed.data;
 
   try {
     await apiFetch("/api/v1/staff", {
       method: "POST",
       session: "admin",
-      body: { fullName, username, role, password: initialPassword },
+      // A blank address is left out entirely, so the account has none rather
+      // than an empty one.
+      body: { fullName, username, role, email: email || undefined, password: initialPassword },
     });
 
     // Both screens list this person now.
@@ -125,6 +128,60 @@ export async function setStaffActive(
       message: active
         ? "Account reactivated."
         : "Account deactivated. They can no longer sign in.",
+    };
+  } catch (error) {
+    if (error instanceof ApiError) return { success: false, message: error.message };
+    return { success: false, message: errorMessages.unexpected };
+  }
+}
+
+/**
+ * Adds, changes or removes the email address on somebody's account.
+ *
+ * <p>The address is what lets a person reset a forgotten password themselves,
+ * by email, instead of asking the owner. Blank removes it.
+ *
+ * <p>The API's update replaces the whole editable profile, so the other fields
+ * are read fresh from the server and sent back unchanged, rather than taken
+ * from the browser — this action can change the email and nothing else.
+ */
+export async function setStaffEmail(
+  staffId: string,
+  email: string,
+): Promise<StaffActionResult> {
+  const parsed = staffEmailSchema.safeParse(email);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+
+  const address = parsed.data;
+
+  try {
+    const current = await apiFetch<{
+      fullName: string;
+      phone: string | null;
+      role: string;
+      joinedOn: string | null;
+    }>(`/api/v1/staff/${encodeURIComponent(staffId)}`, { session: "admin" });
+
+    await apiFetch(`/api/v1/staff/${encodeURIComponent(staffId)}`, {
+      method: "PUT",
+      session: "admin",
+      body: {
+        fullName: current.fullName,
+        phone: current.phone,
+        role: current.role,
+        joinedOn: current.joinedOn,
+        email: address || null,
+      },
+    });
+
+    revalidatePath(routes.adminStaff);
+    return {
+      success: true,
+      message: address
+        ? `Saved. ${current.fullName} can now reset a forgotten password by email.`
+        : `Email removed. ${current.fullName} can still ask you for a reset from the sign-in page.`,
     };
   } catch (error) {
     if (error instanceof ApiError) return { success: false, message: error.message };
