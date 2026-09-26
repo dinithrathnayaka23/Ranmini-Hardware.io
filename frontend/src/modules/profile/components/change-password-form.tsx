@@ -9,6 +9,7 @@ import { Alert, type AlertTone } from "@/shared/components/ui/alert";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { PasswordField } from "@/shared/components/ui/password-field";
+import { PasswordMatch } from "@/shared/components/ui/password-match";
 import { PasswordStrength } from "@/shared/components/ui/password-strength";
 
 import { changeMyPassword } from "../actions";
@@ -84,13 +85,21 @@ export function ChangePasswordForm() {
 
           <PasswordStrength password={watch("newPassword") ?? ""} />
 
-          <PasswordField
-            label="Repeat New Password"
-            placeholder="••••••••"
-            autoComplete="new-password"
-            error={errors.confirmPassword?.message}
-            {...register("confirmPassword")}
-          />
+          <div className="space-y-2">
+            <PasswordField
+              label="Repeat New Password"
+              placeholder="••••••••"
+              autoComplete="new-password"
+              error={errors.confirmPassword?.message}
+              {...register("confirmPassword")}
+            />
+
+            <PasswordMatch
+              password={watch("newPassword") ?? ""}
+              confirmation={watch("confirmPassword") ?? ""}
+              error={errors.confirmPassword?.message}
+            />
+          </div>
 
           <p className="text-xs leading-relaxed text-muted">
             You stay signed in on this device after changing it. Anyone signed in
