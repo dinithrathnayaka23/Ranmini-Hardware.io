@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { Alert } from "@/shared/components/ui/alert";
 import { Button, ButtonLink } from "@/shared/components/ui/button";
 import { PasswordField } from "@/shared/components/ui/password-field";
+import { PasswordMatch } from "@/shared/components/ui/password-match";
 import { PasswordStrength } from "@/shared/components/ui/password-strength";
 
 import { confirmPasswordReset } from "../actions";
@@ -119,13 +120,21 @@ export function ResetPasswordForm({
 
       <PasswordStrength password={watch("password") ?? ""} />
 
-      <PasswordField
-        label="Repeat New Password"
-        placeholder="••••••••"
-        autoComplete="new-password"
-        error={errors.confirmPassword?.message}
-        {...register("confirmPassword")}
-      />
+      <div className="space-y-2">
+        <PasswordField
+          label="Repeat New Password"
+          placeholder="••••••••"
+          autoComplete="new-password"
+          error={errors.confirmPassword?.message}
+          {...register("confirmPassword")}
+        />
+
+        <PasswordMatch
+          password={watch("password") ?? ""}
+          confirmation={watch("confirmPassword") ?? ""}
+          error={errors.confirmPassword?.message}
+        />
+      </div>
 
       <p className="text-xs leading-relaxed text-muted">
         Using this link signs nobody out — any session

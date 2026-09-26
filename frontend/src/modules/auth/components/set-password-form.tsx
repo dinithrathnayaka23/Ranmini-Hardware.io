@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form";
 import { Alert } from "@/shared/components/ui/alert";
 import { Button } from "@/shared/components/ui/button";
 import { PasswordField } from "@/shared/components/ui/password-field";
+import { PasswordMatch } from "@/shared/components/ui/password-match";
 import { PasswordStrength } from "@/shared/components/ui/password-strength";
 
 import { chooseNewPassword } from "../actions";
@@ -99,13 +100,21 @@ export function SetPasswordForm({ portal }: { portal: PortalId }) {
 
       <PasswordStrength password={watch("password") ?? ""} />
 
-      <PasswordField
-        label="Repeat New Password"
-        placeholder="••••••••"
-        autoComplete="new-password"
-        error={errors.confirmPassword?.message}
-        {...register("confirmPassword")}
-      />
+      <div className="space-y-2">
+        <PasswordField
+          label="Repeat New Password"
+          placeholder="••••••••"
+          autoComplete="new-password"
+          error={errors.confirmPassword?.message}
+          {...register("confirmPassword")}
+        />
+
+        <PasswordMatch
+          password={watch("password") ?? ""}
+          confirmation={watch("confirmPassword") ?? ""}
+          error={errors.confirmPassword?.message}
+        />
+      </div>
 
       <Button type="submit" isLoading={isSubmitting} loadingText="Saving…" className="w-full">
         Save and Continue
