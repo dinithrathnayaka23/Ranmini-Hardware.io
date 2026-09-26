@@ -44,13 +44,16 @@ export interface PortalDefinition {
    * land the user on a screen that immediately bounces them somewhere else.
    */
   areaPrefix: string;
+  /** This portal's "forgot password" page, linked from its sign-in form. */
+  forgotPasswordRoute: string;
+  /** Where this portal's emailed reset links land. */
+  resetPasswordRoute: string;
   /**
-   * Whether to offer self-service password recovery.
-   *
-   * Cashier accounts are created and reset by an administrator, so the link is
-   * omitted there rather than leading to a flow that cannot help them.
+   * Where a session holding a temporary password is sent to choose its own.
+   * Per portal, so that the page — and the place it hands over to afterwards —
+   * belongs to the side the person actually works on.
    */
-  hasPasswordReset: boolean;
+  setPasswordRoute: string;
 }
 
 export const portals: Record<PortalId, PortalDefinition> = {
@@ -63,7 +66,9 @@ export const portals: Record<PortalId, PortalDefinition> = {
     apiEndpoint: apiRoutes.loginFor("admin"),
     landingRoute: routes.adminDashboard,
     areaPrefix: "/admin",
-    hasPasswordReset: true,
+    forgotPasswordRoute: routes.forgotPassword,
+    resetPasswordRoute: routes.resetPassword,
+    setPasswordRoute: routes.adminSetPassword,
   },
   cashier: {
     id: "cashier",
@@ -81,7 +86,13 @@ export const portals: Record<PortalId, PortalDefinition> = {
     apiEndpoint: apiRoutes.loginFor("cashier"),
     landingRoute: routes.cashierPos,
     areaPrefix: "/cashier",
-    hasPasswordReset: false,
+    // Cashiers used to get no link at all, on the reasoning that an owner
+    // resets their accounts in person. That left the one person locked out
+    // with no way to even ask. The till's page offers an emailed link to those
+    // with an address, and a request to the owner for everyone else.
+    forgotPasswordRoute: routes.cashierForgotPassword,
+    resetPasswordRoute: routes.cashierResetPassword,
+    setPasswordRoute: routes.cashierSetPassword,
   },
 };
 

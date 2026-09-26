@@ -9,7 +9,7 @@ import { sessionCookies } from "@/shared/config/cookies";
 import { apiFetch } from "@/shared/lib/api.server";
 import { ApiError } from "@/shared/lib/http-error";
 
-import type { PortalId } from "../constants/portals";
+import { portals, type PortalId } from "../constants/portals";
 import type { UserProfile } from "../types/auth.types";
 
 /**
@@ -105,6 +105,8 @@ export async function requireAdmin(): Promise<UserProfile> {
   }
 
   if (user.role !== "ADMIN") redirect(routes.cashierPos);
+  // A temporary password first: every portal request would be refused anyway.
+  if (user.passwordChangeRequired) redirect(routes.adminSetPassword);
   return user;
 }
 
@@ -128,5 +130,24 @@ export async function requireCashier(): Promise<UserProfile> {
   }
 
   if (user.role !== "CASHIER") redirect(routes.adminDashboard);
+  // A temporary password first: the till's requests would all be refused.
+  if (user.passwordChangeRequired) redirect(routes.cashierSetPassword);
+  return user;
+}
+
+/**
+ * The signed-in person who still has to replace a temporary password.
+ *
+ * <p>Guards the set-password page from both directions. Nobody signed in goes
+ * to the sign-in page, and somebody whose password is already their own goes
+ * to work — the page has nothing to offer them, and the backend would refuse
+ * the change anyway.
+ */
+export async function requirePasswordChange(portal: PortalId): Promise<UserProfile> {
+  const user = await getSession(portal);
+  const { loginRoute, landingRoute } = portals[portal];
+
+  if (!user) redirect(loginRoute);
+  if (!user.passwordChangeRequired) redirect(landingRoute);
   return user;
 }

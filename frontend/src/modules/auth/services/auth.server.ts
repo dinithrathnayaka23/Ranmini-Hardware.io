@@ -50,8 +50,25 @@ const backendLoginResponseSchema = z.object({
       .string()
       .nullish()
       .transform((value) => value ?? null),
+    passwordChangeRequired: z.boolean().optional().default(false),
   }),
 });
+
+/**
+ * Validates a token-bearing response from the backend.
+ *
+ * <p>Shared by sign-in and by choosing a new password, which also answers with
+ * a fresh pair of tokens. Returns null rather than throwing, so each caller
+ * decides how a malformed answer is reported.
+ */
+export function parseSessionResponse(payload: unknown): BackendLoginResponse | null {
+  const parsed = backendLoginResponseSchema.safeParse(payload);
+  if (!parsed.success) {
+    console.error("[auth] Unexpected session response shape from backend:", parsed.error.issues);
+    return null;
+  }
+  return parsed.data;
+}
 
 /**
  * One backend endpoint per portal, rather than a single endpoint told which
