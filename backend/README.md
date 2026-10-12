@@ -43,7 +43,9 @@ Add `-Dranmini.seed.enabled=true` on a **development** database to load a
 catalogue and ninety days of sales history to look at. It refuses to run if any
 product already exists, so it cannot touch a real shop's data.
 
-- API docs: `http://localhost:8080/swagger-ui.html`
+- API docs: `http://localhost:8080/swagger-ui.html`, served only when
+  `API_DOCS_ENABLED=true` is set. Leave it unset in production, where the
+  service then publishes no endpoint index at all.
 - Health: `http://localhost:8080/actuator/health`
 
 ### The two owner accounts
@@ -303,13 +305,10 @@ Mongo pull the whole result set into memory and fail past 32MB.
 
 ## Still to do
 
-1. **`/swagger-ui.html` is still open.** It is reachable by anyone who can reach
-   the service. Acceptable while this is bound to a shop's local network, but it
-   must go behind authentication before the API is exposed more widely.
-2. **Rate limiting** on the API, matching the throttle already in the Next.js
+1. **Rate limiting** on the API, matching the throttle already in the Next.js
    BFF. The per-account lockout covers password guessing against one user; it
    does not cover a spray across many.
-3. **A summary rebuild job**, so the derived daily totals can be recomputed from
+2. **A summary rebuild job**, so the derived daily totals can be recomputed from
    sales on demand rather than only in principle.
-4. **Refresh-token rotation.** A refresh token is currently reusable until it
+3. **Refresh-token rotation.** A refresh token is currently reusable until it
    expires; rotating it on each use would limit the damage from a stolen one.

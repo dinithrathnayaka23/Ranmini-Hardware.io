@@ -250,7 +250,9 @@ mvn spring-boot:run
 
 The API runs at `http://localhost:8080`.
 
-- API docs — `http://localhost:8080/swagger-ui.html`
+- API docs — `http://localhost:8080/swagger-ui.html`, after adding
+  `API_DOCS_ENABLED=true` to `.env`. They are off by default and should stay off
+  in production.
 - Health — `http://localhost:8080/actuator/health`
 
 To load a sample catalogue and ninety days of sales history into an **empty
