@@ -15,11 +15,10 @@ import org.springframework.context.annotation.Configuration;
  * description of the contract is faster to work against than a document that
  * starts going stale the day it is written.
  *
- * <p>The UI is currently reachable by anyone who can reach the service. That is
- * acceptable while the API is only bound to a shop's local network and has no
- * data worth reading, but it must be put behind authentication in the same
- * change that adds it — an unauthenticated endpoint index is a gift to anyone
- * probing the service.
+ * <p>Served only when {@code API_DOCS_ENABLED=true}, which is meant for a
+ * development machine. Production leaves it off, so a deployed service publishes
+ * no endpoint index for anyone probing it. See {@code springdoc} in
+ * application.yml and the matching rule in SecurityConfig.
  */
 @Configuration
 public class OpenApiConfig {
@@ -41,8 +40,10 @@ public class OpenApiConfig {
                     an atomic conditional update, so two tills cannot sell the \
                     same last item.
 
-                    Authentication is a later phase; every endpoint here is \
-                    currently open.
+                    Every endpoint except sign-in, password recovery and health \
+                    requires a bearer token. The till's endpoints accept a \
+                    cashier's token and the management endpoints an \
+                    administrator's.
                     """)
                 .contact(new Contact().name("Ranmini Hardware"))
                 .license(new License().name("Proprietary")));
