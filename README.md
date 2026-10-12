@@ -203,22 +203,6 @@ All settings live in the root `.env`. The main ones:
 
 ---
 
-## Testing
-
-```bash
-# Backend
-cd backend
-mvn test        # unit tests
-mvn verify      # unit and integration tests (needs Docker)
-
-# Frontend
-cd frontend
-npx tsc --noEmit
-npm run lint
-```
-
----
-
 ## Moving data between databases
 
 `tools/migrate-mongo.sh` copies a database from one MongoDB to another, for
