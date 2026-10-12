@@ -4,6 +4,7 @@ import java.util.List;
 import lk.ranminihardware.pos.auth.web.JwtAuthenticationFilter;
 import lk.ranminihardware.pos.shared.error.ApiError;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -55,6 +56,10 @@ public class SecurityConfig {
   /** Every real role. Business endpoints require one of these, not just a token. */
   private static final String[] STAFF_ROLES = {"ADMIN", "CASHIER"};
 
+  private static final String[] API_DOCS_PATHS = {
+    "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**"
+  };
+
   private final CorsProperties corsProperties;
 
   public SecurityConfig(CorsProperties corsProperties) {
@@ -63,7 +68,21 @@ public class SecurityConfig {
 
   @Bean
   public SecurityFilterChain filterChain(
-      HttpSecurity http, JwtAuthenticationFilter jwtFilter, ObjectMapper json) throws Exception {
+      HttpSecurity http,
+      JwtAuthenticationFilter jwtFilter,
+      ObjectMapper json,
+      @Value("${springdoc.api-docs.enabled:false}") boolean apiDocsEnabled)
+      throws Exception {
+
+    // API documentation is opened only when it is switched on, which happens on
+    // a development machine and never in production (see application.yml).
+    // Opened rather than put behind a role because a browser cannot attach a
+    // bearer token, so a role-guarded Swagger page is one nobody can view.
+    // When the switch is off, springdoc registers no endpoints at all.
+    if (apiDocsEnabled) {
+      http.authorizeHttpRequests(
+          auth -> auth.requestMatchers(API_DOCS_PATHS).permitAll());
+    }
 
     http
         // CSRF protection is for cookie-authenticated browsers. This API is

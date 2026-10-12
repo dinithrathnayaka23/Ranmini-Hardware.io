@@ -107,6 +107,16 @@ spring:
       # on Mongo, which is exactly the workload they are for.
       enabled: true
 
+# API documentation (Swagger UI and the OpenAPI index). Off unless asked for:
+# an endpoint map is a gift to anyone probing a deployed service, so production
+# should not serve one at all. Set API_DOCS_ENABLED=true on a development
+# machine only. SecurityConfig opens these paths exactly when this is on.
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:false}
+
 server:
   port: ${SERVER_PORT:8080}
   error:
