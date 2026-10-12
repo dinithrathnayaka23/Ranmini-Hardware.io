@@ -18,9 +18,9 @@ export const metadata: Metadata = {
 /**
  * `/admin/staff` — everyone who can sign in, and the controls to manage them.
  *
- * <p>A list rather than a single record. The shop has two owners with identical
- * access plus however many cashiers they take on, so the screen has to show
- * more than one person from the start.
+ * <p>A list rather than a single record: the owner's account and the cashier
+ * accounts are all shown here, so the screen has to show more than one person
+ * from the start.
  *
  * <p>Adding someone is the same form as on the dashboard, deliberately: that is
  * where an owner is when they decide to give a new cashier a login, and having

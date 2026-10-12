@@ -51,10 +51,9 @@ public abstract class MongoIntegrationTest {
         "ranmini.auth.jwt-secret",
         () -> "test-only-signing-key-that-is-long-enough-to-pass");
 
-    // Administrators are seeded on every startup, including in tests. Given
-    // fixed passwords here so a test that needs to sign in has something to use
-    // and nothing is written to the log.
-    registry.add("ranmini.admin.primary.password", () -> "TestOwnerPassword123");
-    registry.add("ranmini.admin.secondary.password", () -> "TestManagerPassword123");
+    // The owner's account is seeded on every startup, including in tests. Given
+    // a fixed password here so a test that needs to sign in has something to
+    // use and nothing is written to the log.
+    registry.add("ranmini.admin.password", () -> "TestOwnerPassword123");
   }
 }

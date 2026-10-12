@@ -199,20 +199,14 @@ ranmini:
     from: ${RANMINI_MAIL_FROM:}
     shop-name: ${RANMINI_MAIL_SHOP_NAME:Ranmini Hardware}
 
-  # The two owner accounts, created on a fresh database only. Passwords come
-  # from the environment; leave them unset and a strong one is generated and
+  # The owner's account, created on a fresh database only. The password comes
+  # from the environment; leave it unset and a strong one is generated and
   # logged once at first startup.
   admin:
-    primary:
-      username: ${RANMINI_ADMIN_PRIMARY_USERNAME:owner}
-      name: ${RANMINI_ADMIN_PRIMARY_NAME:Shop Owner}
-      email: ${RANMINI_ADMIN_PRIMARY_EMAIL:owner@ranminihardware.lk}
-      password: ${RANMINI_ADMIN_PRIMARY_PASSWORD:}
-    secondary:
-      username: ${RANMINI_ADMIN_SECONDARY_USERNAME:manager}
-      name: ${RANMINI_ADMIN_SECONDARY_NAME:Assistant Owner}
-      email: ${RANMINI_ADMIN_SECONDARY_EMAIL:manager@ranminihardware.lk}
-      password: ${RANMINI_ADMIN_SECONDARY_PASSWORD:}
+    username: ${RANMINI_ADMIN_USERNAME:owner}
+    name: ${RANMINI_ADMIN_NAME:Shop Owner}
+    email: ${RANMINI_ADMIN_EMAIL:owner@ranminihardware.lk}
+    password: ${RANMINI_ADMIN_PASSWORD:}
 
 logging:
   level:

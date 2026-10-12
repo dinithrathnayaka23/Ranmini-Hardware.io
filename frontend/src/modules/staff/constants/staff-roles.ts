@@ -3,10 +3,9 @@ import type { SelectOption } from "@/shared/components/ui/select-field";
 /**
  * The roles a staff member can hold.
  *
- * Two, because the shop has two jobs. **Admin** is the owner and his son, with
- * identical privileges — there is deliberately no senior or junior admin.
- * **Cashier** is whoever is on the counter: they reach the till and nothing
- * else.
+ * Two, because the shop has two jobs. **Admin** is the shop owner, who runs the
+ * management portal. **Cashier** is whoever is on the counter: they reach the
+ * till and nothing else.
  *
  * The values are exactly what the backend stores, so a role chosen here is
  * persisted verbatim rather than translated.

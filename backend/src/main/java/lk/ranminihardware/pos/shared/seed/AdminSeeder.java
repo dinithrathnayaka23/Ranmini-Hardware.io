@@ -3,7 +3,6 @@ package lk.ranminihardware.pos.shared.seed;
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.util.Base64;
-import java.util.List;
 import lk.ranminihardware.pos.staff.domain.StaffMember;
 import lk.ranminihardware.pos.staff.domain.StaffRole;
 import lk.ranminihardware.pos.staff.domain.StaffStatus;
@@ -17,19 +16,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
- * Creates the two administrator accounts on a fresh database.
- *
- * <p>The shop has two owners with <b>identical</b> privileges — the owner and
- * his son — so both are plain {@link StaffRole#ADMIN}. There is deliberately no
- * "super admin": a hierarchy nobody asked for is a permission check nobody can
- * explain later.
+ * Creates the shop owner's administrator account on a fresh database.
  *
  * <p>Unlike the catalogue seeder this always runs, because a system with no way
- * to sign in is not usable. It is still safe to run repeatedly: each account is
+ * to sign in is not usable. It is still safe to run repeatedly: the account is
  * created only if its username is absent, so a restart never resets a password
  * the owner has since changed.
  *
- * <p><b>Passwords are never hard-coded.</b> They come from the environment, and
+ * <p><b>The password is never hard-coded.</b> It comes from the environment, and
  * if none is supplied a strong one is generated and printed <em>once</em>, at
  * first creation, so the owner can note it and change it. Shipping a default
  * password in the repository would mean every deployment of this code shares
@@ -41,34 +35,26 @@ public class AdminSeeder {
   private static final Logger log = LoggerFactory.getLogger(AdminSeeder.class);
 
   @Bean
-  ApplicationRunner seedAdministrators(
+  ApplicationRunner seedAdministrator(
       StaffRepository staff,
       PasswordEncoder passwords,
-      @Value("${ranmini.admin.primary.username:owner}") String primaryUsername,
-      @Value("${ranmini.admin.primary.name:Shop Owner}") String primaryName,
-      @Value("${ranmini.admin.primary.email:owner@ranminihardware.lk}") String primaryEmail,
-      @Value("${ranmini.admin.primary.password:}") String primaryPassword,
-      @Value("${ranmini.admin.secondary.username:manager}") String secondaryUsername,
-      @Value("${ranmini.admin.secondary.name:Assistant Owner}") String secondaryName,
-      @Value("${ranmini.admin.secondary.email:manager@ranminihardware.lk}") String secondaryEmail,
-      @Value("${ranmini.admin.secondary.password:}") String secondaryPassword) {
+      @Value("${ranmini.admin.username:owner}") String username,
+      @Value("${ranmini.admin.name:Shop Owner}") String fullName,
+      @Value("${ranmini.admin.email:owner@ranminihardware.lk}") String email,
+      @Value("${ranmini.admin.password:}") String password) {
 
-    return args -> {
-      List<AdminSpec> specs =
-          List.of(
-              new AdminSpec(primaryUsername, primaryName, primaryEmail, primaryPassword),
-              new AdminSpec(secondaryUsername, secondaryName, secondaryEmail, secondaryPassword));
-
-      for (AdminSpec spec : specs) {
-        createIfAbsent(staff, passwords, spec);
-      }
-    };
+    return args -> createIfAbsent(staff, passwords, username, fullName, email, password);
   }
 
   private void createIfAbsent(
-      StaffRepository staff, PasswordEncoder passwords, AdminSpec spec) {
+      StaffRepository staff,
+      PasswordEncoder passwords,
+      String rawUsername,
+      String fullName,
+      String email,
+      String configuredPassword) {
 
-    String username = spec.username().trim().toLowerCase();
+    String username = rawUsername.trim().toLowerCase();
 
     if (staff.existsByUsername(username)) {
       // Nothing is overwritten. If the owner changed their password last month,
@@ -76,14 +62,14 @@ public class AdminSeeder {
       return;
     }
 
-    boolean generated = spec.password() == null || spec.password().isBlank();
-    String password = generated ? generatePassword() : spec.password();
+    boolean generated = configuredPassword == null || configuredPassword.isBlank();
+    String password = generated ? generatePassword() : configuredPassword;
 
     staff.save(
         StaffMember.builder()
-            .fullName(spec.fullName())
+            .fullName(fullName)
             .username(username)
-            .email(spec.email())
+            .email(email)
             .role(StaffRole.ADMIN)
             .status(StaffStatus.ACTIVE)
             .joinedOn(LocalDate.now())
@@ -103,7 +89,7 @@ public class AdminSeeder {
                {}
 
            This is shown once. Sign in and change it.
-           Set RANMINI_ADMIN_PRIMARY_PASSWORD to choose your own.
+           Set RANMINI_ADMIN_PASSWORD to choose your own.
           ============================================================
           """,
           username,
@@ -124,6 +110,4 @@ public class AdminSeeder {
     new SecureRandom().nextBytes(bytes);
     return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
   }
-
-  private record AdminSpec(String username, String fullName, String email, String password) {}
 }

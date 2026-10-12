@@ -4,9 +4,8 @@ package lk.ranminihardware.pos.staff.domain;
  * What someone is allowed to do, and which portal they may sign in to.
  *
  * <p>Two roles, because the shop has two jobs. {@link #ADMIN} is the business
- * owner and his son — they have <b>identical</b> privileges, and there is
- * deliberately no notion of a senior or junior admin. {@link #CASHIER} is
- * whoever is on the counter.
+ * owner, who runs the management portal. {@link #CASHIER} is whoever is on the
+ * counter.
  *
  * <p><b>The two doors do not overlap.</b> An admin cannot sign in at the till
  * and a cashier cannot sign in to the portal. This is stricter than it was: an

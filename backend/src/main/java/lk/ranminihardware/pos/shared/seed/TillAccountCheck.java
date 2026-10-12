@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
  * Says at startup when nobody can sign in at the till.
  *
  * <p><b>Why this is worth a startup check.</b> {@link AdminSeeder} creates the
- * two owner accounts on a fresh database, and nothing creates a cashier — the
+ * owner's account on a fresh database, and nothing creates a cashier — the
  * demonstration one in {@link DevelopmentSeeder} exists only while seeding is
  * switched on, and it is skipped entirely once the catalogue has products in
  * it. So a perfectly healthy deployment can reach the point where the till is

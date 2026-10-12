@@ -48,21 +48,17 @@ product already exists, so it cannot touch a real shop's data.
   service then publishes no endpoint index at all.
 - Health: `http://localhost:8080/actuator/health`
 
-### The two owner accounts
+### The owner's account
 
-Both are plain `ADMIN` with **identical** privileges — the owner and his son.
-There is deliberately no senior admin: a hierarchy nobody asked for becomes a
-permission check nobody can explain.
+The owner's `ADMIN` account (username `owner` by default) is created on a fresh
+database and never overwritten afterwards, so a redeploy cannot reset a password
+that has since been changed. The password comes from `RANMINI_ADMIN_PASSWORD`;
+leave it blank and a strong one is generated and printed **once** at first
+startup. Nothing is hard-coded, because a default password in the repository
+means every deployment of this code shares it.
 
-They are created on a fresh database and never overwritten afterwards, so a
-redeploy cannot reset a password that has since been changed. Passwords come
-from the environment; leave them blank and a strong one is generated and printed
-**once** at first startup. Nothing is hard-coded, because a default password in
-the repository means every deployment of this code shares it.
-
-Cashiers are not seeded. An admin creates them from the portal and hands over
-the credentials directly — there is no mail server to send an invitation
-through.
+Cashiers are not seeded. The owner creates them from the portal and hands over
+the credentials directly.
 
 ### Tests
 
@@ -302,13 +298,3 @@ Mongo pull the whole result set into memory and fail past 32MB.
 | GET | `/api/v1/settings/public` | The subset the till needs — also readable by a cashier |
 | POST/DELETE | `/api/v1/settings/logo` | Replace or remove the shop logo |
 | GET | `/api/v1/settings/public/logo` | The logo image — the till prints it |
-
-## Still to do
-
-1. **Rate limiting** on the API, matching the throttle already in the Next.js
-   BFF. The per-account lockout covers password guessing against one user; it
-   does not cover a spray across many.
-2. **A summary rebuild job**, so the derived daily totals can be recomputed from
-   sales on demand rather than only in principle.
-3. **Refresh-token rotation.** A refresh token is currently reusable until it
-   expires; rotating it on each use would limit the damage from a stolen one.
